@@ -50,8 +50,10 @@ Queued items go to the agent as one prompt, and only when it is ready for it:
 
 ## Who wrote it
 
-Heed reads who wrote each review comment from GitHub: the repo's owner, a member or collaborator (people who can
-write to it), a bot, or anyone else. The comments of the first two, and yours, go through the pipeline as above.
+Heed reads who wrote each review comment from GitHub: the repo's owner, a collaborator, a member of the organisation
+that owns the repo, a bot, or anyone else. The comments of the owner and collaborators (people who can write to the
+repo), of members gh says have write access (as for [merging](../autopilot/green-and-merged.md#which-prs-heed-merges)),
+and yours, go through the pipeline as above.
 A comment from a bot or from anyone else is shown and can be summarised, but it is never sent to an agent by
 itself: it stays **New**, with a line under it saying so, until you queue it with `space`.
 

@@ -64,9 +64,10 @@ struct StartWorkRepoSearchTests {
     }
 }
 
+@Suite(.scratch)
 struct ImportTests {
     private func home(with transcript: String, for directory: String) throws -> String {
-        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path
+        let home = try Scratch.folder("heed-import").path
         let folder = AgentIntegration.claudeProjectFolder(directory)
         let project = "\(home)/.claude/projects/\(folder)"
         try FileManager.default.createDirectory(atPath: project, withIntermediateDirectories: true)
@@ -266,9 +267,10 @@ struct ImportTests {
     }
 }
 
+@Suite(.scratch)
 struct PathCompletionTests {
     private func tree() throws -> String {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path
+        let root = try Scratch.folder("heed-paths").path
         for folder in ["code/heed", "code/Heron", "code/atlas", "code/.hidden"] {
             try FileManager.default.createDirectory(atPath: "\(root)/\(folder)", withIntermediateDirectories: true)
         }

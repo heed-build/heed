@@ -53,7 +53,7 @@ struct GoalMatrix: View {
                         .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
                         .contentShape(Rectangle())
                         .clickable()
-                        .onTapGesture { model.showGoalItem(item.id) }
+                        .tap { model.showGoalItem(item.id) }
                         .rightClickMenu { model.clicksReachLists } _: { model.goalItemMenu(item.id) }
                     }
                 }
@@ -203,7 +203,7 @@ struct GoalBoardPane: View {
                 BoardCard(item: item, evidence: evidence, isCursor: isCursor)
                     .hint(model.hintLabel(for: .row(.goals, row)).flatMap { isColumn(column) ? $0 : nil })
                     .contentShape(Rectangle())
-                    .onTapGesture { model.clickGoalCard(column: column, row: row) }
+                    .tap { model.clickGoalCard(column: column, row: row) }
                     .simultaneousGesture(TapGesture(count: 2).onEnded {
                         model.clickGoalCard(column: column, row: row, open: true)
                     })

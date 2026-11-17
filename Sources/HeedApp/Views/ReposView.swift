@@ -84,7 +84,7 @@ struct ReposView: View {
             if picked, focused { Theme.block.frame(width: 2) }
         }
         .contentShape(Rectangle())
-        .onTapGesture { model.clickRepo(nil) }
+        .tap { model.clickRepo(nil) }
     }
 
     // MARK: The worktree table
@@ -141,7 +141,7 @@ struct ReposView: View {
         )
         .hint(model.hintLabel(for: .row(.repos, index)))
         .contentShape(Rectangle())
-        .onTapGesture {
+        .tap {
             model.focusRepos("worktrees")
             model.clickRow(.repos, index)
         }
@@ -271,7 +271,7 @@ private struct RepoColumnRow: View {
             if picked, focused { Theme.block.frame(width: 2) }
         }
         .contentShape(Rectangle())
-        .onTapGesture { model.clickRepo(record.repo) }
+        .tap { model.clickRepo(record.repo) }
         .rightClickMenu { model.rightClickNamed() } _: { model.repoMenu(record.repo) }
     }
 }

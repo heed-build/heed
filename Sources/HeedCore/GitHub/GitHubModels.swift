@@ -6,7 +6,7 @@ public struct GitHubState: Hashable, Sendable, Codable {
     public var viewer: String?
     public var inbox: [InboxItem]
     public var issues: [Issue]
-    public var pulls: [PullRequest]
+    public var pulls: [PullRequest] { didSet { pullIndex = PullIndex(pulls) } }
     public var syncedAt: Date?
     public var status: SyncStatus
     /// The teams you are on, refreshed daily: what `team_mention`s are attributed against.
@@ -15,6 +15,8 @@ public struct GitHubState: Hashable, Sendable, Codable {
     public var teamMentions: TeamMentionCache
     /// What the last fetch of each source brought, against what GitHub says it has (Attention's coverage).
     public var fetches: GitHubFetches
+    /// `pulls` by ref, kept with it: `pull(_:)` is asked for every tracked PR on every sidebar rebuild.
+    private var pullIndex = PullIndex([])
 
     public init(
         viewer: String? = nil, inbox: [InboxItem] = [], issues: [Issue] = [], pulls: [PullRequest] = [],
@@ -30,6 +32,7 @@ public struct GitHubState: Hashable, Sendable, Codable {
         self.teams = teams
         self.teamMentions = teamMentions
         self.fetches = fetches
+        pullIndex = PullIndex(pulls)
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -49,14 +52,34 @@ public struct GitHubState: Hashable, Sendable, Codable {
         teamMentions = try container.decodeIfPresent(TeamMentionCache.self, forKey: .teamMentions)
             ?? TeamMentionCache()
         fetches = try container.decodeIfPresent(GitHubFetches.self, forKey: .fetches) ?? GitHubFetches()
+        pullIndex = PullIndex(pulls)
     }
 
-    public func pull(_ ref: PullRef) -> PullRequest? { pulls.first { $0.ref == ref } }
+    /// The first PR in `pulls` with this ref.
+    public func pull(_ ref: PullRef) -> PullRequest? { pullIndex.positions[ref].map { pulls[$0] } }
 
     /// PRs that need you: failing checks, changes requested or unresolved review threads.
     public var pullsNeedingAttention: Int {
         pulls.count { $0.checks.failed > 0 || $0.review == .changesRequested || $0.unresolvedThreads > 0 }
     }
+}
+
+/// Where each ref first appears in `GitHubState.pulls`. Derived from the pulls, so it takes no part in equality,
+/// hashing or the cache.
+struct PullIndex: Hashable, Sendable {
+    let positions: [PullRef: Int]
+
+    init(_ pulls: [PullRequest]) {
+        var positions: [PullRef: Int] = [:]
+        positions.reserveCapacity(pulls.count)
+        for (index, pull) in pulls.enumerated() where positions[pull.ref] == nil {
+            positions[pull.ref] = index
+        }
+        self.positions = positions
+    }
+
+    static func == (_: PullIndex, _: PullIndex) -> Bool { true }
+    func hash(into _: inout Hasher) {}
 }
 
 /// One fetch of a GitHub source: how many items it brought, against GitHub's own count where GitHub gives one.

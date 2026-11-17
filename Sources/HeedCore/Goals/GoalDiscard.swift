@@ -48,12 +48,14 @@ public struct GoalDiscard: Hashable, Sendable {
 
 public extension GoalOps {
     /// `wizard.discard`: deletes the goal when nothing is attached, else archives it; what it did. Checks the store,
-    /// not what the caller saw.
+    /// not what the caller saw: `expecting` (what the confirmation said it would do) refuses, changing nothing, when
+    /// the store says otherwise, so a dialog that said Archive never deletes.
     @discardableResult
-    func discard(goal id: String, now: Date) throws -> GoalDiscard.Outcome {
+    func discard(goal id: String, expecting: GoalDiscard.Outcome? = nil, now: Date) throws -> GoalDiscard.Outcome {
         let snapshot = try store.snapshot()
         guard snapshot.goal(id) != nil else { throw GoalOpError.unknownGoal(id) }
         let facts = try GoalDiscard(goal: id, in: snapshot, wizard: store.wizards()[id])
+        if let expecting, facts.outcome != expecting { throw GoalOpError.discardChanged(facts.outcome) }
         switch facts.outcome {
         case .delete:
             try store.delete(goal: id)

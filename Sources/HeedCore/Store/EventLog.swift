@@ -97,6 +97,9 @@ public enum EventLogWrite: Hashable, Sendable {
 /// disk. `adopt` fills them in at launch, and `DomainStore` writes here as the domain changes.
 public actor EventLog {
     let database: SQLiteDatabase
+    /// Where Audit's record starts and ends (`AuditAnchor`), beside the database.
+    let auditAnchorFile: URL
+    var auditAnchor: AuditAnchor?
 
     /// `~/Library/Application Support/Heed/heed.sqlite`.
     public static func defaultFile() -> URL {
@@ -106,6 +109,7 @@ public actor EventLog {
 
     public init(path: String) throws {
         database = try SQLiteDatabase(path: path)
+        auditAnchorFile = URL(fileURLWithPath: path).deletingPathExtension().appendingPathExtension("audit.json")
         try database.migrate(Self.schema)
     }
 
@@ -211,6 +215,10 @@ public actor EventLog {
             hash TEXT NOT NULL
         );
         CREATE INDEX audit_at ON audit (at);
+        """),
+        // How each Audit row's hash is made (`AuditChain.Row.version`): rows from before stay version 1.
+        SQLiteMigration(sql: """
+        ALTER TABLE audit ADD COLUMN v INTEGER NOT NULL DEFAULT 1;
         """),
     ]
 

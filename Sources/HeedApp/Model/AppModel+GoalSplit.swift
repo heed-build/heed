@@ -371,35 +371,22 @@ extension AppModel {
             criteria: goals.wizard.current?.criteria.criteria.map(\.text) ?? [], others: others
         )
         let history = goals.wizard.defining?.turns.map { ($0.role == .you ? "Developer: " : "You: ") + $0.text } ?? []
-        goals.wizard.defineRoot = directory
         goals.wizard.defining?.working = true
-        Task {
-            let (path, pathVariable) = await ToolLocator.shared.executable(adapter.executable)
-            guard let path else {
-                return defineFailed("\(adapter.executable) is not installed" +
-                    (adapter.install.map { ": \($0)" } ?? ""))
-            }
-            var environment = ProcessInfo.processInfo.environment
-            environment["PATH"] = pathVariable
-            do {
-                let transport = try ACPProcessTransport(
-                    executable: path, arguments: adapter.arguments, directory: directory, environment: environment
-                )
-                let client = ACPClient(transport: transport)
-                goals.wizard.defineClient = client
-                await client.start()
-                Task { [weak self] in
-                    for await event in client.events {
-                        self?.defineEvent(event, client: client)
-                    }
-                }
-                _ = try await client.initialize(clientVersion: appVersion)
-                goals.wizard.defineSession = try await client.newSession(cwd: directory)
-                defineTurn(resume ? prompt + "\n\n# So far\n" + history.joined(separator: "\n") : prompt)
-            } catch {
-                defineFailed("\(error)")
-            }
+        openAgentConversation(
+            \.goals.wizard.defineConversation, adapter: adapter, directory: directory, handlers: defineHandlers
+        ) { [weak self] in
+            self?.defineTurn(resume ? prompt + "\n\n# So far\n" + history.joined(separator: "\n") : prompt)
         }
+    }
+
+    private var defineHandlers: ConversationHandlers {
+        ConversationHandlers(
+            failed: { [weak self] why in self?.defineFailed(why) },
+            reads: { [weak self] paths, root in
+                self?.goals.wizard.defining?.reads = PartDefinition.reads(paths, root: root)
+            },
+            cost: { [weak self] cost in self?.goals.wizard.defining?.cost = cost }
+        )
     }
 
     private func defineFailed(_ why: String) {
@@ -416,46 +403,15 @@ extension AppModel {
             )
             return
         }
-        guard let client = goals.wizard.defineClient, let session = goals.wizard.defineSession else { return }
-        goals.wizard.defineBuffer = ""
-        goals.wizard.defining?.working = true
         let started = Clock.now
-        Task {
-            do {
-                _ = try await client.prompt(sessionID: session, text: .owner(text))
-                let reply = goals.wizard.defineBuffer
-                goals.wizard.defining?.received(reply)
-                goals.wizard.defining?.working = false
-                goals.wizard.defining?.seconds += Clock.now.timeIntervalSince(started)
-            } catch {
-                defineFailed("\(error)")
-            }
+        let slot: ConversationSlot = \.goals.wizard.defineConversation
+        let began = agentConversationTurn(slot, text: text, handlers: defineHandlers) { [weak self] reply in
+            guard let self else { return }
+            goals.wizard.defining?.received(reply)
+            goals.wizard.defining?.working = false
+            goals.wizard.defining?.seconds += Clock.now.timeIntervalSince(started)
         }
-    }
-
-    private func defineEvent(_ event: ACPEvent, client: ACPClient) {
-        switch event {
-        case let .update(_, update):
-            switch update {
-            case let .agentMessage(chunk): goals.wizard.defineBuffer += chunk
-            case let .toolCall(call), let .toolCallUpdate(call):
-                if [.read, .search].contains(call.kind ?? .other), let paths = call.paths, !paths.isEmpty {
-                    goals.wizard.definePaths += paths
-                    goals.wizard.defining?.reads = PartDefinition.reads(
-                        goals.wizard.definePaths, root: goals.wizard.defineRoot
-                    )
-                }
-            case let .usage(_, _, cost, _): if let cost { goals.wizard.defining?.cost = cost }
-            default: break
-            }
-        case let .permission(requestID, _, request):
-            // Reading goes ahead; anything that would change something is refused (DefinePolicy).
-            Task { await client.answerPermission(requestID, optionID: DefinePolicy.answer(request)) }
-        case let .closed(reason):
-            if goals.wizard.defineClient === client, goals.wizard.defining?.working == true {
-                defineFailed("the agent exited" + (reason.map { ": \($0)" } ?? ""))
-            }
-        }
+        if began { goals.wizard.defining?.working = true }
     }
 
     func pickDefinition(_ number: Int) {
@@ -482,12 +438,7 @@ extension AppModel {
         guard let definition = goals.wizard.defining else { return }
         if keep { goals.wizard.parkedDefinitions[definition.part] = definition }
         goals.wizard.defining = nil
-        goals.wizard.defineSession = nil
-        goals.wizard.definePaths = []
-        if let client = goals.wizard.defineClient {
-            goals.wizard.defineClient = nil
-            Task { await client.close() }
-        }
+        closeAgentConversation(\.goals.wizard.defineConversation)
         if keep { say("put off: d on the part comes back to it") }
     }
 

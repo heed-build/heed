@@ -8,7 +8,7 @@ extension AppModel {
     static let conversationsKept = 40
 
     func conversation(_ repo: Repo, _ number: Int) -> ThreadConversation? {
-        conversations[ThreadConversation.key(repo: repo, number: number)]
+        threads[ThreadConversation.key(repo: repo, number: number)]?.value
     }
 
     /// When you last looked at the thread in Attention's reader: the comments before fold, "new · N" marks the rest.
@@ -17,52 +17,65 @@ extension AppModel {
     }
 
     /// Fetches a thread's conversation unless one fetched in the last minute is still current (`updatedAt`: when
-    /// the thread last changed, if known). What was there stays on screen while it loads.
+    /// the thread last changed, if known). What was there stays on screen while it loads; an earlier failure gives way
+    /// to "loading" until this one ends.
     func loadConversation(_ repo: Repo, _ number: Int, updatedAt: Date? = nil) {
         guard !isFixture else { return }
         let key = ThreadConversation.key(repo: repo, number: number)
-        if let known = conversations[key], Clock.now.timeIntervalSince(known.fetchedAt) < 60,
+        if let known = threads[key]?.value, Clock.now.timeIntervalSince(known.fetchedAt) < 60,
            updatedAt.map({ $0 <= known.fetchedAt }) ?? true
         {
             return
         }
-        guard !conversationsLoading.contains(key) else { return }
-        conversationsLoading.insert(key)
+        guard threads[key]?.isLoading != true else { return }
+        let token = threads[key, default: .idle].start()
+        let task = Task { try await GitHub.conversation(repo: repo, number: number, caller: "reader.conversation") }
+        threadFetches[key] = (token, task)
         Task {
-            defer { conversationsLoading.remove(key) }
             do {
-                let fetched = try await GitHub.conversation(repo: repo, number: number, caller: "reader.conversation")
-                keepConversation(fetched)
+                let fetched = try await task.value
+                if threads[key]?.token == token { keepConversation(fetched, token: token) }
             } catch {
-                conversationErrors[key] = (error as? GitHub.Failure)?.description ?? error.localizedDescription
+                threads[key]?.fail(token, (error as? GitHub.Failure)?.description ?? error.localizedDescription)
             }
+            if threadFetches[key]?.token == token { threadFetches[key] = nil }
         }
     }
 
-    /// A thread fetched: kept, the oldest fetched going when there are too many.
-    private func keepConversation(_ fetched: ThreadConversation) {
+    /// A thread fetched: kept, the oldest fetched going when there are too many. `token`: the load it ends; without
+    /// one (a summary's own fetch) it is kept unless a reader's load is running, whose result lands soon.
+    private func keepConversation(_ fetched: ThreadConversation, token: LoadToken? = nil) {
         let key = fetched.key
-        if conversations[key] == nil, conversations.count >= Self.conversationsKept,
-           let oldest = conversations.min(by: { $0.value.fetchedAt < $1.value.fetchedAt })?.key
-        {
-            conversations[oldest] = nil
+        if let token {
+            guard threads[key]?.token == token else { return }
+        } else if threads[key]?.isLoading == true {
+            return
         }
-        conversations[key] = fetched
-        conversationErrors[key] = nil
+        if threads[key]?.value == nil, threads.values.count(where: { $0.value != nil }) >= Self.conversationsKept,
+           let oldest = threads.compactMap({ key, load in load.value.map { (key, $0.fetchedAt) } })
+           .min(by: { $0.1 < $1.1 })?.0
+        {
+            threads[oldest] = nil
+        }
+        if let token {
+            threads[key]?.finish(token, with: fetched)
+        } else {
+            threads[key] = .loaded(fetched)
+        }
     }
 
     /// The thread as it is since `updatedAt`, for a summary: the one kept when it is that recent, else the one a
-    /// reader is loading right now, else fetched (`caller`).
+    /// reader is loading right now (awaited), else fetched (`caller`).
     func currentConversation(
         _ repo: Repo, _ number: Int, updatedAt: Date, caller: String
     ) async throws -> ThreadConversation {
         let key = ThreadConversation.key(repo: repo, number: number)
-        var waited = 0
-        while conversationsLoading.contains(key), waited < 150 {
-            try await Task.sleep(for: .milliseconds(200))
-            waited += 1
+        if let running = threadFetches[key], let fetched = try? await running.task.value,
+           fetched.fetchedAt >= updatedAt
+        {
+            return fetched
         }
-        if let known = conversations[key], known.fetchedAt >= updatedAt { return known }
+        if let known = threads[key]?.value, known.fetchedAt >= updatedAt { return known }
         let fetched = try await GitHub.conversation(repo: repo, number: number, caller: caller)
         keepConversation(fetched)
         return fetched

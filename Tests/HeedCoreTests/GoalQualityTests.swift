@@ -458,10 +458,8 @@ struct ReviewRunTests {
         // None of the worktree's own settings or MCP servers.
         #expect(claude.contains("--strict-mcp-config"))
         #expect(claude.firstIndex(of: "--setting-sources").map { claude[$0 + 1] } == "user")
-        #expect(ReviewRun.restrictions(agent: "codex", worktree: "/wt/r", folder: "/runs/1") == [
-            "--sandbox", "workspace-write", "-c", "sandbox_workspace_write.network_access=false", "--add-dir",
-            "/runs/1",
-        ])
+        #expect(ReviewRun.restrictions(agent: "codex", worktree: "/wt/r", folder: "/runs/1")
+            == RunSandbox.codex(folder: "/runs/1"))
         #expect(ReviewRun.restrictions(agent: "cursor", worktree: "/wt/r", folder: "/runs/1").isEmpty)
     }
 
@@ -884,10 +882,8 @@ struct ReviewPlaceTests {
         let codex = ReviewRun.headless(
             agent: "codex", command: "codex", prompt: "P", model: nil, worktree: "/wt/r", folder: "/runs/1"
         )
-        #expect(codex == [
-            "codex", "exec", "--sandbox", "workspace-write", "-c", "sandbox_workspace_write.network_access=false",
-            "--add-dir", "/runs/1", "-C", "/wt/r", "-o", "/runs/1/last-message.txt", "P",
-        ])
+        #expect(codex == ["codex", "exec"] + RunSandbox.codex(folder: "/runs/1")
+            + ["-C", "/wt/r", "-o", "/runs/1/last-message.txt", "P"])
         #expect(ReviewRun.headless(
             agent: "cursor",
             command: "cursor-agent",

@@ -1,5 +1,6 @@
 import Foundation
 @testable import HeedCore
+import Synchronization
 import Testing
 
 struct HeedMergeTests {
@@ -272,6 +273,76 @@ struct HeedMergeTests {
             == .hold("Reviewed after push: @eve approved abc1234, but isn't a collaborator"))
     }
 
+    @Test func aMembersApprovalCountsOnlyWithWriteAccess() {
+        func review(_ detail: PullDetail, _ settings: PilotSettings = PilotSettings()) -> String {
+            let rule = HeedMerge.verdict(detail, settings: settings, selfReview: nil, now: now).rules
+                .first { $0.name == "Reviewed after push" }
+            return "\(rule?.state == .pass ? "pass" : "wait"): \(rule?.detail ?? "")"
+        }
+        var unchecked = detail(reviews: [approval("Mia", trust: .member)])
+        let held = "wait: @Mia approved abc1234, but is an organisation member gh hasn't said can write to the repo"
+        #expect(review(unchecked) == held)
+        unchecked.writers = []
+        #expect(review(unchecked) == held)
+        var writer = unchecked
+        writer.writers = ["mia"]
+        #expect(review(writer) == "pass: approved by @Mia on abc1234")
+        // Write access found for someone else is not theirs.
+        writer.writers = ["olek"]
+        #expect(review(writer) == held)
+        // Listed in trusted_reviewers: trusted as configured, without asking.
+        var settings = PilotSettings()
+        settings.trustedReviewers = ["mia"]
+        #expect(review(unchecked, settings) == "pass: approved by @Mia on abc1234")
+        // A member's approval before the last push is no review of the head either.
+        var old = detail(reviews: [approval("mia", trust: .member, commit: "old")])
+        old.writers = ["mia"]
+        #expect(review(old) == "wait: approved before the last push; waiting for a review of abc1234")
+        // The association is read as a member, not a collaborator.
+        #expect(ExternalText.Trust.from(association: "MEMBER", isBot: false) == .member)
+        #expect(!ExternalText.Trust.member.isCollaborator)
+    }
+
+    @Test func aMembersPRMergesOnlyWithWriteAccess() {
+        var pull = detail(authorTrust: .member)
+        #expect(blocker(pull) == "Author")
+        #expect(HeedMerge.author(pull, settings: PilotSettings()).text
+            == "@me is an organisation member gh hasn't said can write to the repo: heed doesn't merge it on its own; "
+            + "merge it by hand (zM)")
+        pull.writers = ["me"]
+        #expect(blocker(pull) == nil)
+        #expect(HeedMerge.author(pull, settings: PilotSettings()).text
+            == "opened by @me, an organisation member who can write to the repo")
+        var listed = PilotSettings()
+        listed.trustedAuthors = ["me"]
+        #expect(blocker(detail(authorTrust: .member), listed) == nil)
+    }
+
+    @Test func aForkPRMergesOnItsOwnOnlyWhenItIsYours() {
+        var fork = detail(authorTrust: .collaborator)
+        fork.crossRepository = true
+        #expect(blocker(fork) == "Author")
+        #expect(HeedMerge.author(fork, settings: PilotSettings()).text
+            == "@me opened it from a fork: heed doesn't merge it on its own; merge it by hand (zM)")
+        var listed = PilotSettings()
+        listed.trustedAuthors = ["me"]
+        #expect(blocker(fork, listed) == "Author")
+        // Yours, from any branch.
+        #expect(HeedMerge.author(fork, settings: PilotSettings(), viewer: "ME").trusted)
+        #expect(MergeQueue.action(for: MergeQueue.Entry(
+            ref: ref, detail: fork, settings: PilotSettings(), paused: false, mode: .heed, now: now, viewer: "me"
+        )) == .merge(method: "squash", admin: false))
+        // Not known yet: held as a fork.
+        var unknown = detail()
+        unknown.crossRepository = nil
+        #expect(blocker(unknown) == "Author")
+        // The same rule as the runs'.
+        for (pull, viewer) in [(fork, nil), (fork, "me"), (unknown, nil), (detail(), nil)] as [(PullDetail, String?)] {
+            #expect(HeedMerge.author(pull, settings: PilotSettings(), viewer: viewer).trusted
+                == PullAuthorship(pull).trusted(viewer: viewer, trustedAuthors: []))
+        }
+    }
+
     @Test func trustedAuthorsAreMergedToo() {
         var settings = PilotSettings()
         settings.trustedAuthors = ["dependabot[bot]"]
@@ -287,20 +358,115 @@ struct HeedMergeTests {
     }
 
     @Test func theSelfReviewRunsWithoutTools() {
-        #expect(SelfReview.noTools("claude -p") == "claude --tools '' --strict-mcp-config -p")
-        #expect(SelfReview.noTools("/opt/homebrew/bin/claude -p --model haiku")
+        func line(_ command: String) -> String? {
+            if case let .run(line, _) = SelfReview.toolless(command) { line } else { nil }
+        }
+        func locate(_ command: String) -> String? {
+            if case let .run(_, locate) = SelfReview.toolless(command) { locate } else { nil }
+        }
+        #expect(line("claude -p") == "claude --tools '' --strict-mcp-config -p")
+        #expect(line("/opt/homebrew/bin/claude -p --model haiku")
             == "/opt/homebrew/bin/claude --tools '' --strict-mcp-config -p --model haiku")
-        #expect(SelfReview.noTools("claude") == "claude --tools '' --strict-mcp-config")
-        #expect(SelfReview.noTools("pi -p") == "pi --no-tools --no-extensions --no-mcp -p")
-        // Tools named by you, and agents heed has no flags for, run as written.
-        #expect(SelfReview.noTools("claude -p --tools Read") == "claude -p --tools Read")
-        #expect(SelfReview.noTools("my-review.sh") == "my-review.sh")
+        #expect(line("claude") == "claude --tools '' --strict-mcp-config")
+        #expect(line("pi -p") == "pi --no-tools --no-extensions --no-mcp -p")
+        // Past env, assignments and a package runner, to the agent.
+        #expect(line("env CLAUDE_CONFIG_DIR=/tmp/r claude -p")
+            == "env CLAUDE_CONFIG_DIR=/tmp/r claude --tools '' --strict-mcp-config -p")
+        #expect(locate("env CLAUDE_CONFIG_DIR=/tmp/r claude -p") == "claude")
+        #expect(line("A=1 B=2 claude -p") == "A=1 B=2 claude --tools '' --strict-mcp-config -p")
+        #expect(line("npx -y @anthropic-ai/claude-code@2.1.0 -p")
+            == "npx -y @anthropic-ai/claude-code@2.1.0 --tools '' --strict-mcp-config -p")
+        #expect(locate("npx -y @anthropic-ai/claude-code -p") == "npx")
+        #expect(line("pnpm dlx @anthropic-ai/claude-code -p")
+            == "pnpm dlx @anthropic-ai/claude-code --tools '' --strict-mcp-config -p")
+        // Tools named by you run as written.
+        #expect(line("claude -p --tools Read") == "claude -p --tools Read")
+        #expect(line("env A=1 claude -p --tools Read") == "env A=1 claude -p --tools Read")
+    }
+
+    @Test func aSelfReviewHeedCannotTurnTheToolsOffForDoesNotRun() async {
+        func refused(_ command: String) -> String? {
+            if case let .refused(reason) = SelfReview.toolless(command) { reason } else { nil }
+        }
+        #expect(refused("codex exec") == "codex has no flag that turns its tools off; use claude or pi in self_review")
+        #expect(refused("my-review.sh")?.contains("`my-review.sh`") == true)
+        // `npx claude` is whatever npm calls claude, not Claude Code.
+        #expect(refused("npx claude -p") != nil)
+        #expect(refused("env -i claude -p") != nil)
+        #expect(refused("A=$(cat x) claude -p") != nil)
+        #expect(refused("env X=1") != nil)
+        #expect(refused("") != nil)
+        // `run` throws, without starting anything.
+        await #expect(throws: SelfReview.Refused.self) { try await SelfReview.run("cat", prompt: "APPROVE") }
+        // The rule says so, whatever review was recorded, so the queue never runs it.
+        var settings = PilotSettings()
+        settings.selfReview = "codex exec"
+        let approved = SelfReview(sha: head, approved: true, summary: "approved", at: now)
+        let rule = HeedMerge.verdict(detail(), settings: settings, selfReview: approved, now: now).rules
+            .first { $0.name == "Self-review" }
+        #expect(rule?.state == .fail)
+        #expect(rule?.detail.hasPrefix("not run: codex has no flag") == true)
+        #expect(action(detail(), settings) == .hold("Self-review: \(rule?.detail ?? "")"))
+    }
+
+    @Test func theSelfReviewReadsTheDiffOfTheCommitItIsStampedWith() async {
+        let asked = Mutex<[String]>([])
+        let sent = Mutex<String>("")
+        var pull = detail()
+        pull.baseBranch = "main"
+        let review = await SelfReview.review(
+            pull, command: "claude -p", instructions: "", now: now,
+            diff: { base, head in
+                asked.withLock { $0 = [base, head] }
+                return "+the change at \(head)"
+            },
+            run: { command, prompt in
+                sent.withLock { $0 = command + "\n" + prompt.text }
+                return "APPROVE"
+            }
+        )
+        #expect(asked.withLock { $0 } == ["main", head])
+        #expect(review.sha == head && review.approved)
+        #expect(sent.withLock { $0 }.contains("+the change at \(head)"))
+        // A failed diff, and a command heed can't run without tools, approve nothing.
+        let failed = await SelfReview.review(pull, command: "claude -p", instructions: "", now: now) { _, _ in
+            throw GitHub.Failure(description: "offline")
+        } run: { _, _ in "APPROVE" }
+        #expect(!failed.approved && failed.sha == head)
+        let never = await SelfReview.review(pull, command: "codex exec", instructions: "", now: now) { _, _ in
+            Issue.record("diffed for a command that does not run")
+            return ""
+        } run: { _, _ in "APPROVE" }
+        #expect(!never.approved && never.summary.hasPrefix("not run:"))
+        #expect(GitHub.compareDiffArguments(ref.repo, base: "release/1.x", head: head) == [
+            "api", "-H", "Accept: application/vnd.github.diff", "repos/globex/heed/compare/release/1.x...\(head)",
+        ])
+    }
+
+    @Test func theCompareDiffAsksGhForTheStampedCommit() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("heed-compare-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let args = dir.appendingPathComponent("args")
+        let script = dir.appendingPathComponent("gh")
+        try """
+        #!/bin/sh
+        printf '%s\\n' "$@" > '\(args.path)'
+        echo '+diff'
+        """.write(to: script, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        let diff = try await GitHub.$executable.withValue(script.path) {
+            try await GitHub.compareDiff(ref.repo, base: "main", head: head, caller: "test")
+        }
+        #expect(diff == "+diff\n")
+        let sent = try String(contentsOf: args, encoding: .utf8)
+        #expect(sent.contains("repos/globex/heed/compare/main...\(head)"))
     }
 
     @Test func theSelfReviewRunsInAnEmptyFolderWithThePromptOnStdin() async throws {
-        let echoed = try await SelfReview.run("cat", prompt: "APPROVE")
+        let echoed = try await SelfReview.execute("cat", locate: "cat", prompt: "APPROVE")
         #expect(echoed == "APPROVE")
-        let folder = try await SelfReview.run("pwd; ls -A", prompt: "x")
+        let folder = try await SelfReview.execute("pwd; ls -A", locate: "pwd", prompt: "x")
         let lines = folder.split(separator: "\n")
         #expect(lines.first?.hasSuffix("/work") == true)
         #expect(lines.count == 1)

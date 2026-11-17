@@ -86,7 +86,7 @@ public enum ProcessRunner {
         process.arguments = arguments
         if let directory { process.currentDirectoryURL = URL(fileURLWithPath: directory) }
         // Never a repository variable this process inherited (`GitEnvironment`).
-        process.environment = GitEnvironment.environment(ProcessInfo.processInfo.environment, variables)
+        process.environment = GitEnvironment.environment(GitEnvironment.inherited, variables)
         let stdout = Pipe()
         let stderr = Pipe()
         process.standardOutput = stdout
@@ -133,9 +133,14 @@ public enum ProcessRunner {
                 status = code
             }
             // The rest of its output, for as long as it takes the pipes to close, but no longer than a moment.
-            for _ in 0 ..< 40 where !(out.isFinished && err.isFinished) {
-                try? await Task.sleep(for: .milliseconds(50))
+            let giveUp = Task.detached {
+                try await Task.sleep(for: .seconds(2))
+                out.abandon()
+                err.abandon()
             }
+            await out.ended()
+            await err.ended()
+            giveUp.cancel()
             let result = ProcessResult(
                 status: status,
                 stdout: String(decoding: out.finish(), as: UTF8.self),
@@ -166,12 +171,14 @@ public enum ProcessRunner {
     }
 }
 
-/// A one-way flag shared with the watchdog task.
 /// A pipe's output as it arrives, until its end or until it is no longer wanted.
 private final class OutputBuffer: @unchecked Sendable {
     private let lock = NSLock()
     private var data = Data()
-    private var ended = false
+    private var isEnded = false
+    private var abandoned = false
+    /// Waiting in `ended` for the end.
+    private var waiting: [CheckedContinuation<Void, Never>] = []
     private let handle: FileHandle
 
     init(_ handle: FileHandle) {
@@ -179,18 +186,49 @@ private final class OutputBuffer: @unchecked Sendable {
         handle.readabilityHandler = { [weak self] handle in
             let chunk = handle.availableData
             guard let self else { return }
-            lock.withLock {
-                if chunk.isEmpty {
-                    ended = true
-                    handle.readabilityHandler = nil
-                } else {
+            let ending = lock.withLock { () -> [CheckedContinuation<Void, Never>] in
+                guard chunk.isEmpty else {
                     data.append(chunk)
+                    return []
                 }
+                isEnded = true
+                handle.readabilityHandler = nil
+                defer { waiting = [] }
+                return waiting
+            }
+            for continuation in ending {
+                continuation.resume()
             }
         }
     }
 
-    var isFinished: Bool { lock.withLock { ended } }
+    /// Returns at the pipe's end, or once `abandon` gave up on it; at once when the task is cancelled.
+    func ended() async {
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                let now = lock.withLock {
+                    guard !isEnded, !abandoned else { return true }
+                    waiting.append(continuation)
+                    return false
+                }
+                if now { continuation.resume() }
+            }
+        } onCancel: {
+            abandon()
+        }
+    }
+
+    /// Stops waiting for the end: `ended` returns now, and from now on.
+    func abandon() {
+        let given = lock.withLock { () -> [CheckedContinuation<Void, Never>] in
+            abandoned = true
+            defer { waiting = [] }
+            return waiting
+        }
+        for continuation in given {
+            continuation.resume()
+        }
+    }
 
     /// What arrived; stops reading.
     func finish() -> Data {
@@ -199,6 +237,7 @@ private final class OutputBuffer: @unchecked Sendable {
     }
 }
 
+/// A one-way flag shared with the watchdog task.
 private final class Flag: @unchecked Sendable {
     private let lock = NSLock()
     private var value = false

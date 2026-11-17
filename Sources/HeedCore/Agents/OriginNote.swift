@@ -113,6 +113,9 @@ public struct OriginBook: Codable, Hashable, Sendable {
     /// The most PRs and issues the file keeps: the ones heed fetched or saw last.
     public static let limit = 400
 
+    /// The most checkouts the file keeps: the first ones heed lists (its repos come before their worktrees).
+    public static let checkoutLimit = 500
+
     // MARK: The file
 
     /// Beside the hook socket (`~/Library/Application Support/Heed/origins.json` for the default one).
@@ -546,6 +549,7 @@ public struct OriginNote: Hashable, Sendable {
         return switch author.trust {
         case .owner: "\(handle) (the repo's owner or the user)"
         case .collaborator: "\(handle) (a collaborator\(place))"
+        case .member: "\(handle) (a member of the organisation\(repo.map { " that owns \($0)" } ?? ""))"
         case .bot: "\(handle) (a bot)"
         case .stranger: "\(handle) (not a collaborator\(place))"
         }
@@ -586,12 +590,34 @@ public struct OriginNote: Hashable, Sendable {
         guard input["permission_mode"] as? String == "auto", let tool = input["tool_name"] as? String,
               ["Bash", "WebFetch"].contains(tool), let args = input["tool_input"] as? [String: Any]
         else { return nil }
+        // Most calls have nothing to do with GitHub: those are told apart before the book is read.
+        guard mayBringGitHub(tool: tool, input: args) else { return nil }
         let book = book()
         guard let subject = subject(tool: tool, input: args, cwd: input["cwd"] as? String, book: book) else {
             return nil
         }
         let note = note(for: subject, book: book)
         return OriginReport(subject: subject, note: note?.text, authors: note?.authors ?? [])
+    }
+
+    /// Whether `subject(tool:input:cwd:book:)` could find anything in the call, from its text alone: false only when
+    /// it cannot. A command names `gh` or `git` (a `github` URL for curl and the like contains `git`) once the quotes
+    /// and backslashes the shell drops are dropped; a URL names `github`, its percent escapes decoded, or has
+    /// characters that are not ASCII (a host that may normalise to GitHub's).
+    static func mayBringGitHub(tool: String, input: [String: Any]) -> Bool {
+        switch tool {
+        case "Bash":
+            guard let command = input["command"] as? String else { return false }
+            let words = command.filter { $0 != "\"" && $0 != "'" && $0 != "\\" }
+            return words.contains("gh") || words.contains("git")
+        case "WebFetch":
+            guard let url = input["url"] as? String else { return false }
+            guard url.unicodeScalars.allSatisfy(\.isASCII),
+                  let decoded = url.removingPercentEncoding else { return true }
+            return decoded.lowercased().contains("github")
+        default:
+            return false
+        }
     }
 
     /// The hook's answer that carries `note` to the auto mode classifier.

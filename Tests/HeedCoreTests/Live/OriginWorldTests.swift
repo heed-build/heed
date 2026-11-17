@@ -40,8 +40,9 @@ struct OriginWorldTests {
     }
 
     /// The built `heed` as the live check's hooks run it, its socket in `folder`: the note comes back on stdout.
-    @Test func theHookBinaryAnswersWithTheNote() async throws {
-        guard let heed = try? Live.heedBinary() else { return }
+    @Test(.enabled(if: (try? Live.heedBinary()) != nil, "needs the heed helper built (swift build --product heed)"))
+    func theHookBinaryAnswersWithTheNote() async throws {
+        let heed = try Live.heedBinary()
         let folder = try Live.scratch("origin-hook")
         defer { try? FileManager.default.removeItem(at: folder) }
         let repo = try await OriginWorld.make(in: folder)

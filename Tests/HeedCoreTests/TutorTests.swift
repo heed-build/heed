@@ -194,7 +194,8 @@ struct TutorTests {
         #expect(TutorWorld.freshRepos.domain.sessions.isEmpty)
         #expect(!TutorWorld.freshRepos.domain.repos.isEmpty)
         let storm = TutorWorld.prStorm.domain
-        #expect(storm.feedback.values.flatMap(\.items).allSatisfy { $0.status == .new || $0.status == .resolved })
+        let feedback = storm.feedback.values.flatMap(\.items)
+        #expect(!feedback.isEmpty && feedback.allSatisfy { $0.status == .new || $0.status == .resolved })
         #expect(storm.github.pulls.first?.ref.number == 2841)
     }
 }

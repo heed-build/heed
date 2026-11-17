@@ -21,7 +21,7 @@ struct StartWorkView: View {
             GeometryReader { geometry in
                 ZStack {
                     // A click on the backdrop cancels, as a click away from the floating panel does.
-                    Color.black.opacity(0.55)
+                    Theme.scrim.opacity(0.55)
                         .onTapGesture { model.cancelStartWork() }
                     // Up to the design's 780pt wide, never wider than the window; the prompt grows with what is typed
                     // up to a cap and scrolls past it, and the whole dialog scrolls only if the window is very short.
@@ -161,14 +161,14 @@ struct StartWorkView: View {
                         .foregroundStyle(Theme.fg)
                     Image(systemName: "xmark").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.fg3)
                         .contentShape(Rectangle())
-                        .onTapGesture { model.clickStartWork { $0.dropAttachment(at: index) } }
+                        .tap { model.clickStartWork { $0.dropAttachment(at: index) } }
                         .help("Drop it (x)")
                 }
                 .padding(.horizontal, 8).padding(.vertical, 4)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg3))
                 .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(focused ? Theme.fg : Theme.line))
                 .contentShape(Rectangle())
-                .onTapGesture { model.clickStartWork { $0.inlineAttachment(at: index) } }
+                .tap { model.clickStartWork { $0.inlineAttachment(at: index) } }
                 .help("Sent as a file the agent reads. Click (or P) to put it back in the prompt; x drops it.")
             }
         }
@@ -210,12 +210,12 @@ struct StartWorkView: View {
                         org: guess.repo.repo
                     )
                     .axID("start-work-repo-\(index + 1)")
-                    .onTapGesture { model.clickStartWork { $0.pickRepo(at: index) } }
+                    .tap { model.clickStartWork { $0.pickRepo(at: index) } }
                 }
                 // Typed repos that are not on this Mac yet: cloned when the work starts; a click drops one.
                 ForEach(form.typedRepos, id: \.self) { slug in
                     choice("+ " + slug, detail: "clones", selected: false, secondary: true, focused: false)
-                        .onTapGesture { model.clickStartWork { $0.dropTyped(slug) } }
+                        .tap { model.clickStartWork { $0.dropTyped(slug) } }
                         .help(
                             "Not on this Mac yet: cloned into \(form.cloneRoot) when the work starts. Click to drop it."
                         )
@@ -226,14 +226,14 @@ struct StartWorkView: View {
                         focused: form.field == .repo && form.repoCursor == form.repoChoices.count
                     )
                     .opacity(0.85)
-                    .onTapGesture { model.clickStartWork { $0.pickRepo(at: $0.repoChoices.count) } }
+                    .tap { model.clickStartWork { $0.pickRepo(at: $0.repoChoices.count) } }
                 }
                 if form.promotion == nil {
                     choice(
                         "chat, no repo", selected: form.chat != nil,
                         focused: form.field == .repo && form.repoCursor == form.chatChipIndex
                     )
-                    .onTapGesture { model.clickStartWork { $0.pickRepo(at: $0.chatChipIndex) } }
+                    .tap { model.clickStartWork { $0.pickRepo(at: $0.chatChipIndex) } }
                 }
             }
             if let search = form.repoSearch { repoSearch(search, note: form.searchNote, form: form) }
@@ -278,7 +278,7 @@ struct StartWorkView: View {
                 .padding(.vertical, 5)
                 .background(index == search.cursor ? Theme.bg3 : .clear)
                 .contentShape(Rectangle())
-                .onTapGesture { model.clickStartWork { $0.pickSearchMatch(at: index) } }
+                .tap { model.clickStartWork { $0.pickSearchMatch(at: index) } }
             }
             if matches.count > 8 {
                 Text("\(matches.count - 8) more: keep typing").font(Theme.ui(11)).foregroundStyle(Theme.fg3)
@@ -351,7 +351,7 @@ struct StartWorkView: View {
                         chip.label, selected: chip.selected,
                         focused: form.field == .worktree && !form.editing && cursor == index
                     )
-                    .onTapGesture { model.clickStartWork { $0.pickChatChip(index) } }
+                    .tap { model.clickStartWork { $0.pickChatChip(index) } }
                     .padding(.leading, index == 2 ? 12 : 0)
                 }
             }
@@ -395,7 +395,7 @@ struct StartWorkView: View {
                     focused: form.field == .agent && index == form.agentIndex
                 )
                 .axID("start-work-agent-\(index + 1)")
-                .onTapGesture { model.clickStartWork { $0.pickAgent(at: index) } }
+                .tap { model.clickStartWork { $0.pickAgent(at: index) } }
             }
         }
     }
@@ -569,7 +569,7 @@ struct StartWorkView: View {
             .padding(.vertical, 7)
             .background(RoundedRectangle(cornerRadius: 6).fill(Theme.inverse))
             .contentShape(Rectangle())
-            .onTapGesture { model.startWorkClicked() }
+            .tap { model.startWorkClicked() }
             .axID("start-work-start")
             .opacity(model.startingWork ? 0.5 : 1)
             .disabled(model.startingWork)
@@ -622,7 +622,7 @@ struct StartWorkView: View {
                         .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(
                             form.field == .kind && picked ? Theme.fg : .clear, lineWidth: 1.5
                         ))
-                        .onTapGesture { model.clickStartWork { $0.pickKind(kind) } }
+                        .tap { model.clickStartWork { $0.pickKind(kind) } }
                 }
             }
             Text("Sets the branch prefix: \(form.kind.prefix(in: form.branchPrefixes))/. h l to change it.")
@@ -665,6 +665,6 @@ struct StartWorkView: View {
         .padding(4)
         .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(focused ? Theme.fg2 : .clear))
         .contentShape(Rectangle())
-        .onTapGesture { model.clickStartWork { $0.toggleOption(option) } }
+        .tap { model.clickStartWork { $0.toggleOption(option) } }
     }
 }

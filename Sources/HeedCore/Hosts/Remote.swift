@@ -22,17 +22,32 @@ public enum Remote {
 
     public static func setRoutes(_ map: [String: HostRoute]) { routes.withLock { $0 = map } }
 
-    public static func setTargets(_ map: [String: String]) { setRoutes(map.mapValues { HostRoute(destination: $0) }) }
+    /// In place of the configured routes, for one task and the tasks it starts: how tests point ssh at a throwaway
+    /// host, key and known_hosts without reaching the suites running beside them (`with(targets:extraOptions:)`).
+    struct Override {
+        var routes: [String: HostRoute]
+        /// Extra ssh options for every call.
+        var extraOptions: [String]
+    }
+
+    @TaskLocal static var override: Override?
+
+    /// Runs `operation` with `targets` (host name to ssh destination) as the only routes and `extraOptions` ahead of
+    /// every call's, for this task and the tasks it starts.
+    static func with<T>(
+        targets: [String: String], extraOptions: [String] = [], isolation: isolated (any Actor)? = #isolation,
+        operation: () async throws -> T
+    ) async rethrows -> T {
+        let override = Override(routes: targets.mapValues { HostRoute(destination: $0) }, extraOptions: extraOptions)
+        return try await $override.withValue(override, operation: operation, isolation: isolation)
+    }
 
     public static func route(for host: String) -> HostRoute {
-        routes.withLock { $0[host] } ?? HostRoute(destination: host)
+        let route = if let override { override.routes[host] } else { routes.withLock { $0[host] } }
+        return route ?? HostRoute(destination: host)
     }
 
     public static func target(for host: String) -> String { route(for: host).destination }
-
-    /// Extra ssh options for every call (tests point ssh at a throwaway key and known_hosts this way).
-    private static let extra = Mutex<[String]>([])
-    public static func setExtraOptions(_ options: [String]) { extra.withLock { $0 = options } }
 
     /// `~/Library/Caches/Heed/ssh`: the shared connections' sockets (`%C` keeps each path short enough for a socket).
     public static func controlDirectory() -> String {
@@ -45,7 +60,7 @@ public enum Remote {
     /// route (over the tailnet: its address and Tailscale SSH's known hosts), ahead of `~/.ssh/config`. The control
     /// path is keyed by where ssh actually goes (`%C`), so a tailnet route never reuses a connection made another way.
     public static func options(host: String? = nil, controlDirectory: String = controlDirectory()) -> [String] {
-        extra.withLock { $0 } + (host.map { route(for: $0).options } ?? []) + [
+        (override?.extraOptions ?? []) + (host.map { route(for: $0).options } ?? []) + [
             "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "-o", "ServerAliveInterval=15",
             "-o", "ControlMaster=auto", "-o", "ControlPath=\(controlDirectory)/%C", "-o", "ControlPersist=10m",
         ]

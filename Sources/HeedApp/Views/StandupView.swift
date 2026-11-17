@@ -11,7 +11,7 @@ struct StandupView: View {
             HStack(spacing: 6) {
                 ForEach(standup.instances, id: \.self) { instance in
                     TabLabel(title: MindmapInstance.title(instance), active: instance == standup.instance)
-                        .onTapGesture {
+                        .tap {
                             model.standup.instance = instance
                             model.standup.setCursor(0)
                         }
@@ -67,7 +67,7 @@ struct StandupView: View {
                     .background(index == standup.cursor ? Theme.bg3 : .clear)
                     .overlay(alignment: .leading) { if index == standup.cursor { Theme.block.frame(width: 2) } }
                     .contentShape(Rectangle())
-                    .onTapGesture { model.standup.setCursor(index) }
+                    .tap { model.standup.setCursor(index) }
                 }
             }
         }

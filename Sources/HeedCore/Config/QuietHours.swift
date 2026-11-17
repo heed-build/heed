@@ -47,16 +47,24 @@ public struct QuietHours: Equatable, Sendable, CustomStringConvertible {
 public struct AttentionSettings: Equatable, Sendable {
     public var quiet: QuietHours?
     /// `[attention] rules`: the lines as written, first match wins (`AttentionRules`).
-    public var rules: [String]
+    public var rules: [String] { didSet { if rules != oldValue { parsedRules = AttentionRules(lines: rules) } } }
     /// `[attention] summaries`: ahead (New's threads before you open them, and the rest on open), open, or off.
     public var summaries: AttentionSummaryMode
+    /// `[attention] max_age_days`: GitHub items not updated for this many days are left out of Attention; 0 is no cap.
+    public var maxAgeDays: Int
 
-    public init(quiet: QuietHours? = nil, rules: [String] = [], summaries: AttentionSummaryMode = .ahead) {
+    public init(
+        quiet: QuietHours? = nil, rules: [String] = [], summaries: AttentionSummaryMode = .ahead,
+        maxAgeDays: Int = AttentionAge.defaultDays
+    ) {
         self.quiet = quiet
         self.rules = rules
         self.summaries = summaries
+        self.maxAgeDays = maxAgeDays
+        parsedRules = AttentionRules(lines: rules)
     }
 
-    /// The rules, parsed; lines that do not parse are left out and reported.
-    public var parsedRules: AttentionRules { AttentionRules(lines: rules) }
+    /// The rules, parsed once per change of `rules` (Attention reads them on every redraw); lines that do not parse
+    /// are left out and reported. Derived from `rules`, so equal rules mean equal parses.
+    public private(set) var parsedRules: AttentionRules
 }

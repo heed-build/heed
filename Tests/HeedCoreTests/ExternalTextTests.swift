@@ -100,7 +100,7 @@ struct ExternalTextTests {
 
     @Test func trustFollowsTheAssociationAndBotsAreBots() {
         #expect(ExternalText.Trust.from(association: "OWNER", isBot: false) == .owner)
-        #expect(ExternalText.Trust.from(association: "MEMBER", isBot: false) == .collaborator)
+        #expect(ExternalText.Trust.from(association: "MEMBER", isBot: false) == .member)
         #expect(ExternalText.Trust.from(association: "COLLABORATOR", isBot: false) == .collaborator)
         for association in ["CONTRIBUTOR", "FIRST_TIME_CONTRIBUTOR", "FIRST_TIMER", "NONE", nil] {
             #expect(ExternalText.Trust.from(association: association, isBot: false) == .stranger)
@@ -116,6 +116,22 @@ struct ExternalTextTests {
         let text = ExternalText("secret\u{1B}[2J", source: .comment, author: stranger)
         #expect(!String(describing: text).contains("secret"))
         #expect(!String(reflecting: text).contains("secret"))
+    }
+
+    /// `display` is kept, stripped once; equality, hashing and the encoding stay those of the text as written.
+    @Test func theDisplayedTextIsKeptAndEqualityIsByTheTextWritten() throws {
+        let marked = ExternalText("a\u{1B}[31mb\u{202E}c", source: .comment, author: .unknown)
+        #expect(marked.display == ExternalText.strip("a\u{1B}[31mb\u{202E}c") && marked.display == "abc")
+        let plain = ExternalText("abc", source: .comment, author: .unknown)
+        #expect(plain.display == "abc")
+        // The same display from different bytes is a different text.
+        #expect(marked != plain)
+        #expect(Set([marked, plain]).count == 2)
+        let same = ExternalText("a\u{1B}[31mb\u{202E}c", source: .comment, author: .unknown)
+        #expect(marked == same && marked.hashValue == same.hashValue)
+        let json = try String(decoding: JSONEncoder().encode(marked), as: UTF8.self)
+        #expect(!json.contains("display"))
+        #expect(try JSONDecoder().decode(ExternalText.self, from: Data(json.utf8)).display == "abc")
     }
 
     @Test func itRoundTripsAndOldCachesOfPlainStringsStillLoad() throws {

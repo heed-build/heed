@@ -165,6 +165,7 @@ struct AttentionSeenStoreTests {
     @Test func seenKeepsTheLaterTimeAndLeftIsRemembered() async throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("heed-seen-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
         let path = dir.appendingPathComponent("attention.sqlite").path
         let store = try AttentionStore(path: path)
         try await store.setSeen("a", at: now)

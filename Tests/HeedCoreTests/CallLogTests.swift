@@ -2,10 +2,10 @@ import Foundation
 @testable import HeedCore
 import Testing
 
+@Suite(.scratch)
 struct CallLogTests {
     private func folder() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("heed-calls-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        let url = try Scratch.folder("heed-calls")
         return url
     }
 

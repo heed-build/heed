@@ -263,7 +263,7 @@ struct SwarmRemoteWorkerTests {
         #expect(!made.reused)
         #expect(made.base == "main")
         let calls = fake.recorded
-        #expect(calls.allSatisfy { $0.host == "devbox" })
+        #expect(!calls.isEmpty && calls.allSatisfy { $0.host == "devbox" })
         // heed's files first: the hook, heed's `heed` for `heed goal`, the agents' hook settings.
         let writes = calls.prefix { $0.line.first == "sh" }
         let written = writes.compactMap { $0.line.last }
@@ -297,7 +297,7 @@ struct SwarmRemoteWorkerTests {
         #expect(made.base == "swarm/g/spike")
         #expect(made.path == "/home/you/code/wt/heed/docs-toolkit/swarm-g-profile")
         #expect(!fake.recorded.contains { $0.line.contains("worktree") })
-        #expect(fake.recorded.allSatisfy { $0.host == "devbox" })
+        #expect(!fake.recorded.isEmpty && fake.recorded.allSatisfy { $0.host == "devbox" })
     }
 
     @Test func aHostThatRefusesTheFilesStopsTheStart() async {
@@ -485,8 +485,9 @@ struct HostCallTests {
     }
 
     /// The host's own `heed` and hook, run here with a throwaway home: a call goes into the event log, its answer
-    /// comes back out. `sh` as on a host; nothing is reached over the network.
-    @Test func theHostsHeedWritesItsCallAndPrintsTheAnswer() async throws {
+    /// comes back out. `sh` as on a host; nothing is reached over the network. Nothing here waits by the clock: the
+    /// script waits as long as heed would let it, and the test's time limit ends a run that never answers.
+    @Test(.timeLimit(.minutes(2))) func theHostsHeedWritesItsCallAndPrintsTheAnswer() async throws {
         let home = FileManager.default.temporaryDirectory.appendingPathComponent("heed-host-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: home) }
         let bin = home.appendingPathComponent(".heed/bin")
@@ -504,17 +505,25 @@ struct HostCallTests {
         process.arguments = [bin.appendingPathComponent("heed").path, "goal", "plan", "propose", "--file", plan.path]
         process.environment = [
             "HOME": home.path, "PATH": "/usr/bin:/bin", "HEED_SESSION_ID": "s1", "HEED_PANE_ID": "p1",
-            "HEED_SESSION_TOKEN": "t.o.k", "HEED_CALL_TIMEOUT": "20",
+            "HEED_SESSION_TOKEN": "t.o.k",
         ]
         let out = Pipe()
         let err = Pipe()
         process.standardOutput = out
         process.standardError = err
+        // Awaited, not waited on: `waitUntilExit` blocks a thread of the pool, and after a suspension the test may
+        // resume on a thread that never hears of the exit.
+        let exited = AsyncStream<Void> { continuation in
+            process.terminationHandler = { _ in
+                continuation.yield()
+                continuation.finish()
+            }
+        }
         try process.run()
 
         let log = home.appendingPathComponent(".heed/events.log")
         var call: HostCall?
-        for _ in 0 ..< 100 where call == nil {
+        while call == nil {
             try await Task.sleep(for: .milliseconds(100))
             call = (try? String(contentsOf: log, encoding: .utf8))?.split(separator: "\n").first
                 .flatMap { HostCall(line: String($0)) }
@@ -529,7 +538,7 @@ struct HostCallTests {
         let reply = HostCall.reply(code: 1, out: "plan v2 (1 task)", err: "heed goal: and a warning")
         let replies = home.appendingPathComponent(".heed/replies")
         try Data(reply.utf8).write(to: replies.appendingPathComponent(found.id))
-        process.waitUntilExit()
+        for await _ in exited {}
         #expect(process.terminationStatus == 1)
         #expect(String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self) == "plan v2 (1 task)\n")
         #expect(String(decoding: err.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)

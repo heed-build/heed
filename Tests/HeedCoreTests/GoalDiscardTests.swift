@@ -85,6 +85,19 @@ struct GoalDiscardTests {
         #expect(try await ops.snapshot().goal(goal.id) != nil)
     }
 
+    /// The dialog said Archive (something was attached); by the time you said yes it was detached. Deleting then
+    /// would do what you were not asked: it is refused and the goal stays.
+    @Test func aDiscardThatWouldNowDoSomethingElseIsRefused() async throws {
+        let (ops, dir) = try ops()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let goal = try await ops.create(title: "Detached since", statement: "x", now: now)
+        await #expect(throws: GoalOpError.discardChanged(.delete)) {
+            try await ops.discard(goal: goal.id, expecting: .archive, now: now)
+        }
+        #expect(try await ops.snapshot().goal(goal.id)?.status == .active)
+        #expect(try await ops.discard(goal: goal.id, expecting: .delete, now: now) == .delete)
+    }
+
     @Test func unknownGoalThrows() async throws {
         let (ops, dir) = try ops()
         defer { try? FileManager.default.removeItem(at: dir) }

@@ -48,11 +48,11 @@ struct UnassignedPane: View {
                             case .ask: EmptyView()
                             case let .suggestion(suggestion):
                                 SuggestionCard(suggestion: suggestion, isCursor: index == attach.cursor)
-                                    .onTapGesture { model.clickAttachRow(index) }
+                                    .tap { model.clickAttachRow(index) }
                                     .hint(model.hintLabel(for: .row(.goals, index)))
                             case let .decision(decision):
                                 DecisionCard(decision: decision, isCursor: index == attach.cursor)
-                                    .onTapGesture { model.clickAttachRow(index) }
+                                    .tap { model.clickAttachRow(index) }
                                     .hint(model.hintLabel(for: .row(.goals, index)))
                             }
                         }
@@ -66,7 +66,7 @@ struct UnassignedPane: View {
                         ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
                             if case let .ask(decision) = row {
                                 AskCard(decision: decision, isCursor: index == attach.cursor)
-                                    .onTapGesture { model.clickAttachRow(index) }
+                                    .tap { model.clickAttachRow(index) }
                                     .hint(model.hintLabel(for: .row(.goals, index)))
                             }
                         }
@@ -385,6 +385,6 @@ struct UnassignedRow: View {
         .background(current ? Theme.bg3 : .clear)
         .overlay(alignment: .leading) { if current { Theme.block.frame(width: 2) } }
         .contentShape(Rectangle())
-        .onTapGesture { model.perform(CommandInvocation(name: "goal.unassigned")) }
+        .tap { model.perform(CommandInvocation(name: "goal.unassigned")) }
     }
 }

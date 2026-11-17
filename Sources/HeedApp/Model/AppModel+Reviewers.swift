@@ -428,6 +428,7 @@ extension AppModel {
             )
         }
         let viewer = github.viewer
+        let trustedAuthors = target.pull.map { pilotSettings(for: $0).trustedAuthors } ?? []
         let start = ReviewRunStart(
             id: runID, reviewer: state.id, trigger: trigger, basis: basis, agent: agentName, model: model
         )
@@ -435,9 +436,9 @@ extension AppModel {
         Task {
             // A run with no sandbox starts on its own only on your work; on someone else's PR, when you ask.
             let trusted: Bool? = if let pull = target.pull, !sandboxed, trigger != .manual {
-                await PullTrustBook.shared.resolve(pull, viewer: viewer) { ref in
-                    try await GitHub.pullAuthorship(ref, caller: "goals.review")
-                }
+                await PullTrustBook.shared.resolveOnGitHub(
+                    pull, viewer: viewer, trustedAuthors: trustedAuthors, caller: "goals.review"
+                )
             } else {
                 nil
             }
@@ -509,7 +510,7 @@ extension AppModel {
             return "\(agent.name) runs only in a tab: open a session on the goal, or set [goals] reviewer_agent"
         }
         let (path, pathVariable) = await ToolLocator.shared.executable(words[0])
-        let line = RunSandbox.environment(present: Array(ProcessInfo.processInfo.environment.keys), folder: folder)
+        let line = RunSandbox.environment(agent: agent.name, folder: folder)
             + [path ?? words[0]] + words.dropFirst()
         let started = Date()
         let result = try? await ProcessRunner.run(

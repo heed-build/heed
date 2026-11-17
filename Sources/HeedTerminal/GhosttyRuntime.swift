@@ -11,7 +11,12 @@ public final class GhosttyRuntime {
     public static let shared = GhosttyRuntime()
 
     let app: ghostty_app_t?
-    private let config: ghostty_config_t?
+    /// The config the app runs on. A change of appearance builds a new one; the old one is left allocated, as
+    /// libghostty may still read it from a surface mid-frame, and it is a few kilobytes.
+    private var config: ghostty_config_t?
+    /// Whether panes are drawn in the dark scheme; set (`setAppearance`) before the first surface opens.
+    private static var isDark = true
+    private static var started = false
     private var tickScheduled = false
 
     /// Called when a surface's process ends and Ghostty asks to close it (`processAlive` false), or the user closed it.
@@ -21,11 +26,8 @@ public final class GhosttyRuntime {
         if ghostty_init(UInt(CommandLine.argc), CommandLine.unsafeArgv) != GHOSTTY_SUCCESS {
             NSLog("heed: ghostty_init failed")
         }
-        let config = ghostty_config_new()
-        // The user's own Ghostty config applies, then Heed's pane look on top so panes match the window.
-        ghostty_config_load_default_files(config)
-        if let overrides = Self.writeOverrides() { ghostty_config_load_file(config, overrides) }
-        ghostty_config_finalize(config)
+        Self.started = true
+        let config = Self.buildConfig()
         self.config = config
 
         var runtime = Self.runtimeConfig()
@@ -33,19 +35,56 @@ public final class GhosttyRuntime {
         if app == nil { NSLog("heed: ghostty_app_new failed") }
     }
 
+    /// The user's own Ghostty config applies, then Heed's pane look on top so panes match the window.
+    private static func buildConfig() -> ghostty_config_t? {
+        let config = ghostty_config_new()
+        ghostty_config_load_default_files(config)
+        if let overrides = writeOverrides() { ghostty_config_load_file(config, overrides) }
+        ghostty_config_finalize(config)
+        return config
+    }
+
     /// Pane settings that keep a terminal in step with the design: the pane background, padding and the mono face.
-    static let overrides = """
-    background = 0c0d0f
-    foreground = cfd3d8
-    font-family = JetBrains Mono
-    font-size = 12
-    window-padding-x = 14
-    window-padding-y = 10
-    window-padding-balance = false
-    cursor-style = block
-    confirm-close-surface = false
-    wait-after-command = false
-    """
+    /// Dark keeps Ghostty's own palette; light brings one that reads on white (GitHub's light terminal colours).
+    static func overrides(dark: Bool) -> String {
+        let colors = dark ? """
+        background = 0c0d0f
+        foreground = cfd3d8
+        """ : """
+        background = ffffff
+        foreground = 24292f
+        cursor-color = 24292f
+        selection-background = cfe0f7
+        selection-foreground = 24292f
+        palette = 0=#24292f
+        palette = 1=#cf222e
+        palette = 2=#116329
+        palette = 3=#4d2d00
+        palette = 4=#0969da
+        palette = 5=#8250df
+        palette = 6=#1b7c83
+        palette = 7=#6e7781
+        palette = 8=#57606a
+        palette = 9=#a40e26
+        palette = 10=#1a7f37
+        palette = 11=#633c01
+        palette = 12=#218bff
+        palette = 13=#a475f9
+        palette = 14=#3192aa
+        palette = 15=#8c959f
+        """
+        return colors + """
+
+        font-family = JetBrains Mono
+        font-size = 12
+        window-padding-x = 14
+        window-padding-y = 10
+        window-padding-balance = false
+        cursor-style = block
+        confirm-close-surface = false
+        wait-after-command = false
+        """
+    }
 
     private static func writeOverrides() -> String? {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -53,12 +92,29 @@ public final class GhosttyRuntime {
         let file = support.appendingPathComponent("ghostty-panes.conf")
         do {
             try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
-            try overrides.write(to: file, atomically: true, encoding: .utf8)
+            try overrides(dark: isDark).write(to: file, atomically: true, encoding: .utf8)
             return file.path
         } catch {
             NSLog("heed: could not write \(file.path): \(error)")
             return nil
         }
+    }
+
+    /// Switches every pane between the dark and the light look. Before the first pane opens it only records the
+    /// choice, which the config then starts from.
+    public static func setAppearance(dark: Bool) {
+        guard dark != isDark else { return }
+        isDark = dark
+        guard started else { return }
+        shared.reload(dark: dark)
+    }
+
+    private func reload(dark: Bool) {
+        guard let app else { return }
+        let fresh = Self.buildConfig()
+        config = fresh
+        if let fresh { ghostty_app_update_config(app, fresh) }
+        ghostty_app_set_color_scheme(app, dark ? GHOSTTY_COLOR_SCHEME_DARK : GHOSTTY_COLOR_SCHEME_LIGHT)
     }
 
     /// The C callbacks. Built outside the main actor on purpose: closures written in a main-actor context are

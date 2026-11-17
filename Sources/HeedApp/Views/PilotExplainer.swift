@@ -72,7 +72,7 @@ struct PilotMergeLine: View {
     private func link(_ label: String, _ command: String) -> some View {
         Text(label).foregroundStyle(Theme.fg2).underline().fixedSize()
             .contentShape(Rectangle())
-            .onTapGesture { model.perform(CommandInvocation(name: command, target: .pull(ref))) }
+            .tap { model.perform(CommandInvocation(name: command, target: .pull(ref))) }
     }
 
     private func action(_ label: String, _ command: String) -> some View {
@@ -89,7 +89,7 @@ struct PilotExplainerView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.45).onTapGesture { model.pilotExplain = nil }
+            Theme.scrim.opacity(0.45).tap { model.pilotExplain = nil }
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 8) {
                     RepoChip(repo: ref.repo)

@@ -13,6 +13,10 @@ public struct HeedConfig: Equatable, Sendable {
     /// `[ui]`: Heed outside its window.
     public var showMenuBarItem = true
     public var showDockState = true
+    /// `[ui] appearance`: heed's colours, light, dark, or whichever macOS is using.
+    public var appearance = Appearance.system
+    /// `[ui] dark_terminal`: terminal panes stay dark when the rest of heed is light.
+    public var darkTerminal = false
     /// `[notifications]`: a macOS notification when a session starts needing you.
     public var notifications = NotificationSettings()
     /// `[approvals]`: how long an agent's permission hook waits for your answer in heed.
@@ -102,6 +106,8 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.globalActivate == rhs.globalActivate,
             lhs.showMenuBarItem == rhs.showMenuBarItem,
             lhs.showDockState == rhs.showDockState,
+            lhs.appearance == rhs.appearance,
+            lhs.darkTerminal == rhs.darkTerminal,
             lhs.notifications == rhs.notifications,
             lhs.approvals == rhs.approvals,
             lhs.attention == rhs.attention,
@@ -711,6 +717,14 @@ public enum ConfigLoader {
         // [ui]
         if let flag = bool(["ui", "menu_bar"]) { config.showMenuBarItem = flag }
         if let flag = bool(["ui", "dock_state"]) { config.showDockState = flag }
+        if let flag = bool(["ui", "dark_terminal"]) { config.darkTerminal = flag }
+        if let text = string(["ui", "appearance"]) {
+            if let appearance = Appearance(rawValue: text.lowercased()) {
+                config.appearance = appearance
+            } else {
+                problems.append(ConfigProblem(path: "ui.appearance", message: "expected system, light or dark"))
+            }
+        }
         // [notifications]
         if let flag = bool(["notifications", "enabled"]) { config.notifications.enabled = flag }
         if let flag = bool(["notifications", "asking"]) { config.notifications.asking = flag }
@@ -751,6 +765,15 @@ public enum ConfigLoader {
             } else {
                 problems.append(ConfigProblem(
                     path: "attention.summaries", message: "expected \"ahead\", \"open\" or \"off\""
+                ))
+            }
+        }
+        if let value = root.value(at: ["attention", "max_age_days"]) {
+            if let days = value.integer, days >= 0 {
+                config.attention.maxAgeDays = min(days, AttentionAge.maxDays)
+            } else {
+                problems.append(ConfigProblem(
+                    path: "attention.max_age_days", message: "expected a number of days, 0 or more (0: no cap)"
                 ))
             }
         }
@@ -1152,7 +1175,8 @@ public enum ConfigLoader {
     pause = "1h"
     # Get it merged: off; auto (heed turns on GitHub's auto-merge for a PR, and GitHub merges it once its own
     # requirements are met); or heed (heed merges it itself once the rules below hold). Per org and per repo too, and M
-    # cycles one PR. Either way only PRs opened by the repo's owner, a collaborator, or one of trusted_authors.
+    # cycles one PR. Either way only yours, and PRs from a branch of the repo itself (not a fork) opened by someone who
+    # can write to it (the owner, a collaborator, or an org member gh says has write access) or by one of trusted_authors.
     merge = "off"
     trusted_authors = []      # e.g. ["dependabot[bot]", "renovate[bot]"]
     # squash, merge or rebase; unset takes the first the repo allows, in that order.
@@ -1179,7 +1203,8 @@ public enum ConfigLoader {
     # as "app:name", e.g. "github-actions:test". A check of the same name from another app does not count.
     gate_checks = []
     hold_labels = ["hold", "do-not-merge", "wip"]
-    # A command that reads the prompt and the PR's diff on stdin and answers APPROVE, or REQUEST_CHANGES: <why>.
+    # A command that reads the prompt and the PR's diff on stdin and answers APPROVE, or REQUEST_CHANGES: <why>. It runs
+    # with its tools off: claude or pi, after env, NAME=value or npx @anthropic-ai/claude-code. Anything else holds the PR.
     # self_review = "claude -p"
     # [repos."org/name"] admin_merge = true retries a refused merge with --admin, bypassing branch protection. Repo only,
     # and only heed's own merges (merge = "heed"); merging now by hand follows force_merge below.
@@ -1251,6 +1276,9 @@ public enum ConfigLoader {
     # did), written by heed's model calls ([llm]). "ahead": for every thread in For you's New, newest first, within
     # the daily cap, and on open for the rest; "open": only when you open a thread; "off": none.
     summaries = "ahead"
+    # GitHub items (PRs, issues, notifications) not updated within this many days are left out of Attention, and not
+    # asked of GitHub either. 0 shows everything. Sessions' PRs and issues, goals' and the ones the pilot watches stay.
+    max_age_days = 60
 
     [summary]
     # While you were away: what still waits on you, then what merged, how background runs ended, which agents
@@ -1525,6 +1553,11 @@ public enum ConfigLoader {
     # "gC" = ""
     # "<C-j>" = "row.next"
     """
+}
+
+/// `[ui] appearance`: which colours heed draws in.
+public enum Appearance: String, CaseIterable, Sendable {
+    case system, light, dark
 }
 
 /// `[updates]`.

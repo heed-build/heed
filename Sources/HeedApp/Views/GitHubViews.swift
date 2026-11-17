@@ -77,7 +77,7 @@ struct PullRequestsView: View {
                     .padding(.horizontal, 16)
                     .frame(height: 44)
                     .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
-                    SyncBanner(status: model.github.status, syncedAt: model.github.syncedAt)
+                    SyncBanner(status: model.github.status, syncedAt: model.githubNow.syncedAt)
                     ListBody(
                         count: rows.count,
                         cursor: cursor,
@@ -188,7 +188,7 @@ private struct PullRow: View {
 struct CheckBar: View {
     let checks: CheckSummary
 
-    private static let skippedColor = Color(hex: 0x3A4047)
+    private static let skippedColor = Color(dark: 0x3A4047, light: 0xC3C8CE)
     private static let gap: CGFloat = 2
     private static let thinnest: CGFloat = 3
 
@@ -369,10 +369,10 @@ struct IssueReaderView: View {
             Text(issue.body.isEmpty ? "Not assigned to you, so only its title is synced." : issue.body)
                 .font(Theme.ui(13)).foregroundStyle(issue.body.isEmpty ? Theme.fg3 : Theme.fg)
                 .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-            if let error = model.conversationErrors[key] {
+            if let error = model.threads[key]?.error {
                 Text("Could not load the thread: \(error). gB opens it on GitHub.").font(Theme.ui(12))
                     .foregroundStyle(Theme.err)
-            } else if model.conversationsLoading.contains(key) {
+            } else if model.threads[key]?.isLoading == true {
                 Text("Loading the thread…").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
             }
         }
@@ -413,7 +413,7 @@ struct FilterPill: View {
                 if !text.isEmpty {
                     Image(systemName: "xmark").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.fg3)
                         .contentShape(Rectangle())
-                        .onTapGesture { model.clearFilter(view) }
+                        .tap { model.clearFilter(view) }
                 }
             }
             .padding(.horizontal, 9)
@@ -481,7 +481,7 @@ struct ListBody<Row: View>: View {
                             row(index)
                                 .hint(hintView.flatMap { model.hintLabel(for: .row($0, index)) })
                                 .contentShape(Rectangle())
-                                .onTapGesture { if let hintView { model.clickRow(hintView, index) } }
+                                .tap { if let hintView { model.clickRow(hintView, index) } }
                                 .simultaneousGesture(TapGesture(count: 2).onEnded {
                                     if let hintView { model.clickRow(hintView, index, open: true) }
                                 })

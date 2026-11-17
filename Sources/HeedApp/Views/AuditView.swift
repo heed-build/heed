@@ -14,6 +14,7 @@ struct AuditView: View {
                 VStack(spacing: 0) {
                     header
                     if let broken = audit.book.broken { ChainWarning(broken: broken) }
+                    if audit.writeStatus.unsaved > 0 { UnsavedWarning(status: audit.writeStatus) }
                     switch audit.section {
                     case .actions:
                         ListBody(
@@ -89,14 +90,14 @@ private struct SectionToggle: View {
             item("Actions", count: model.audit.weekCount(), suffix: "in 7 days", lit: section == .actions)
             item(
                 "Grants",
-                count: model.audit.book.grantRows(before: model.audit.before).count { $0.revoked == nil },
+                count: model.audit.standingGrants,
                 suffix: "standing",
                 lit: section == .grants
             )
             KeyCap(text: model.keyText(for: "audit.grants", in: "audit"))
         }
         .contentShape(Rectangle())
-        .onTapGesture { model.perform(CommandInvocation(name: "audit.grants")) }
+        .tap { model.perform(CommandInvocation(name: "audit.grants")) }
     }
 
     private func item(_ title: String, count: Int, suffix: String, lit: Bool) -> some View {
@@ -115,6 +116,26 @@ private struct ChainWarning: View {
         HStack(spacing: 8) {
             Image(systemName: "link").font(.system(size: 10)).foregroundStyle(Theme.block)
             Text("The record's chain breaks at row \(broken.seq): \(broken.reason).")
+                .font(Theme.ui(11.5)).foregroundStyle(Theme.fg2)
+                .lineLimit(2)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 7)
+        .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+    }
+}
+
+/// Rows recorded this run that are not in `heed.sqlite` yet: they show, and are written with the next one.
+private struct UnsavedWarning: View {
+    let status: AuditWriter.Status
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "externaldrive.badge.exclamationmark").font(.system(size: 10))
+                .foregroundStyle(Theme.block)
+            Text("\(status.unsaved) row\(status.unsaved == 1 ? "" : "s") not in the record yet: "
+                + "\(status.problem ?? "the write failed"). heed tries again with the next one.")
                 .font(Theme.ui(11.5)).foregroundStyle(Theme.fg2)
                 .lineLimit(2)
             Spacer(minLength: 0)
@@ -170,6 +191,7 @@ struct TrustChip: View {
         case .stranger: Theme.err
         case .bot: Theme.block
         case .collaborator: Theme.done
+        case .member: Theme.block
         case .owner: Theme.fg3
         }
     }
@@ -379,12 +401,12 @@ private struct GrantRow: View {
             HStack(spacing: 8) {
                 Text(grant.subject)
                     .font(Theme.mono(12.5, weight: .semibold))
-                    .foregroundStyle(row.revoked == nil ? Theme.fg : Theme.fg3)
-                    .strikethrough(row.revoked != nil, color: Theme.fg3)
+                    .foregroundStyle(row.state.isRevoked ? Theme.fg3 : Theme.fg)
+                    .strikethrough(row.state.isRevoked, color: Theme.fg3)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Spacer(minLength: 6)
-                if row.revoked != nil { Text("revoked").font(Theme.mono(11)).foregroundStyle(Theme.fg3) }
+                if let label = stateLabel { Text(label).font(Theme.mono(11)).foregroundStyle(Theme.fg3) }
                 Text(grant.kind.label)
                     .font(Theme.mono(11))
                     .foregroundStyle(Theme.fg2)
@@ -403,6 +425,15 @@ private struct GrantRow: View {
         .background(isCursor ? Theme.bg3 : .clear)
         .overlay(alignment: .leading) { if isCursor { Theme.block.frame(width: 2) } }
         .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+    }
+
+    private var stateLabel: String? {
+        switch row.state {
+        case .standing: nil
+        case .revoking: "revoking"
+        case .revoked: "revoked"
+        case .failed: "not revoked"
+        }
     }
 
     private var when: String {
@@ -441,16 +472,17 @@ private struct GrantDetail: View {
                         }
                     }
                 }
-                if let revoked = row.revoked {
-                    section("Revoked") {
-                        Text("\(Clock.relative(revoked.at, named: true)): \(revoked.result)")
+                if let revocation = row.state.revocation {
+                    section(revocation.failed ? "Could not revoke" : "Revoked") {
+                        Text("\(Clock.relative(revocation.at, named: true)): \(revocation.result)")
                             .font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
                     }
                 }
                 Theme.line.frame(height: 1).padding(.top, 4)
                 FlowLayout(spacing: 18, lineSpacing: 6) {
-                    if row.revoked == nil, grant.kind.revocable {
-                        KeyHint("audit.revoke", scope: "audit", label: "revoke", color: Theme.fg2)
+                    if row.state.canRevoke, grant.kind.revocable {
+                        let again = row.state.revocation?.failed == true
+                        KeyHint("audit.revoke", scope: "audit", label: again ? "try again" : "revoke", color: Theme.fg2)
                     }
                     KeyHint("audit.grants", scope: "audit", label: "actions", color: Theme.fg2)
                 }

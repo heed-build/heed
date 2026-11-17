@@ -24,7 +24,7 @@ struct AttentionView: View {
             HStack(alignment: .top, spacing: 0) {
                 VStack(spacing: 0) {
                     AttentionTabs().shotRegion(.attentionTabs)
-                    SyncBanner(status: model.github.status, syncedAt: model.github.syncedAt)
+                    SyncBanner(status: model.github.status, syncedAt: model.githubNow.syncedAt)
                     if let note = model.github.teams.note { TeamsNote(text: note) }
                     // In the space left above the coverage line, however long the list.
                     Color.clear.overlay(alignment: .top) {
@@ -614,9 +614,9 @@ private struct AttentionReader: View {
                             }
                         }
                     }
-                    if let error = model.conversationErrors[key] {
+                    if let error = model.threads[key]?.error {
                         Text("Could not load the thread: \(error)").font(Theme.ui(12)).foregroundStyle(Theme.block)
-                    } else if model.conversationsLoading.contains(key) {
+                    } else if model.threads[key]?.isLoading == true {
                         Text("Loading the thread…").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                     }
                 }
@@ -813,7 +813,7 @@ private struct AttentionDetail: View {
                                 action("pilot.merge.now", "merge now", item: item.id)
                                 Text("set up merging").font(Theme.ui(12)).foregroundStyle(Theme.fg2).underline()
                                     .contentShape(Rectangle())
-                                    .onTapGesture { model.perform(CommandInvocation(name: "pilot.merge.setup")) }
+                                    .tap { model.perform(CommandInvocation(name: "pilot.merge.setup")) }
                             }
                         }
                         if item.kind == .pr || item.kind == .issue { action(

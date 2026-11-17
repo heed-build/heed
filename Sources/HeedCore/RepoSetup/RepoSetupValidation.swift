@@ -95,6 +95,8 @@ public struct RepoSetupValidation: Hashable, Sendable {
             closes: [], fetchedAt: pull.mergedAt, authorTrust: pull.authorTrust
         )
         detail.state = "OPEN"
+        detail.crossRepository = pull.crossRepository
+        detail.writers = pull.writers
         detail.isDraft = false
         detail.mergeable = "MERGEABLE"
         detail.mergeState = "CLEAN"

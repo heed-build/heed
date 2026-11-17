@@ -112,7 +112,7 @@ private struct SwarmGraph: View {
                 card: { node in
                     MapCard(node: node, isCursor: node.id == cursor)
                         .contentShape(Rectangle())
-                        .onTapGesture { model.clickMapCard(node.id) }
+                        .tap { model.clickMapCard(node.id) }
                         .simultaneousGesture(TapGesture(count: 2).onEnded {
                             model.clickMapCard(node.id)
                             model.perform(CommandInvocation(name: node.id == "lead" ? "goal.swarm" : "swarm.task.open"))

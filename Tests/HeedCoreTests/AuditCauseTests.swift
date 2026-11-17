@@ -2,9 +2,14 @@ import Foundation
 @testable import HeedCore
 import Testing
 
-struct AuditCauseTests {
+final class AuditCauseTests {
+    /// Each test's own folder, removed when the test ends.
+    private let root = FileManager.default.temporaryDirectory.appendingPathComponent("heed-audit-\(UUID().uuidString)")
+
+    deinit { try? FileManager.default.removeItem(at: root) }
+
     private func folder() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("heed-audit-\(UUID().uuidString)")
+        let url = root.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }

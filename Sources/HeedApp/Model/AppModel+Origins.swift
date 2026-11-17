@@ -5,7 +5,7 @@ import HeedCore
 /// GitHub (read only, off the main actor) when a hook found it did not know enough, and records each note it gave in
 /// Audit, on the cause of what that agent does next.
 extension AppModel {
-    /// What heed holds changed: the facts are projected again, off the main actor.
+    /// What heed holds changed: the facts are projected again, off the main actor, in the order taken here.
     func noticeOrigins() {
         guard !isFixture else { return }
         let checkouts = (repos.filter(\.location.isLocal).map { (path: $0.path, repo: $0.repo) }
@@ -13,8 +13,7 @@ extension AppModel {
         let snapshot = OriginKeeper.Snapshot(
             viewer: github.viewer, checkouts: checkouts, details: Array(pullDetails.values), issues: github.issues
         )
-        let origins = origins
-        Task.detached(priority: .utility) { await origins.update(snapshot) }
+        origins.submit(snapshot)
     }
 
     /// A hook's report on one call that brought GitHub content in.

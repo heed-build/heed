@@ -343,6 +343,7 @@ public enum MenuBar {
                 session("Type into its agent", "session.agent"),
                 session("Resume its agent", "agent.resume"),
                 session("Start its agent fresh", "agent.fresh"),
+                session("Restart to reconnect", "session.reconnect"),
                 item("Type into the focused pane", "mode.insert", enabled: facts.panes > 0),
                 .separator,
                 session("Pin", "session.pin", checked: facts.session?.pinned ?? false),

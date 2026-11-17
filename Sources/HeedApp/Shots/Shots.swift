@@ -302,6 +302,10 @@ enum Shots {
         // pick its conversation up again, and the row says so.
         Shot(id: "sessions/resume-later", prepare: resumeLater),
         Shot(id: "sessions/resume-banner", crop: .resumeBanner, cropPadding: 0, prepare: resumeLater),
+        // A pane an older heed started reports without a token: heed takes none of it, files the session under Working
+        // instead of by its stale state, and the row and the strip over its panes say gk restarts it.
+        Shot(id: "sessions/unheard", prepare: unheardPane),
+        Shot(id: "sessions/unheard-banner", crop: .unheardBanner, cropPadding: 0, prepare: unheardPane),
         Shot(id: "sessions/growing", crop: .growthLine, cropPadding: 0, prepare: growingSession),
         Shot(id: "sessions/make-it-a-goal", keys: "gP", crop: .promotion, cropPadding: 0, prepare: growingSession),
         // ↩ on it asks the agent for a handoff first and waits, with the agent's live state; s starts without it.
@@ -388,7 +392,7 @@ enum Shots {
         model.agentPresence.tracking = true
         let ids = model.sessions.map(\.id)
         for session in model.sessions {
-            model.conversationOnDisk[session.id] = true
+            model.conversationChecks.set(session.id, exists: true)
             let panes = model.layouts[session.id]?.tabs.flatMap(\.tree.panes).map(\.id) ?? []
             if [ids.first, ids.dropFirst(2).first].contains(session.id) { continue }
             for pane in panes {
@@ -396,6 +400,17 @@ enum Shots {
             }
         }
         if let first = ids.first { model.select(sessionID: first) }
+    }
+
+    /// An idle session whose agent pane sends hook messages without a token, as one an older heed started does.
+    static func unheardPane(_ model: AppModel) {
+        // Idle, so its stale state would file it under Parked; heed is not acting on its PR.
+        guard let session = model.sessions.first(where: { $0.id == "s6" }),
+              let layout = model.layouts[session.id], let (_, pane) = model.agentPane(in: layout) else { return }
+        for kind in [HookMessage.Kind.state(.working, reason: nil), .state(.working, reason: "running tests")] {
+            model.receive(HookMessage(session: session.id, pane: pane, kind: kind, agent: session.agent))
+        }
+        model.select(sessionID: session.id)
     }
 
     /// Make it a goal after ↩: the agent asked for its handoff, working, so the ask waits for it to be readable.
@@ -410,7 +425,7 @@ enum Shots {
             now: Clock.now
         )
         ask?.delivered(.delivered(.claudeInbox))
-        model.promotionHandoff = ask
+        if let ask { model.promotionFlow?.ask(ask) }
     }
 
     static func withChats(_ model: AppModel) {
@@ -554,7 +569,12 @@ enum Shots {
             id: "agents/model-calls", subject: .settings(.agents), size: CGSize(width: 1180, height: 720),
             prepare: { model in
                 model.agentTab = .modelCalls
-                model.llmTests["claude"] = LLMTest(answer: "Hello!", model: "claude-haiku", seconds: 2.9, cost: 0.00026)
+                model.llmTests["claude"] = .passed(AgentTestAnswer(
+                    text: "Hello!",
+                    model: "claude-haiku",
+                    seconds: 2.9,
+                    cost: 0.00026
+                ))
             }
         ),
         // Settings › Agents › claude › Sessions: its own model and effort for its sessions, picked from its list.
@@ -1566,10 +1586,10 @@ enum Shots {
             size: CGSize(width: 1180, height: 1080),
             prepare: { model in
                 model.applyConfig(source: "[llm]\nagent = \"claude\"\n[decisions]\ndecider = \"local\"\n")
-                model.llmTests["claude"] = LLMTest(
-                    answer: "Hello there!", model: "claude-haiku", seconds: 2.4, cost: 0.00031
-                )
-                model.decisionTest = DecisionTest(answer: "done (confidence 90%)", seconds: 0.6)
+                model.llmTests["claude"] = .passed(AgentTestAnswer(
+                    text: "Hello there!", model: "claude-haiku", seconds: 2.4, cost: 0.00031
+                ))
+                model.decisionTest = .passed(DecisionTestAnswer(text: "done (confidence 90%)", seconds: 0.6))
             }
         ),
         // The title bar's reminder while model calls and decisions are not set up.

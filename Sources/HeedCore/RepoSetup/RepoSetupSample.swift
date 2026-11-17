@@ -124,6 +124,15 @@ public struct SampledPull: Hashable, Sendable {
     public var passedRuns: [PullDetail.CheckOrigin]
     public var failedChecks: [String]
     public var pendingChecks: [String]
+    /// From a fork.
+    public var crossRepository = false
+    /// The organisation members on it gh said can write to the repo, lowercased (`PullDetail.writers`).
+    public var writers: [String]?
+
+    /// The organisation members who opened or reviewed it.
+    public var memberLogins: [String] {
+        ([(author, authorTrust)] + reviews.map { ($0.author, $0.trust) }).compactMap { $0.1 == .member ? $0.0 : nil }
+    }
 
     public init(
         number: Int, title: String = "", author: String, authorIsBot: Bool = false, mergedBy: String? = nil,

@@ -97,6 +97,12 @@ public enum Commands {
             .move
         ),
         .init(
+            "session.reconnect",
+            "restart the agent of a session heed can't hear (its pane has no token it can check): the pane's process "
+                + "ends and the agent resumes in a new terminal",
+            .move
+        ),
+        .init(
             "view.insights",
             "Insights: the dashboard first, then History, the ledger, the Mindmap and standups",
             .move

@@ -16,16 +16,16 @@ enum WorldSeed {
         let wanted = Set(nodes.compactMap(\.entry))
         let entries = Fixtures.ledger.filter { wanted.contains($0.id) }
         guard let log = await EventLog.open(at: EventLog.defaultFile()) else {
-            FileHandle.standardError.write(Data("seed: cannot open the event log\n".utf8))
+            try? FileHandle.standardError.write(contentsOf: Data("seed: cannot open the event log\n".utf8))
             return 1
         }
         await log.write(entries.map { .ledger($0) })
         guard let store = await MindmapStore.open(instance, in: MindmapStore.defaultDirectory()) else {
-            FileHandle.standardError.write(Data("seed: cannot open the Mindmap\n".utf8))
+            try? FileHandle.standardError.write(contentsOf: Data("seed: cannot open the Mindmap\n".utf8))
             return 1
         }
         do { try await store.upsert(nodes) } catch {
-            FileHandle.standardError.write(Data("seed: \(error)\n".utf8))
+            try? FileHandle.standardError.write(contentsOf: Data("seed: \(error)\n".utf8))
             return 1
         }
         print("seeded \(entries.count) ledger entries and \(nodes.count) Mindmap nodes for \(instance)")

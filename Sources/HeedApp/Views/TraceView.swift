@@ -157,7 +157,7 @@ private struct Lanes: View {
                                     }
                                     .frame(width: barWidth, height: 26)
                                     .offset(x: width * part.offset / total)
-                                    .onTapGesture { model.telemetry.setTraceCursor(turn: index, segment: position) }
+                                    .tap { model.telemetry.setTraceCursor(turn: index, segment: position) }
                             }
                         }
                     }

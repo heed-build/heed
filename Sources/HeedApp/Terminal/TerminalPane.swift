@@ -100,6 +100,25 @@ final class TerminalSurfaces {
     /// PATH for new panes: the detected search path (an app opened from Finder has a minimal one).
     var searchPath = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin"
 
+    /// At launch, from when the cached sessions are drawn until the search path, zmx and its live sessions are known:
+    /// the panes drawn meanwhile, whose terminals are made once `releasePanes()` says so. Nil once released.
+    private var held: [String: (pane: PaneSpec, sessionID: String)]?
+
+    /// Panes drawn from now on wait for `releasePanes()` before their terminal is made.
+    func holdPanes() {
+        if held == nil { held = [:] }
+    }
+
+    /// Makes the terminals of the panes drawn while held, as they would have been made when drawn.
+    func releasePanes() {
+        guard let waiting = held else { return }
+        held = nil
+        for (id, item) in waiting {
+            guard let host = hosts[id], views[id] == nil else { continue }
+            host.show(makeTerminal(for: item.pane, sessionID: item.sessionID))
+        }
+    }
+
     func view(for pane: PaneSpec, sessionID: String) -> NSView {
         if let host = hosts[pane.id] {
             host.removeFromSuperview()
@@ -107,7 +126,11 @@ final class TerminalSurfaces {
         }
         let host = PaneHost()
         hosts[pane.id] = host
-        host.show(makeTerminal(for: pane, sessionID: sessionID))
+        if held != nil {
+            held?[pane.id] = (pane, sessionID)
+        } else {
+            host.show(makeTerminal(for: pane, sessionID: sessionID))
+        }
         wireExits()
         return host
     }
@@ -205,6 +228,26 @@ final class TerminalSurfaces {
         }
     }
 
+    /// Restarts a pane's process (`session.reconnect`): its terminal and its zmx session (here or on its host) end,
+    /// whatever runs in them, then a new terminal runs the pane's command with this run's environment and token. Off
+    /// screen it starts at once, as `prepare` does.
+    func restart(_ pane: PaneSpec, sessionID: String) {
+        let host = hosts[pane.id]
+        // Out of `views` first: the old terminal ending is not the pane ending.
+        views.removeValue(forKey: pane.id)
+        let end = endSession(paneID: pane.id, location: paneLocations[pane.id] ?? pane.location)
+        Task { @MainActor in
+            await end()
+            if let host {
+                // Closed meanwhile: nothing to start.
+                guard hosts[pane.id] === host else { return }
+                host.show(makeTerminal(for: pane, sessionID: sessionID))
+            } else {
+                _ = view(for: pane, sessionID: sessionID)
+            }
+        }
+    }
+
     /// Ends a pane's zmx session, here or on its host, if it has one; the returned work does it.
     private func endSession(paneID: String, location: Location) -> @Sendable () async -> Void {
         if let host = location.hostName {
@@ -250,6 +293,7 @@ final class TerminalSurfaces {
     /// A pane closed for good (closed, its session closed or deleted, its worktree swept): its terminal goes, and with
     /// zmx its session too, so nothing is left running.
     func close(paneID: String) {
+        held?[paneID] = nil
         views.removeValue(forKey: paneID)?.removeFromSuperview()
         hosts.removeValue(forKey: paneID)?.removeFromSuperview()
         guard let location = paneLocations.removeValue(forKey: paneID) else { return }

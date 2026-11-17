@@ -171,30 +171,25 @@ struct LedgerTests {
         #expect(order.withLock { $0 } == ["summary", "remove"])
     }
 
-    /// The wait giving up is a signal the test sends, not a duration it measures: a clock here would be asserting on
-    /// how
-    /// quickly a loaded machine schedules a task, which is not what removal promises.
-    @Test func removalDoesNotWaitForeverOnASummaryThatNeverComes() async {
+    /// The wait giving up is time the test moves on a manual clock, not a duration it measures: a real clock here would
+    /// be asserting on how quickly a loaded machine schedules a task, which is not what removal promises.
+    @Test func removalDoesNotWaitForeverOnASummaryThatNeverComes() async throws {
         let order = Mutex<[String]>([])
-        let giveUp = Mutex<(@Sendable () -> Void)?>(nil)
-        let (armed, armedSignal) = AsyncStream<Void>.makeStream()
+        let clock = ManualClock()
         let removal = Task {
-            await Ledger.summarizeThenRemove(armTimer: { fire in
-                giveUp.withLock { $0 = fire }
-                armedSignal.yield()
-            }, summarize: {
-                // Stands in for a model that never answers; if removal waited on it, "summary" would land first.
-                try? await Task.sleep(for: .seconds(60))
+            await Ledger.summarizeThenRemove(timeout: .seconds(30), clock: clock) {
+                // Stands in for a model that never answers; if removal waited on it, "summary" would land first (after
+                // ten real seconds, so a removal that ignores its timeout fails rather than hangs).
+                try? await Task.sleep(for: .seconds(10))
                 order.withLock { $0.append("summary") }
-            }, remove: {
+            } remove: {
                 order.withLock { $0.append("remove") }
-            })
+            }
         }
-        for await _ in armed {
-            break
-        }
+        try await waitUntil { clock.sleeping == 1 }
+        clock.advance(by: .seconds(29))
         #expect(order.withLock { $0 }.isEmpty, "removal went ahead before the wait gave up")
-        giveUp.withLock { $0 }?()
+        clock.advance(by: .seconds(1))
         await removal.value
         #expect(order.withLock { $0 } == ["remove"])
     }
@@ -249,7 +244,6 @@ struct LedgerGitTests {
         }
         try FileManager.default.createDirectory(atPath: base, withIntermediateDirectories: true)
         try "a\n".write(toFile: base + "/a.txt", atomically: true, encoding: .utf8)
-        GitEnvironment.isolate()
         for args in [
             ["init", "-q", "-b", "main"],
             ["config", "user.email", "t@t"],

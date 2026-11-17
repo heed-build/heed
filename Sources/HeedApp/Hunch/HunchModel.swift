@@ -19,8 +19,10 @@ final class HunchModel {
     private(set) var counts: [HunchFamily: Int] = [:]
     private(set) var heldOut = 0
     private(set) var record = HunchLearningRecord()
-    /// A run in progress: how far (nil: starting); nil when none runs.
-    private(set) var training: Double??
+    /// A run in progress: starting, how far, or stopping; idle when none runs.
+    private(set) var run = HunchTrainingRun.idle
+    /// What the pane's bar shows: how far a run is (nil: starting); nil when none runs.
+    var training: Double?? { run.progress }
     /// Why no run is going now, or how the last attempt ended.
     var note: String?
     /// A downloaded checkpoint's directory; nil until one is.
@@ -31,7 +33,7 @@ final class HunchModel {
     let runtime = HunchRuntime()
 
     @ObservationIgnored private var downloadTasks: [String: Task<Void, Never>] = [:]
-    @ObservationIgnored private(set) var trainTask: Task<Void, Never>?
+    @ObservationIgnored private var trainTask: Task<Void, Never>?
     @ObservationIgnored let fixture: Bool
 
     init(fixture: Bool, root: URL? = nil) {
@@ -192,7 +194,7 @@ final class HunchModel {
 
     /// Starts a run when one is due (`asked`: Retrain now). Stops it when the Mac gets busy, unless you asked for it.
     func trainIfDue(asked: Bool, conditions: @escaping @MainActor () -> HunchConditions) {
-        guard !fixture, trainTask == nil, let directory, let checkpoint else {
+        guard !fixture, !run.isActive, let directory, let checkpoint else {
             if asked, directory == nil { note = "no model downloaded" }
             return
         }
@@ -203,13 +205,14 @@ final class HunchModel {
             if case let .wait(reason) = due { note = reason }
             return
         }
+        guard run.start() else { return }
         note = nil
-        training = .some(nil)
         let (folder, current, runtime, id) = (folder, head, runtime, checkpoint.id)
         let examplesNow = total
         let newHead = folder.head(HunchFolder.headName(checkpoint: id, at: Date()))
         trainTask = Task { [weak self] in
-            // Off the main actor and at low priority; the model runs it on its own queue.
+            // Off the main actor and at low priority; the model runs it on its own queue. Detached, so it does not
+            // see this task's cancellation by itself: stopping cancels it through the handler below.
             let run = Task.detached(priority: .background) { () -> HunchRuntime.Outcome in
                 let examples = (try? Data(contentsOf: folder.examples)).map(HunchTrainingSet.decode) ?? []
                 let (train, heldOut) = HunchTrainingSet.split(examples)
@@ -224,13 +227,16 @@ final class HunchModel {
                 while !Task.isCancelled {
                     try? await Task.sleep(for: .seconds(5))
                     if let reason = HunchSchedule.shouldStop(conditions(), asked: asked) {
-                        self?.note = reason
-                        run.cancel()
+                        self?.stopTraining(reason)
                         return
                     }
                 }
             }
-            let result = await run.result
+            let result = await withTaskCancellationHandler {
+                await run.result
+            } onCancel: {
+                run.cancel()
+            }
             watch.cancel()
             await self?.finished(result, checkpoint: id, newHead: newHead, examples: examplesNow)
         }
@@ -238,22 +244,24 @@ final class HunchModel {
 
     /// Stops a run in progress; the head in use stays.
     func stopTraining(_ reason: String) {
-        guard let trainTask else { return }
+        guard let trainTask, run.stop() else { return }
         note = reason
         trainTask.cancel()
     }
 
+    /// A step done; a report arriving after the run stopped or ended changes nothing.
     private func progress(_ fraction: Double) {
-        if training != nil { training = .some(fraction) }
+        run.progressed(fraction)
     }
 
     private func finished(
         _ result: Result<HunchRuntime.Outcome, any Error>, checkpoint: String, newHead: URL, examples: Int
     ) async {
-        training = nil
         trainTask = nil
-        switch result {
-        case let .success(outcome):
+        let cancelled = if case let .failure(error) = result { error is CancellationError } else { false }
+        let succeeded = if case .success = result { true } else { false }
+        switch (run.finish(succeeded: succeeded, cancelled: cancelled), result) {
+        case let (.finished, .success(outcome)):
             var record = record
             record.trainedAt = Date()
             record.checkpoint = checkpoint
@@ -276,13 +284,16 @@ final class HunchModel {
             self.record = record
             saveRecord()
             await pruneHeads()
-        case let .failure(error):
-            if error is CancellationError || (error as? CancellationError) != nil {
-                if note == nil { note = "stopped" }
-            } else {
-                record.error = "\(error)"
-                saveRecord()
-            }
+        case (.stopped, _):
+            // Stopped: even a run that finished anyway does not adopt its head. The runtime goes back to the
+            // record's head on its next decision (it loads the head it is asked for).
+            if note == nil { note = "stopped" }
+            try? FileManager.default.removeItem(at: newHead)
+        case let (_, .failure(error)):
+            record.error = "\(error)"
+            saveRecord()
+            try? FileManager.default.removeItem(at: newHead)
+        case (.failed, .success):
             try? FileManager.default.removeItem(at: newHead)
         }
         await refresh()
@@ -352,7 +363,11 @@ final class HunchModel {
         self.counts = counts
         self.heldOut = heldOut
         self.record = record
-        self.training = training
+        run = switch training {
+        case .none: .idle
+        case .some(.none): .starting
+        case let .some(.some(fraction)): .running(fraction)
+        }
         self.usage = usage
         self.note = note
     }

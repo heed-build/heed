@@ -169,8 +169,7 @@ struct RunsTests {
             prBranch: "b", branch: "heed/get-it-green/b", worktree: "/wt", startSHA: "a"
         )
         domain.apply(.runUpdated(run))
-        run.endedAt = Date()
-        run.outcome = .pushed(1)
+        run.end(.pushed(1), at: Date())
         domain.apply(.runUpdated(run))
         #expect(domain.runs.count == 1 && domain.runs[0].outcome == .pushed(1))
         let data = try JSONEncoder().encode(domain)
@@ -198,7 +197,6 @@ struct RunGitTests {
         defer { try? FileManager.default.removeItem(atPath: base) }
         let remote = base + "/remote.git", clone = base + "/clone", main = base + "/wt/r/fix-a"
         try FileManager.default.createDirectory(atPath: base, withIntermediateDirectories: true)
-        GitEnvironment.isolate()
         _ = try await ProcessRunner.output("git", ["init", "-q", "--bare", "-b", "main", remote], caller: "test")
         _ = try await ProcessRunner.output("git", ["clone", "-q", remote, clone], caller: "test")
         for args in [

@@ -234,7 +234,7 @@ extension AppModel {
         let facts = SwarmActivityFacts.of(lines)
         let reported = runStates[live.paneID]
         let guessed = TerminalSurfaces.shared.visibleText(paneID: live.paneID).flatMap { text in
-            settings.agent(live.agent).flatMap { ScreenGuess.guess(text, patterns: ScreenGuess.patterns(for: $0)) }
+            settings.agent(live.agent).flatMap { ScreenGuess.guess(text, compiled: screenGuesser.compiled(for: $0)) }
         }
         var others: Date?
         var you: Date?

@@ -8,7 +8,7 @@ struct FirstRunView: View {
     var body: some View {
         if let report = model.firstRun {
             ZStack {
-                Color.black.opacity(0.6)
+                Theme.scrim.opacity(0.6)
                 ListScroll {
                     dialog(report).frame(width: 760).shotRegion(.dialog).padding(.vertical, 40)
                 }
@@ -112,7 +112,7 @@ struct FirstRunView: View {
                 .padding(.vertical, 8)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Theme.inverse))
                 .contentShape(Rectangle())
-                .onTapGesture { model.press([KeyStroke("CR")]) }
+                .tap { model.press([KeyStroke("CR")]) }
                 .pointerStyle(.link)
                 .help("Close this and start")
             }
@@ -130,7 +130,7 @@ struct FirstRunView: View {
             Text(label).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
         }
         .clickable()
-        .onTapGesture { model.press([KeyStroke(key)]) }
+        .tap { model.press([KeyStroke(key)]) }
         .help(help)
     }
 

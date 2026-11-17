@@ -66,7 +66,7 @@ enum TutorCheck {
 
     static func run() async -> Int32 {
         ShotMode.active = true
-        Clock.fixed = ShotRunner.instant
+        HeedContext.pinProcess { $0.pinnedNow = ShotRunner.instant }
         var failures = 0
         for lesson in [Tutor.tour] + Tutor.viewLessons {
             let model = AppModel(domain: lesson.world.domain, isFixture: true)

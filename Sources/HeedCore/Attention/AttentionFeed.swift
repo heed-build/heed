@@ -13,10 +13,12 @@ public enum AttentionFeed {
     ///   assignment): the rest left when you read them, wherever you read them.
     /// - An issue the search says mentions you or is assigned to you is a fresh mention or assignment when it was
     ///   opened within 14 days, else mentioned (assigned) before: folded, unless a notification says it is new.
+    /// - `maxAgeDays` (`[attention] max_age_days`, 0 for no cap): GitHub items last updated before it are left out,
+    ///   except the `exempt` threads and any with a session of their own (`AttentionAge`).
     public static func items(
         github: GitHubState, sessions: [Session], details: [String: ThreadDetail] = [:],
         pilotDriving: Set<PullRef> = [], readyToMerge: Set<PullRef> = [], goals: [GoalNotice] = [],
-        now: Date = Clock.now
+        maxAgeDays: Int = 0, exempt: Set<String> = [], now: Date = Clock.now
     ) -> [AttentionItem] {
         var byID: [String: AttentionItem] = [:]
         func add(_ item: AttentionItem) {
@@ -68,7 +70,7 @@ public enum AttentionFeed {
             ))
         }
 
-        return byID.values.map { item in
+        let all = byID.values.map { item in
             var item = item
             // A notification that says so is the fresh mention or assignment; the search's older one goes.
             if item.reasons.contains(.mentioned) { item.reasons.remove(.mentionedBefore) }
@@ -83,7 +85,9 @@ public enum AttentionFeed {
             }
             if item.session == nil { item.session = session(for: item, in: sessions) }
             return item
-        }.sorted { $0.updatedAt == $1.updatedAt ? $0.id < $1.id : $0.updatedAt > $1.updatedAt }
+        }
+        return AttentionAge.apply(to: all, days: maxAgeDays, now: now, exempt: exempt)
+            .sorted { $0.updatedAt == $1.updatedAt ? $0.id < $1.id : $0.updatedAt > $1.updatedAt }
     }
 
     /// The reason an agent in `state` is here, if it is: the Needs you states, and rate limited.

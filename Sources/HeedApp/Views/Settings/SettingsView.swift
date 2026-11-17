@@ -80,6 +80,16 @@ struct SettingsView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .background(RoundedRectangle(cornerRadius: 6).fill(Theme.err.opacity(0.1)))
                             }
+                            // The session key, as read at launch: one heed could not read or keep is this run's only.
+                            if let notice = model.sessionKeyNotice {
+                                Label(notice, systemImage: "exclamationmark.triangle.fill")
+                                    .font(Theme.ui(12))
+                                    .foregroundStyle(Theme.block)
+                                    .textSelection(.enabled)
+                                    .padding(10)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(RoundedRectangle(cornerRadius: 6).fill(Theme.block.opacity(0.1)))
+                            }
                             if let search {
                                 SettingsSearchPane(search: search).id("top")
                                     .environment(\.settingsMarkedRow, resultCursor)
@@ -416,7 +426,7 @@ struct SettingsSidebar: View {
         .background(RoundedRectangle(cornerRadius: 5).fill(background(node)))
         .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(isCursor ? Theme.keyCapBorder : .clear))
         .contentShape(Rectangle())
-        .onTapGesture {
+        .tap {
             if let search {
                 // Searching, a page moves the search's cursor to its first match; groups stay open.
                 guard !node.isGroup, let page = node.page, search.count(page) > 0 else { return }
@@ -482,7 +492,7 @@ private struct ConfigureButton: View {
             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.keyCapBorder))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HoverButtonStyle())
         .help("A profile, then the settings still worth deciding, then the changes to apply (:settings.configure)")
     }
 }

@@ -319,7 +319,7 @@ extension AppModel {
             return (nil, "walks run headless: \(agent.name) has no headless mode, set [goals] reviewer_agent")
         }
         let (path, pathVariable) = await ToolLocator.shared.executable(words[0])
-        let line = RunSandbox.environment(present: Array(ProcessInfo.processInfo.environment.keys), folder: report)
+        let line = RunSandbox.environment(agent: agent.name, folder: report)
             + [path ?? words[0]] + words.dropFirst()
         let started = Date()
         let result = try? await ProcessRunner.run(

@@ -35,7 +35,7 @@ struct LeaderHints: View {
                         .frame(width: 250, alignment: .leading)
                         // A click presses the rest of the keys, so it runs exactly what they would.
                         .clickable()
-                        .onTapGesture { model.press(entry.rest) }
+                        .tap { model.press(entry.rest) }
                         .help(Clicks.help(CommandInvocation(parsing: entry.command)))
                     }
                 }

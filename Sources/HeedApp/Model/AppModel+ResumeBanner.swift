@@ -10,7 +10,7 @@ extension AppModel {
         guard tutor == nil, resume == nil else { return nil }
         return ResumeBanner.offer(
             session: session, layout: layouts[session.id], agent: settings.agent(session.agent),
-            presence: agentPresence, conversationOnDisk: conversationOnDisk[session.id] ?? false
+            presence: agentPresence, conversation: conversationChecks[session.id]
         )
     }
 
@@ -30,15 +30,22 @@ extension AppModel {
         }
     }
 
+    /// What a hook or the screen says of a pane's agent, written only when it changes who runs: every hook says it,
+    /// and each write would redraw what reads `agentPresence`.
+    func observePresence(_ state: AgentState, in pane: String) {
+        guard agentPresence.changes(observing: state, in: pane) else { return }
+        agentPresence.observed(state, in: pane)
+    }
+
     /// What a hook said about a pane's agent: it is there, or it is gone.
     func noteAgent(_ kind: HookMessage.Kind, pane: String?, session: Session) {
         guard let pane else { return }
         switch kind {
         case let .state(state, _), let .guess(state, _):
-            agentPresence.observed(state, in: pane)
+            observePresence(state, in: pane)
             if state == .exited { checkConversations(of: [session.id]) }
         case .atPrompt:
-            agentPresence.observed(.idle, in: pane)
+            observePresence(.idle, in: pane)
         default:
             break
         }
@@ -51,11 +58,13 @@ extension AppModel {
         let domain = currentDomain
         let targets = domain.sessions.filter { ids?.contains($0.id) ?? true }.filter { $0.agentSessionID != nil }
         guard !targets.isEmpty else { return }
+        // Checks run in any order: a report from one older than the session's latest check is ignored.
+        let generation = conversationChecks.begin(targets.map(\.id))
         Task.detached(priority: .utility) {
             let found = targets.map { ($0.id, Self.agentHasConversation($0, in: domain) != false) }
             await MainActor.run { [found] in
                 for (id, exists) in found {
-                    self.conversationOnDisk[id] = exists
+                    self.conversationChecks.report(id, exists: exists, generation: generation)
                 }
             }
         }
@@ -94,7 +103,7 @@ extension AppModel {
             resumeBannerDismissed.remove(session.id)
             resumeSessions([candidate])
             if candidate.startsFresh {
-                if !fresh { conversationOnDisk[session.id] = false }
+                if !fresh { conversationChecks.set(session.id, exists: false) }
                 flash = fresh ? "\(session.agent) started fresh in \(session.title)"
                     : "\(session.agent) no longer has that conversation: started fresh from the original prompt"
             } else {

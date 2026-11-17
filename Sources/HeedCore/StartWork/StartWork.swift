@@ -170,8 +170,9 @@ public enum Paths {
     /// A path split at the root it lives under: the longest of `roots` that contains it, else the home folder.
     /// `~/code/wt/docs-toolkit/fix-x` under `~/code/wt` is `("~/code/wt/", "docs-toolkit/fix-x")`. Filters match the
     /// relative part only, so a root's own words (`code`, `Projects`) do not match every row.
-    /// The home folder `split` measures from: the real one, or the fake world's in screenshots.
-    public nonisolated(unsafe) static var home = NSHomeDirectory()
+    /// The home folder `split` measures from: the real one, or the fake world's in screenshots
+    /// (`HeedContext.home`).
+    public static var home: String { HeedContext.current.home }
 
     public static func split(_ path: String, roots: [String], home: String = Paths.home) -> (
         root: String, relative: String

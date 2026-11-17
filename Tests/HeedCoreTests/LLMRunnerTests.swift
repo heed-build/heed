@@ -3,16 +3,15 @@ import Foundation
 import Synchronization
 import Testing
 
-/// A fake agent CLI: a shell script that answers like claude (`-p`), cursor-agent (`-p`, `status`) or codex (`exec`),
-/// as files next to it say. Every call it answers appends the prompt's last line to `calls`, then waits while `hold`
-/// exists.
+/// A fake agent CLI: a shell script that answers like claude (`-p`, `auth status`) or cursor-agent (`-p`, `status`,
+/// `models`), as files next to it say. Every call it answers appends the prompt's last line to `calls`. Only the tests
+/// that prove the process path use it (stdin, the timeout, detection rows); the rest use `FakeAgent`.
 private struct FakeCLI {
     let folder: URL
     let path: String
 
     init() throws {
-        folder = FileManager.default.temporaryDirectory.appendingPathComponent("heed-fake-llm-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        folder = try Scratch.folder("heed-fake-llm")
         path = folder.appendingPathComponent("agent").path
         let script = #"""
         #!/bin/sh
@@ -23,26 +22,15 @@ private struct FakeCLI {
             [ "$(cat "$dir/login" 2>/dev/null || echo in)" = in ] && { echo '{"loggedIn": true}'; exit 0; }
             echo 'Not logged in'; exit 1 ;;
           models) echo "fake-mini - Fake Mini"; exit 0 ;;
-          debug) echo '{"models":[{"slug":"big","description":"Frontier","visibility":"list","priority":1},{"slug":"small-fast","description":"Fast and affordable model","visibility":"list","priority":4}]}'; exit 0 ;;
         esac
         input="$(cat)"
         if [ -z "$input" ]; then for last; do :; done; input="$last"; fi
         first="$(printf '%s\n' "$input" | tail -n 1)"
         echo "$first" >> "$dir/calls"
-        while [ -f "$dir/hold" ]; do sleep 0.02; done
-        [ -f "$dir/delay" ] && sleep "$(cat "$dir/delay")"
         case "$mode" in
           fail) echo "boom" >&2; exit 1 ;;
           sleep) sleep 120; echo woke > "$dir/woke"; exit 1 ;;
-          limit) echo '{"type":"result","is_error":true,"result":"You have hit your session limit · resets 6pm (UTC)"}'; exit 1 ;;
-          prose) echo '{"type":"result","is_error":false,"result":"I would rather not","total_cost_usd":0.001}'; exit 0 ;;
         esac
-        if [ "$1" = exec ]; then
-          echo '{"type":"thread.started"}'
-          echo "{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"{\\\"answer\\\":\\\"codex\\\"}\"}}"
-          echo '{"type":"turn.completed","usage":{"input_tokens":120,"cached_input_tokens":20,"output_tokens":7}}'
-          exit 0
-        fi
         printf '{"type":"result","is_error":false,"result":"echo %s","structured_output":{"answer":"%s"},"total_cost_usd":0.001,"usage":{"input_tokens":3,"output_tokens":5,"cache_read_input_tokens":0,"cache_creation_input_tokens":100},"modelUsage":{"fake-model":{}}}\n' "$first" "$first"
         """#
         try script.write(toFile: path, atomically: true, encoding: .utf8)
@@ -64,6 +52,143 @@ private struct FakeCLI {
     func agent(_ name: String) -> AgentProfile { AgentProfile(name: name, command: path) }
 }
 
+/// An agent answered in-process, as `FakeCLI` answers from a script: claude's and cursor's `-p`, codex's `exec`,
+/// their login checks and model listings. Every call appends the prompt's last line to `calls`, then waits while the
+/// agent is held.
+private final class FakeAgent: Sendable {
+    enum Mode: Sendable {
+        case ok, fail, prose
+        /// Says it hit its session limit, which resets at 6pm UTC.
+        case limit
+    }
+
+    private struct State {
+        var mode = Mode.ok
+        var loggedIn = true
+        var calls: [String] = []
+        var held = false
+        var holding: [CheckedContinuation<Void, Never>] = []
+        var callWaiters: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
+        var running = 0
+        var mostAtOnce = 0
+    }
+
+    let path = "/fake/agent-\(UUID().uuidString)"
+    private let state = Mutex(State())
+
+    func agent(_ name: String) -> AgentProfile { AgentProfile(name: name, command: path) }
+
+    var calls: [String] { state.withLock { $0.calls } }
+    /// The most calls it was answering at one time.
+    var mostAtOnce: Int { state.withLock { $0.mostAtOnce } }
+    func set(_ mode: Mode) { state.withLock { $0.mode = mode } }
+    func logIn(_ loggedIn: Bool) { state.withLock { $0.loggedIn = loggedIn } }
+
+    /// Calls wait, once they are recorded, until `release`.
+    func hold() { state.withLock { $0.held = true } }
+
+    func release() {
+        let waiting = state.withLock { state in
+            state.held = false
+            defer { state.holding = [] }
+            return state.holding
+        }
+        for continuation in waiting {
+            continuation.resume()
+        }
+    }
+
+    /// Returns once `count` calls have been made.
+    func waitForCalls(_ count: Int) async {
+        await withCheckedContinuation { continuation in
+            let reached = state.withLock { state in
+                guard state.calls.count < count else { return true }
+                state.callWaiters.append((count, continuation))
+                return false
+            }
+            if reached { continuation.resume() }
+        }
+    }
+
+    /// Answers the runner's commands for these agents.
+    static func execute(_ fakes: [FakeAgent]) -> LLMRunner.Execute {
+        { command in
+            guard let fake = fakes.first(where: { $0.path == command.path }) else {
+                throw ProcessError(command: command.path, result: nil, reason: "could not start")
+            }
+            return await fake.answer(command)
+        }
+    }
+
+    private func answer(_ command: LLMRunner.Command) async -> ProcessResult {
+        switch command.arguments.first {
+        case "auth", "status", "login":
+            return state.withLock { $0.loggedIn }
+                ? ProcessResult(status: 0, stdout: #"{"loggedIn": true}"# + "\n", stderr: "")
+                : ProcessResult(status: 1, stdout: "Not logged in\n", stderr: "")
+        case "models": return ProcessResult(status: 0, stdout: "fake-mini - Fake Mini\n", stderr: "")
+        case "debug":
+            return ProcessResult(
+                status: 0,
+                stdout: #"{"models":[{"slug":"big","description":"Frontier","visibility":"list","priority":1},{"slug":"small-fast","description":"Fast and affordable model","visibility":"list","priority":4}]}"# +
+                    "\n",
+                stderr: ""
+            )
+        default: break
+        }
+        let stdin = command.input.flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
+        let input = stdin.isEmpty ? command.arguments.last ?? "" : stdin
+        let last = input.split(separator: "\n", omittingEmptySubsequences: false).last.map(String.init) ?? ""
+        let (mode, mustWait, reached) = state.withLock { state in
+            state.calls.append(last)
+            state.running += 1
+            state.mostAtOnce = max(state.mostAtOnce, state.running)
+            let count = state.calls.count
+            let reached = state.callWaiters.filter { $0.count <= count }.map(\.continuation)
+            state.callWaiters.removeAll { $0.count <= count }
+            return (state.mode, state.held, reached)
+        }
+        for continuation in reached {
+            continuation.resume()
+        }
+        if mustWait {
+            await withCheckedContinuation { continuation in
+                let released = state.withLock { state in
+                    guard state.held else { return true }
+                    state.holding.append(continuation)
+                    return false
+                }
+                if released { continuation.resume() }
+            }
+        }
+        state.withLock { $0.running -= 1 }
+        switch mode {
+        case .fail: return ProcessResult(status: 1, stdout: "", stderr: "boom\n")
+        case .limit:
+            let text = #"{"type":"result","is_error":true,"result":"You have hit your session limit · resets 6pm (UTC)"}"#
+            return ProcessResult(status: 1, stdout: text + "\n", stderr: "")
+        case .prose:
+            let text = #"{"type":"result","is_error":false,"result":"I would rather not","total_cost_usd":0.001}"#
+            return ProcessResult(status: 0, stdout: text + "\n", stderr: "")
+        case .ok: break
+        }
+        if command.arguments.first == "exec" {
+            return ProcessResult(status: 0, stdout: """
+            {"type":"thread.started"}
+            {"type":"item.completed","item":{"type":"agent_message","text":"{\\"answer\\":\\"codex\\"}"}}
+            {"type":"turn.completed","usage":{"input_tokens":120,"cached_input_tokens":20,"output_tokens":7}}
+
+            """, stderr: "")
+        }
+        return ProcessResult(
+            status: 0,
+            stdout: #"{"type":"result","is_error":false,"result":"echo \#(last)","structured_output":{"answer":"\#(last)"},"total_cost_usd":0.001,"usage":{"input_tokens":3,"output_tokens":5,"cache_read_input_tokens":0,"cache_creation_input_tokens":100},"modelUsage":{"fake-model":{}}}"# +
+                "\n",
+            stderr: ""
+        )
+    }
+}
+
 private final class TestClock: Sendable {
     private let value: Mutex<Date>
     init(_ date: Date) { value = Mutex(date) }
@@ -71,6 +196,7 @@ private final class TestClock: Sendable {
     func advance(_ seconds: TimeInterval) { value.withLock { $0 += seconds } }
 }
 
+@Suite(.scratch)
 struct LLMRunnerTests {
     private static let start = ISO8601DateFormatter().date(from: "2026-10-22T09:00:00Z")!
 
@@ -80,19 +206,19 @@ struct LLMRunnerTests {
         return calendar
     }
 
+    /// A runner whose calls `fakes` answer in-process; with none, they run as processes (`FakeCLI`).
     private func runner(
-        _ agents: [AgentProfile], settings: LLMSettings = LLMSettings(), clock: TestClock = TestClock(start),
-        prices: UsagePrices = UsagePrices()
+        _ agents: [AgentProfile], answeredBy fakes: [FakeAgent]? = nil, settings: LLMSettings = LLMSettings(),
+        clock: TestClock = TestClock(start), prices: UsagePrices = UsagePrices()
     ) -> LLMRunner {
         LLMRunner(
             agents: agents, settings: settings, prices: prices, resolve: { name in (name, "/usr/bin:/bin") },
-            calendar: utc(), now: { clock.now }
+            execute: fakes.map(FakeAgent.execute) ?? LLMRunner.process, calendar: utc(), now: { clock.now }
         )
     }
 
     private func log() throws -> CallLog {
-        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("heed-llm-log-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let folder = try Scratch.folder("heed-llm-log")
         return try CallLog(
             store: CallStore(path: folder.appendingPathComponent("log.sqlite").path),
             delay: .seconds(60)
@@ -119,8 +245,10 @@ struct LLMRunnerTests {
     // MARK: Round-robin
 
     @Test func agentsTakeTurns() async throws {
-        let fakes = try [FakeCLI(), FakeCLI(), FakeCLI()]
-        let runner = runner([fakes[0].agent("claude"), fakes[1].agent("cursor"), fakes[2].agent("codex")])
+        let fakes = [FakeAgent(), FakeAgent(), FakeAgent()]
+        let runner = runner(
+            [fakes[0].agent("claude"), fakes[1].agent("cursor"), fakes[2].agent("codex")], answeredBy: fakes
+        )
         var picked: [String] = []
         for index in 0 ..< 4 {
             try await picked.append(runner.run(ask("q\(index)")).agent)
@@ -132,10 +260,10 @@ struct LLMRunnerTests {
     /// Attention's "summarizing… claude haiku" hears which agent took the call as it starts; a cached answer is not a
     /// start.
     @Test func theCallerHearsWhichAgentStarted() async throws {
-        let fake = try FakeCLI()
+        let fake = FakeAgent()
         var settings = LLMSettings()
         settings.agents["claude"] = LLMSettings.Agent(model: "haiku")
-        let runner = runner([fake.agent("claude")], settings: settings)
+        let runner = runner([fake.agent("claude")], answeredBy: [fake], settings: settings)
         let started = Mutex<[String]>([])
         var request = ask("q", cached: true)
         request.onStart = { agent, model in started.withLock { $0.append("\(agent) \(model ?? "-")") } }
@@ -145,10 +273,10 @@ struct LLMRunnerTests {
     }
 
     @Test func oneAgentChosenTakesEveryCall() async throws {
-        let fakes = try [FakeCLI(), FakeCLI()]
+        let fakes = [FakeAgent(), FakeAgent()]
         var settings = LLMSettings()
         settings.agent = "cursor"
-        let runner = runner([fakes[0].agent("claude"), fakes[1].agent("cursor")], settings: settings)
+        let runner = runner([fakes[0].agent("claude"), fakes[1].agent("cursor")], answeredBy: fakes, settings: settings)
         for index in 0 ..< 3 {
             #expect(try await runner.run(ask("q\(index)")).agent == "cursor")
         }
@@ -158,44 +286,48 @@ struct LLMRunnerTests {
     }
 
     @Test func autoTakesTurnsAndAChosenAgentDownFailsTheCall() async throws {
-        let fakes = try [FakeCLI(), FakeCLI()]
+        let fakes = [FakeAgent(), FakeAgent()]
+        let agents = [fakes[0].agent("claude"), fakes[1].agent("cursor")]
         var settings = LLMSettings()
         settings.agent = "auto"
-        let both = runner([fakes[0].agent("claude"), fakes[1].agent("cursor")], settings: settings)
+        let both = runner(agents, answeredBy: fakes, settings: settings)
         #expect(try await [both.run(ask("a")).agent, both.run(ask("b")).agent] == ["claude", "cursor"])
-        try fakes[1].set("login", "out")
+        fakes[1].logIn(false)
         settings.agent = "cursor"
-        let one = runner([fakes[0].agent("claude"), fakes[1].agent("cursor")], settings: settings)
+        let one = runner(agents, answeredBy: fakes, settings: settings)
         await #expect(throws: LLMError.noAgent(reasons: ["cursor: not logged in"])) { try await one.run(ask("c")) }
         settings.agent = "gemini"
-        let missing = runner([fakes[0].agent("claude")], settings: settings)
+        let missing = runner([fakes[0].agent("claude")], answeredBy: fakes, settings: settings)
         await #expect(throws: LLMError.noAgent(reasons: ["gemini: no such agent"])) {
             try await missing.run(ask("d"))
         }
     }
 
     @Test func anAgentTurnedOffIsNeverPicked() async throws {
-        let fakes = try [FakeCLI(), FakeCLI()]
+        let fakes = [FakeAgent(), FakeAgent()]
         var settings = LLMSettings()
         settings.agents["claude"] = LLMSettings.Agent(enabled: false)
-        let runner = runner([fakes[0].agent("claude"), fakes[1].agent("cursor")], settings: settings)
+        let runner = runner([fakes[0].agent("claude"), fakes[1].agent("cursor")], answeredBy: fakes, settings: settings)
         let log = try log()
         for index in 0 ..< 3 {
             let response = try await CallLog.$current.withValue(log) { try await runner.run(ask("q\(index)")) }
             #expect(response.agent == "cursor")
         }
         #expect(fakes[0].calls.isEmpty)
-        #expect(try await rows(log).allSatisfy { $0.detail["skipped"] == "claude: off" })
+        let logged = try await rows(log)
+        #expect(logged.count == 3)
+        #expect(logged.allSatisfy { $0.detail["skipped"] == "claude: off" })
     }
 
     @Test func customAgentsTakeNoPart() async throws {
-        let fake = try FakeCLI()
-        let runner = runner([fake.agent("mytool")])
+        let fake = FakeAgent()
+        let runner = runner([fake.agent("mytool")], answeredBy: [fake])
         await #expect(throws: LLMError.noAgent(reasons: ["no agent heed can call is configured"])) {
             try await runner.run(ask("q"))
         }
     }
 
+    /// Through real processes: the login checks run.
     @Test func anAgentNotLoggedInIsSkipped() async throws {
         let fakes = try [FakeCLI(), FakeCLI()]
         try fakes[0].set("login", "out")
@@ -222,9 +354,9 @@ struct LLMRunnerTests {
     // MARK: Rate limits and back-off
 
     @Test func aRateLimitedAgentIsSkippedUntilItResets() async throws {
-        let fakes = try [FakeCLI(), FakeCLI()]
+        let fakes = [FakeAgent(), FakeAgent()]
         let clock = TestClock(Self.start)
-        let runner = runner([fakes[0].agent("claude"), fakes[1].agent("cursor")], clock: clock)
+        let runner = runner([fakes[0].agent("claude"), fakes[1].agent("cursor")], answeredBy: fakes, clock: clock)
         await runner.setLimited(["claude": Self.start.addingTimeInterval(600)])
         let log = try log()
         let first = try await CallLog.$current.withValue(log) { try await runner.run(ask("a")) }
@@ -261,19 +393,21 @@ struct LLMRunnerTests {
     }
 
     @Test func aFailedAgentBacksOffAndTheCallMovesOn() async throws {
-        let fakes = try [FakeCLI(), FakeCLI()]
-        try fakes[0].set("mode", "fail")
+        let fakes = [FakeAgent(), FakeAgent()]
+        fakes[0].set(.fail)
         let clock = TestClock(Self.start)
         var settings = LLMSettings()
         settings.backoffMinutes = 10
-        let runner = runner([fakes[0].agent("claude"), fakes[1].agent("cursor")], settings: settings, clock: clock)
+        let runner = runner(
+            [fakes[0].agent("claude"), fakes[1].agent("cursor")], answeredBy: fakes, settings: settings, clock: clock
+        )
         let log = try log()
         let response = try await CallLog.$current.withValue(log) { try await runner.run(ask("a")) }
         #expect(response.agent == "cursor")
         let calls = try await rows(log)
         #expect(calls.count == 2)
         #expect(calls.contains { $0.agent == "claude" && $0.failed && $0.stderr?.contains("boom") == true })
-        try fakes[0].set("mode", nil)
+        fakes[0].set(.ok)
         // Within the back-off claude is skipped, though it would work now.
         clock.advance(9 * 60)
         #expect(try await runner.run(ask("b")).agent == "cursor")
@@ -283,14 +417,16 @@ struct LLMRunnerTests {
     }
 
     @Test func aCallThatSaysItIsRateLimitedSkipsTheAgentUntilTheReset() async throws {
-        let fakes = try [FakeCLI(), FakeCLI()]
-        try fakes[0].set("mode", "limit")
+        let fakes = [FakeAgent(), FakeAgent()]
+        fakes[0].set(.limit)
         let clock = TestClock(Self.start)
         var settings = LLMSettings()
         settings.backoffMinutes = 1
-        let runner = runner([fakes[0].agent("claude"), fakes[1].agent("cursor")], settings: settings, clock: clock)
+        let runner = runner(
+            [fakes[0].agent("claude"), fakes[1].agent("cursor")], answeredBy: fakes, settings: settings, clock: clock
+        )
         #expect(try await runner.run(ask("a")).agent == "cursor")
-        try fakes[0].set("mode", nil)
+        fakes[0].set(.ok)
         // Past the back-off but before 18:00 UTC, the reset it named.
         clock.advance(3600)
         #expect(try await runner.run(ask("b")).agent == "cursor")
@@ -298,6 +434,7 @@ struct LLMRunnerTests {
         #expect(try await runner.run(ask("c")).agent == "claude")
     }
 
+    /// Through real processes: what a failing CLI printed on stderr is the reason.
     @Test func everyAgentFailingFailsTheCall() async throws {
         let fakes = try [FakeCLI(), FakeCLI()]
         for fake in fakes {
@@ -309,6 +446,7 @@ struct LLMRunnerTests {
         }
     }
 
+    /// Through a real process, which the timeout ends.
     @Test func aCallThatHangsIsStoppedAtTheTimeout() async throws {
         let fakes = try [FakeCLI(), FakeCLI()]
         try fakes[0].set("mode", "sleep")
@@ -324,8 +462,8 @@ struct LLMRunnerTests {
     // MARK: Cache
 
     @Test func theSameCallRunsOnce() async throws {
-        let fake = try FakeCLI()
-        let runner = runner([fake.agent("claude")])
+        let fake = FakeAgent()
+        let runner = runner([fake.agent("claude")], answeredBy: [fake])
         let first = try await runner.run(ask("same", cached: true))
         let second = try await runner.run(ask("same", cached: true))
         #expect(!first.fromCache && second.fromCache && second.text == first.text)
@@ -335,13 +473,20 @@ struct LLMRunnerTests {
         #expect(fake.calls == ["same", "other", "same"])
     }
 
-    @Test func theSameCallAskedTwiceAtOnceRunsOnce() async throws {
-        let fake = try FakeCLI()
-        try fake.set("delay", "1")
-        let runner = runner([fake.agent("claude")])
-        async let first = runner.run(ask("same", cached: true))
-        async let second = runner.run(ask("same", cached: true))
-        let answers = try await [first, second]
+    @Test(.timeLimit(.minutes(1))) func theSameCallAskedTwiceAtOnceRunsOnce() async throws {
+        let fake = FakeAgent()
+        fake.hold()
+        defer { fake.release() }
+        let runner = runner([fake.agent("claude")], answeredBy: [fake])
+        let first = Task { try await runner.run(ask("same", cached: true)) }
+        await fake.waitForCalls(1)
+        // Asked while the first is still being answered.
+        let second = Task { try await runner.run(ask("same", cached: true)) }
+        for _ in 0 ..< 100 {
+            await Task.yield()
+        }
+        fake.release()
+        let answers = try await [first.value, second.value]
         #expect(answers.filter(\.fromCache).count == 1)
         #expect(fake.calls == ["same"])
     }
@@ -362,8 +507,8 @@ struct LLMRunnerTests {
     }
 
     @Test func theSameCallAtAnotherTierIsNotAnsweredFromTheCache() async throws {
-        let fake = try FakeCLI()
-        let runner = runner([fake.agent("claude")])
+        let fake = FakeAgent()
+        let runner = runner([fake.agent("claude")], answeredBy: [fake])
         var standard = ask("same", cached: true)
         standard.tier = .standard
         _ = try await runner.run(ask("same", cached: true))
@@ -374,9 +519,9 @@ struct LLMRunnerTests {
     }
 
     @Test func aTierPicksTheModelAndTheCallLogSaysWhat() async throws {
-        let fakes = try [FakeCLI(), FakeCLI()]
+        let fakes = [FakeAgent(), FakeAgent()]
         let log = try log()
-        let claude = runner([fakes[0].agent("claude")])
+        let claude = runner([fakes[0].agent("claude")], answeredBy: fakes)
         var request = ask("q")
         for (tier, model) in [(LLMTier.cheap, "haiku"), (.standard, "sonnet"), (.strong, "opus")] {
             request.tier = tier
@@ -386,7 +531,7 @@ struct LLMRunnerTests {
             #expect(row.detail["tier"] == "\(tier.rawValue): \(model)")
         }
         // codex has no standard model heed knows: its own default, and the log says so.
-        let codex = runner([fakes[1].agent("codex")])
+        let codex = runner([fakes[1].agent("codex")], answeredBy: fakes)
         request.tier = .standard
         _ = try await CallLog.$current.withValue(log) { try await codex.run(request) }
         let row = try #require(try await rows(log)
@@ -398,12 +543,12 @@ struct LLMRunnerTests {
     // MARK: The daily cap
 
     @Test func backgroundCallsStopAtTheDailyCallCapUntilTomorrow() async throws {
-        let fake = try FakeCLI()
+        let fake = FakeAgent()
         let clock = TestClock(Self.start)
         var settings = LLMSettings()
         settings.dailyCalls = 2
         settings.dailyDollars = 0
-        let runner = runner([fake.agent("claude")], settings: settings, clock: clock)
+        let runner = runner([fake.agent("claude")], answeredBy: [fake], settings: settings, clock: clock)
         let log = try log()
         _ = try await runner.run(ask("a"))
         _ = try await runner.run(ask("b"))
@@ -422,11 +567,11 @@ struct LLMRunnerTests {
     }
 
     @Test func theDollarCapCountsReportedCosts() async throws {
-        let fake = try FakeCLI()
+        let fake = FakeAgent()
         var settings = LLMSettings()
         settings.dailyCalls = 0
         settings.dailyDollars = 0.0015
-        let runner = runner([fake.agent("claude")], settings: settings)
+        let runner = runner([fake.agent("claude")], answeredBy: [fake], settings: settings)
         _ = try await runner.run(ask("a"))
         _ = try await runner.run(ask("b"))
         await #expect(throws: LLMError.self) { try await runner.run(ask("c")) }
@@ -436,20 +581,20 @@ struct LLMRunnerTests {
     }
 
     @Test func anAgentAtItsCapPassesTheCallOn() async throws {
-        let fakes = try [FakeCLI(), FakeCLI()]
+        let fakes = [FakeAgent(), FakeAgent()]
         var settings = LLMSettings()
         settings.dailyCalls = 1
-        let runner = runner([fakes[0].agent("claude"), fakes[1].agent("cursor")], settings: settings)
+        let runner = runner([fakes[0].agent("claude"), fakes[1].agent("cursor")], answeredBy: fakes, settings: settings)
         let picked = try await [runner.run(ask("a")).agent, runner.run(ask("b")).agent]
         #expect(picked == ["claude", "cursor"])
         await #expect(throws: LLMError.self) { try await runner.run(ask("c")) }
     }
 
     @Test func todaysSpendSurvivesARestart() async throws {
-        let fake = try FakeCLI()
+        let fake = FakeAgent()
         var settings = LLMSettings()
         settings.dailyCalls = 2
-        let runner = runner([fake.agent("claude")], settings: settings)
+        let runner = runner([fake.agent("claude")], answeredBy: [fake], settings: settings)
         let earlier = [
             LoggedCall(
                 at: Self.start.addingTimeInterval(-60),
@@ -478,10 +623,56 @@ struct LLMRunnerTests {
         await #expect(throws: LLMError.self) { try await runner.run(ask("b")) }
     }
 
+    /// Launch hands the runner a read of the call log and goes on; the first call waits for the read, so the cap
+    /// counts what it found.
+    @Test(.timeLimit(.minutes(1))) func spendReadDuringLaunchCountsBeforeTheFirstCall() async throws {
+        let fake = FakeAgent()
+        var settings = LLMSettings()
+        settings.dailyCalls = 2
+        let runner = runner([fake.agent("claude")], answeredBy: [fake], settings: settings)
+        let today = (1 ... 2).map { minutes in
+            LoggedCall(
+                at: Self.start.addingTimeInterval(Double(-60 * minutes)), kind: .llm, caller: "x", command: "c",
+                duration: 1, exitCode: 0, agent: "claude"
+            )
+        }
+        let gate = Gate()
+        await runner.seedSpend {
+            // Still reading when seedSpend returned: launch does not wait for it.
+            await gate.wait()
+            return today
+        }
+        let call = Task { try await runner.run(ask("a")) }
+        await gate.open()
+        await #expect(throws: LLMError.self) { try await call.value }
+        #expect(fake.calls.isEmpty)
+        #expect(await runner.spentToday()["claude"]?.calls == 2)
+    }
+
+    /// Opens once; whoever waits before then waits until it does.
+    private actor Gate {
+        private var opened = false
+        private var waiting: [CheckedContinuation<Void, Never>] = []
+
+        func wait() async {
+            guard !opened else { return }
+            await withCheckedContinuation { waiting.append($0) }
+        }
+
+        func open() {
+            opened = true
+            for continuation in waiting {
+                continuation.resume()
+            }
+            waiting = []
+        }
+    }
+
     @Test func costsAreEstimatedFromPricesWhenNotReported() async throws {
-        let fake = try FakeCLI()
+        let fake = FakeAgent()
         let runner = runner(
-            [fake.agent("codex")], prices: UsagePrices(["small-fast": UsagePrices.Price(input: 1, output: 10)])
+            [fake.agent("codex")], answeredBy: [fake],
+            prices: UsagePrices(["small-fast": UsagePrices.Price(input: 1, output: 10)])
         )
         let response = try await runner.run(ask("a", schema: true))
         #expect(response.agent == "codex" && response.model == "small-fast")
@@ -494,13 +685,13 @@ struct LLMRunnerTests {
     // MARK: Schemas
 
     @Test func anAnswerWithoutTheJSONAskedForFailsWithoutBackingOff() async throws {
-        let fake = try FakeCLI()
-        try fake.set("mode", "prose")
-        let runner = runner([fake.agent("claude")])
+        let fake = FakeAgent()
+        fake.set(.prose)
+        let runner = runner([fake.agent("claude")], answeredBy: [fake])
         await #expect(throws: LLMError.unparseable(agent: "claude", text: "the answer is not the JSON asked for")) {
             try await runner.run(ask("a", schema: true))
         }
-        try fake.set("mode", nil)
+        fake.set(.ok)
         let response = try await runner.run(ask("b", schema: true))
         #expect(response.agent == "claude")
         let json = try #require(response.json)
@@ -509,60 +700,57 @@ struct LLMRunnerTests {
 
     // MARK: The queue
 
-    @Test(arguments: [false, true]) func interactiveCallsGoFirst(cached: Bool) async throws {
-        let fake = try FakeCLI()
-        try fake.set("hold", "")
+    @Test(.timeLimit(.minutes(1)), arguments: [false, true]) func interactiveCallsGoFirst(cached: Bool) async throws {
+        let fake = FakeAgent()
+        fake.hold()
+        // A failing test must not leave its calls parked.
+        defer { fake.release() }
         var settings = LLMSettings()
         settings.concurrency = 1
-        let runner = runner([fake.agent("claude")], settings: settings)
-        // The first call holds the only slot until both others are queued, however slow the machine.
+        let runner = runner([fake.agent("claude")], answeredBy: [fake], settings: settings)
+        // The first call holds the only slot until both others are queued. Each call made is answering or queued:
+        // counting both waits as long for a runner that lets too many through, which then fails the order.
         let first = Task { try await runner.run(ask("first", cached: cached)) }
-        try await until { fake.calls == ["first"] }
+        await fake.waitForCalls(1)
         let background = Task { try await runner.run(ask("background", cached: cached)) }
-        try await until { await runner.queuedCount == 1 }
+        try await until { await fake.calls.count + runner.queuedCount == 2 }
         let interactive = Task { try await runner.run(ask("interactive", priority: .interactive, cached: cached)) }
-        try await until { await runner.queuedCount == 2 }
-        try fake.set("hold", nil)
+        try await until { await fake.calls.count + runner.queuedCount == 3 }
+        fake.release()
         _ = try await [first.value, background.value, interactive.value]
         #expect(fake.calls == ["first", "interactive", "background"])
     }
 
-    /// Waits for `condition`, failing after ten seconds.
-    private func until(
-        _ condition: () async -> Bool, sourceLocation: SourceLocation = #_sourceLocation
-    ) async throws {
-        let deadline = ContinuousClock.now + .seconds(10)
+    /// Waits for `condition`; the test's time limit ends a wait that never ends.
+    private func until(_ condition: () async -> Bool) async throws {
         while await !condition() {
-            guard ContinuousClock.now < deadline else {
-                Issue.record("timed out waiting", sourceLocation: sourceLocation)
-                throw CancellationError()
-            }
             try await Task.sleep(for: .milliseconds(10))
         }
     }
 
-    @Test func noMoreThanTheConcurrencyRunAtOnce() async throws {
-        let fake = try FakeCLI()
-        try fake.set("delay", "1")
+    @Test(.timeLimit(.minutes(1))) func noMoreThanTheConcurrencyRunAtOnce() async throws {
+        let fake = FakeAgent()
+        fake.hold()
+        defer { fake.release() }
         var settings = LLMSettings()
         settings.concurrency = 2
-        let runner = runner([fake.agent("claude")], settings: settings)
-        // Detected before the clock starts, so only the calls are timed.
-        _ = await runner.statuses()
-        let clock = ContinuousClock()
-        let started = clock.now
+        let runner = runner([fake.agent("claude")], answeredBy: [fake], settings: settings)
         try await withThrowingTaskGroup(of: Void.self) { group in
             for index in 0 ..< 4 {
                 group.addTask { _ = try await runner.run(ask("q\(index)")) }
             }
+            // Every call is answering or waiting for a slot.
+            try await until { await fake.calls.count + runner.queuedCount == 4 }
+            fake.release()
             try await group.waitForAll()
         }
-        // Four one-second calls, two at a time: at least two seconds.
-        #expect(clock.now - started >= .seconds(2))
+        #expect(fake.calls.count == 4)
+        #expect(fake.mostAtOnce == 2)
     }
 
     // MARK: The log
 
+    /// Through real processes: the prompt on stdin, the answer parsed, detection logged as shell rows.
     @Test func aCallWritesAnLLMRow() async throws {
         let fakes = try [FakeCLI(), FakeCLI()]
         try fakes[0].set("login", "out")
@@ -581,10 +769,10 @@ struct LLMRunnerTests {
     }
 
     @Test func turnedOffMakesNoCalls() async throws {
-        let fake = try FakeCLI()
+        let fake = FakeAgent()
         var settings = LLMSettings()
         settings.enabled = false
-        let runner = runner([fake.agent("claude")], settings: settings)
+        let runner = runner([fake.agent("claude")], answeredBy: [fake], settings: settings)
         await #expect(throws: LLMError.disabled) { try await runner.run(ask("a")) }
         #expect(fake.calls.isEmpty)
     }

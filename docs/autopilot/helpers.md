@@ -61,10 +61,13 @@ spend_cap = 0.5      # dollars a helper may spend; 0: no cap
   review comment), or for a review the PR's description and how to read its change. It is also told to work only in its
   worktree, to commit but not push, to post nothing, and to end with a few `heed-` lines saying what it did and the
   replies it drafted. heed adds `green_instructions` and `review_instructions` as for other runs.
-- **Someone outside the repo:** on a PR from anyone but you, the repo's owner, a member or a collaborator, or from a
-  fork (`gh pr view --json author,authorAssociation,isCrossRepository`), a helper gets none of your
-  `.worktreeinclude` files and runs no setup. It starts with no GitHub, ssh or cloud login (`GH_TOKEN`, `SSH_AUTH_SOCK`,
-  `AWS_*` and the like unset, `gh` logged out). A review helper is told to read the code and run none of it, because a helper has
+- **Someone outside the repo:** on a PR heed does not trust (anything but yours, or a PR from a branch of the repo by
+  someone who can write to it or by one of `trusted_authors`: the rule
+  [heed merges by](green-and-merged.md#which-prs-heed-merges);
+  `gh pr view --json author,authorAssociation,isCrossRepository`), a helper gets none of your
+  `.worktreeinclude` files and runs no setup. It starts with no GitHub, ssh or cloud login: its environment keeps only
+  what a [sandboxed run](../goals/reviewers.md#how-a-reviewer-runs) gets back (the basics, heed's own and the agent's
+  own login), and `gh` is logged out. A review helper is told to read the code and run none of it, because a helper has
   no sandbox and so does not run a stranger's tests. Get it green starts no run on such a PR on its own. You send the run.
 - **How long:** until its turn ends, you stop it, it reaches `[helpers] spend_cap` (from the cost the agent reports;
   heed holds an agent that reports none to `run_timeout` only), or it runs past `[pilot] run_timeout`.

@@ -28,15 +28,34 @@ public enum ScreenGuess {
         }
     }
 
+    /// Patterns compiled once, for guessing again and again (screen reading guesses every pane every second). An
+    /// expression that does not compile is left out, as `guess` with plain patterns skips it.
+    public struct Compiled: Sendable {
+        public let states: [(AgentState, [NSRegularExpression])]
+
+        public init(_ patterns: Patterns) {
+            states = patterns.map { state, expressions in
+                (state, expressions.compactMap { try? NSRegularExpression(pattern: $0) })
+            }
+        }
+
+        /// How many expressions it holds.
+        public var count: Int { states.reduce(0) { $0 + $1.1.count } }
+    }
+
     /// The guessed state, or nil when nothing matches. Only the last `lines` lines count: older output may
     /// mention a prompt that is long gone.
     public static func guess(_ screen: String, patterns: Patterns, lines: Int = 12) -> AgentState? {
+        guess(screen, compiled: Compiled(patterns), lines: lines)
+    }
+
+    /// `guess` with patterns compiled beforehand: no expression is compiled here.
+    public static func guess(_ screen: String, compiled: Compiled, lines: Int = 12) -> AgentState? {
         let tail = screen.split(separator: "\n", omittingEmptySubsequences: false).suffix(lines).joined(separator: "\n")
         let range = NSRange(tail.startIndex..., in: tail)
-        for (state, expressions) in patterns {
-            for expression in expressions {
-                guard let regex = try? NSRegularExpression(pattern: expression) else { continue }
-                if regex.firstMatch(in: tail, range: range) != nil { return state }
+        for (state, expressions) in compiled.states {
+            for regex in expressions where regex.firstMatch(in: tail, range: range) != nil {
+                return state
             }
         }
         return nil

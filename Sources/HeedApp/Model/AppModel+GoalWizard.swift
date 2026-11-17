@@ -119,18 +119,29 @@ extension AppModel {
             accept: deleting ? "Delete" : "Archive", destructive: deleting
         ) { [weak self] in
             guard let self else { return }
+            // A plan turn running stops, and nothing it brings back is written to the goal.
+            let (allowed, running) = goals.wizard.activity[goal, default: .idle].discard()
+            guard allowed else { return say("\(title) is being discarded") }
+            if let running {
+                goals.wizard.planTurns.removeValue(forKey: running)?.cancel()
+                busy(goal, nil)
+            }
             goals.run { ops in
-                try await ops.discard(goal: goal, now: now)
+                // Refused when the store would now do something else than the dialog said.
+                try await ops.discard(goal: goal, expecting: facts.outcome, now: now)
             } done: { [weak self] result in
                 guard let self else { return }
                 switch result {
                 case let .success(outcome):
+                    goals.wizard.activity[goal] = nil
                     goals.wizard.open = nil
                     goals.wizard.resetCursors()
                     textInputActive = false
                     updateScope()
                     say(outcome == .delete ? "\(title) deleted" : "\(title) archived: a brings it back")
-                case let .failure(error): say("not discarded: \(error)")
+                case let .failure(error):
+                    goals.wizard.activity[goal]?.discardFailed()
+                    say("not discarded: \(error)")
                 }
             }
         })
@@ -244,14 +255,19 @@ extension AppModel {
         let repos = planRepos(goal)
         let conversation = wizard.plan
         let handoff = SessionHandoff.read(from: goals.snapshot.docs[goal])?.promptText
+        guard let turn = goals.wizard.activity[goal, default: .idle].think() else { return }
         busy(goal, "heed is thinking")
-        Task {
+        goals.wizard.planTurns[turn] = Task {
+            defer { goals.wizard.planTurns[turn] = nil }
             do {
                 let result = try await talker.turn(
                     title: title, statement: statement, conversation: conversation, repos: repos, handoff: handoff
                 )
+                // Discarded meanwhile: nothing is written to the goal.
+                guard goals.wizard.activity[goal]?.thought(turn) == true else { return }
                 await planTurnDone(goal, result)
             } catch {
+                guard goals.wizard.activity[goal]?.thought(turn) == true else { return }
                 failed(goal, error)
             }
         }
@@ -270,6 +286,7 @@ extension AppModel {
                 continuation.resume(returning: (try? result.get()) ?? nil)
             }
         }
+        guard goals.wizard.activity[goal] != .discarding else { return }
         change(goal) { wizard in
             wizard.plan.turns.append(PlanTurn(
                 role: .heed, text: reply.question, options: reply.options, model: result.cost.model

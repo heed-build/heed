@@ -360,16 +360,16 @@ public enum Ledger {
         }.map(\.id)
     }
 
-    /// Runs `summarize`, then `remove` once it finished or `timeout` passed, whichever is first: a removal never
-    /// waits on a model for long, and never starts before the summary had its chance.
+    /// Runs `summarize`, then `remove` once it finished or `timeout` passed on `clock`, whichever is first: a removal
+    /// never waits on a model for long, and never starts before the summary had its chance.
     ///
-    /// The timeout is armed on a dispatch queue, not slept on the cooperative pool: on a pool that is full of other
-    /// work a `Task.sleep` resumes late, and a deadline that lags is a removal that waits on a model for as long as the
-    /// pool is busy. `armTimer` replaces that timer, handing over the callback that gives up the wait, so a test can
-    /// fire it itself instead of measuring the clock.
+    /// On the continuous clock (the default) the timeout is armed on a dispatch queue, not slept on the cooperative
+    /// pool: on a pool that is full of other work a `Task.sleep` resumes late, and a deadline that lags is a removal
+    /// that waits on a model for as long as the pool is busy. Any other clock (a test's manual clock) is slept on, so
+    /// the test moves its time instead of waiting for it.
     public static func summarizeThenRemove(
         timeout: Duration = removalWait,
-        armTimer: (@Sendable (_ giveUp: @escaping @Sendable () -> Void) -> Void)? = nil,
+        clock: any _Concurrency.Clock<Duration> = ContinuousClock(),
         summarize: @escaping @Sendable () async -> Void,
         remove: @Sendable () async -> Void
     ) async {
@@ -380,18 +380,23 @@ public enum Ledger {
             signal.yield()
         }
         let giveUp: @Sendable () -> Void = { signal.yield() }
-        if let armTimer {
-            armTimer(giveUp)
-        } else {
+        var timer: Task<Void, Never>?
+        if clock is ContinuousClock {
             let (seconds, attoseconds) = timeout.components
             let nanoseconds = max(0, seconds) * 1_000_000_000 + attoseconds / 1_000_000_000
             DispatchQueue.global(qos: .userInitiated)
                 .asyncAfter(deadline: .now() + .nanoseconds(Int(nanoseconds)), execute: giveUp)
+        } else {
+            timer = Task {
+                guard await (try? clock.sleep(for: timeout, tolerance: nil)) != nil else { return }
+                giveUp()
+            }
         }
         for await _ in done {
             break
         }
         signal.finish()
+        timer?.cancel()
         await remove()
     }
 }

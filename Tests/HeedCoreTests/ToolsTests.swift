@@ -2,11 +2,11 @@ import Foundation
 @testable import HeedCore
 import Testing
 
+@Suite(.scratch)
 struct ToolsTests {
     /// A directory holding executable scripts named after tools, each printing `<name> version <dir>`.
     private func bin(_ names: [String], failing: Set<String> = []) throws -> String {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path
-        try FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+        let directory = try Scratch.folder("heed-tools").path
         for name in names {
             let path = "\(directory)/\(name)"
             let body = failing.contains(name) ? "exit 1" : "echo \"\(name) version \(directory)\""

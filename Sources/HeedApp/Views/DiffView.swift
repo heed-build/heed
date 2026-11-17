@@ -13,7 +13,7 @@ struct DiffOverlayView: View {
     var body: some View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
-                Color.black.opacity(0.45).frame(width: min(280, geometry.size.width * 0.2))
+                Theme.scrim.opacity(0.45).frame(width: min(280, geometry.size.width * 0.2))
                 VStack(spacing: 0) {
                     header
                     HStack(spacing: 0) {
@@ -110,7 +110,7 @@ struct DiffOverlayView: View {
                         .padding(.vertical, 6)
                         .background(index == model.diffFileIndex ? Theme.bg3 : .clear)
                         .modifier(DiffRowHover(pointer: true))
-                        .onTapGesture { model.clickDiffFile(index) }
+                        .tap { model.clickDiffFile(index) }
                         .help(file.path)
                         .rightClickMenu { model.rightClickDiff(file: index, row: nil) } _: {
                             model.diffMenu(file: index, row: nil)
@@ -232,7 +232,7 @@ struct DiffOverlayView: View {
                                                 Theme.block.opacity(0.18).allowsHitTesting(false)
                                             }
                                         }
-                                        .onTapGesture { click(row, at: index) }
+                                        .tap { click(row, at: index) }
                                         .simultaneousGesture(TapGesture(count: 2).onEnded {
                                             model.clickDiffLine(index, open: true)
                                         })
@@ -526,7 +526,7 @@ enum Highlighter {
                     end += chars[end] == "\\" ? 2 : 1
                 }
                 end = min(end + 1, chars.count)
-                if let span = range(index, end) { result[span].foregroundColor = Color(hex: 0xC2D58A) }
+                if let span = range(index, end) { result[span].foregroundColor = Color.adaptive(0xC2D58A) }
                 index = end
                 continue
             }
@@ -541,7 +541,8 @@ enum Highlighter {
                 index = end
                 continue
             }
-            if char.isNumber, let span = range(index, index + 1) { result[span].foregroundColor = Color(hex: 0xFFB88F) }
+            if char.isNumber,
+               let span = range(index, index + 1) { result[span].foregroundColor = Color.adaptive(0xFFB88F) }
             index += 1
         }
         if let changed = line.changed, let span = range(changed.lowerBound, changed.upperBound) {

@@ -65,7 +65,7 @@ The detail shows:
   heed (an Always rule, the agent's own mode);
 - whose text or approval it rests on: the text that reached the prompt heed built for that session or run (a review
   comment, a PR's body, a check's output), or the approvals an Autopilot merge went on, with how far heed trusts each
-  author: owner, collaborator (who can write to the repo), bot or stranger.
+  author: owner, collaborator (who can write to the repo), organisation member, bot or stranger.
 
 A push you denied shows as held, struck through.
 
@@ -100,14 +100,33 @@ A push you denied shows as held, struck through.
 Each grant says when, why and by which cause. Audit records grants from the time it started. Always rules already in
 the `settings.local.json` of the repos and worktrees heed knows are listed too, marked "before Audit".
 
-`d` revokes the grant under the cursor (`audit.revoke`), after you confirm. The grant stays in the list, marked
-revoked, with what heed did.
+`d` revokes the grant under the cursor (`audit.revoke`), after you confirm. While heed is at it, the grant is marked
+revoking, and `d` again does nothing. When it is done, the grant stays in the list, marked revoked, with what heed did.
+When heed could not take it back (a file it cannot write, `mise` failing), the grant is marked not revoked with the
+reason, still stands, and `d` tries again.
 
 ## The record
 
 Audit keeps its record in `heed.sqlite` on this Mac, for a year. It only adds rows. Each row holds the SHA-256 of the
-row before it and of its own content, so a row that changed or went missing breaks the chain. When the chain breaks,
-Audit says at which row, under its header. Audit never notifies you and never takes focus.
+row before it, and of its own place in the record, its time and its content, so a row that changed or went missing in
+the middle breaks the chain. Where the record starts and ends is kept apart, in `heed.audit.json` beside
+`heed.sqlite`, so Audit also notices rows missing from the start or the end of its record, or an older copy of
+`heed.sqlite` put back. When pruning drops the rows past a year, it notes the last row it dropped there first, so the
+first row left still has something to follow; it never drops a row that does not hold, so a row whose time was changed
+to make it look old stays, and shows.
+
+The record has no key: Audit notices rows that changed or went missing, but anything that can write to your files could
+write a whole new record and its note alike.
+
+When the chain breaks, Audit says at which row, and why, under its header. When a row could not be written to
+`heed.sqlite` (the disk full, say), Audit says how many are waiting and why; they are shown, and heed writes them with
+the next row. Audit never notifies you and never takes focus.
+
+Rows written before heed covered a row's place and time keep verifying as they were, and heed checks that their time is
+still the one their content says; rows written since are in the new form.
 
 `:audit.export` writes the whole record as JSON lines: one row a line, oldest first, with its place in the chain
-(`seq`, `prev`, `hash`) and the record itself.
+(`seq`, `prev`, `hash`), the form of its hash (`v`), its time (`at`, seconds since 1970) and its content (`body`),
+exactly as it was hashed: `jq '.body | fromjson'` reads it. A row of form 2 hashes, as SHA-256 in hex, the lines `2`,
+`prev`, `seq`, `at` in whole milliseconds, `kind` and `body`, joined by newlines; one of form 1, the lines `prev`,
+`kind` and `body`. The first row follows `0` × 64 (the start of the record), or the last row pruning dropped.

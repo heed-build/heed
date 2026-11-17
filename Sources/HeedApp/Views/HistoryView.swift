@@ -159,7 +159,7 @@ private struct HistoryFilters: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
-        .onTapGesture {
+        .tap {
             guard enabled else { return }
             model.perform(CommandInvocation(name: command, arguments: arguments))
         }
@@ -172,7 +172,7 @@ private struct HistoryFilters: View {
             Text(on ? "on" : "off").font(Theme.mono(11)).foregroundStyle(on ? Theme.fg2 : Theme.fg3)
         }
         .contentShape(Rectangle())
-        .onTapGesture { model.perform(CommandInvocation(name: command, arguments: arguments)) }
+        .tap { model.perform(CommandInvocation(name: command, arguments: arguments)) }
     }
 }
 
@@ -198,7 +198,7 @@ private struct HistoryLines: View {
                                     line(lines[index], isCursor: index == cursor, compact: compact)
                                         .hint(model.hintLabel(for: .row(.history, index)))
                                         .contentShape(Rectangle())
-                                        .onTapGesture { model.clickRow(.history, index) }
+                                        .tap { model.clickRow(.history, index) }
                                         // A double-click reopens, as ↩ does here.
                                         .simultaneousGesture(TapGesture(count: 2).onEnded {
                                             model.clickRow(.history, index, open: true)

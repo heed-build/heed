@@ -9,7 +9,7 @@ public extension SettingsPage {
     /// tabs or scopes (Agents, Autopilot, Orgs & repos, Hosts) list none: their sections change with the tab.
     var sections: [String] {
         switch self {
-        case .general: ["Sessions", "Outside the window"]
+        case .general: ["Appearance", "Sessions", "Outside the window"]
         case .notifications: ["Sessions", "Approvals", "Attention", "Quiet hours", "Nudges"]
         case .updates: ["Updates"]
         case .agents, .personas, .pilot, .orgsAndRepos, .hosts: []
@@ -19,7 +19,7 @@ public extension SettingsPage {
         case .goals: ["Agents", "Reviewers", "Items", "From a session", "GitHub mirror"]
         case .history: ["Ledger", "While you were away", "Mindmap", "Memory", "Standup", "OpenTelemetry", "Call log"]
         case .github: ["GitHub"]
-        case .attention: ["Rules", "Try before you save", "Summaries", "Weights"]
+        case .attention: ["Rules", "Try before you save", "Summaries", "Age", "Weights"]
         case .tools: ["Found", "Tools"]
         case .keys: ["Modes", "Global shortcuts", "Bindings"]
         }

@@ -185,6 +185,20 @@ struct OutsideWindowConfigTests {
         #expect(config?.globalActivate == "")
     }
 
+    @Test func appearanceFollowsTheSystemUnlessSet() {
+        #expect(HeedConfig.default.appearance == .system)
+        for appearance in Appearance.allCases {
+            let (config, problems) = ConfigLoader.decode("[ui]\nappearance = \"\(appearance.rawValue)\"\n")
+            #expect(problems.isEmpty)
+            #expect(config?.appearance == appearance)
+        }
+        #expect(HeedConfig.default.darkTerminal == false)
+        #expect(ConfigLoader.decode("[ui]\ndark_terminal = true\n").0?.darkTerminal == true)
+        let (config, problems) = ConfigLoader.decode("[ui]\nappearance = \"sepia\"\n")
+        #expect(problems.map(\.path) == ["ui.appearance"])
+        #expect(config?.appearance == .system)
+    }
+
     @Test func theSummaryOpensAfterEightHoursAwayByDefault() {
         #expect(HeedConfig.default.summaryAwayHours == 8)
         let (config, problems) = ConfigLoader.decode("""

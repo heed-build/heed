@@ -151,10 +151,9 @@ final class AppModel {
     // Domain
     private(set) var sessions: [Session] = [] {
         didSet {
-            rebuildList()
-            if filters[.repos] != nil { rebuildWorktreeRows() }
-            updateOutsideWindow()
-            noteStateChanges(from: oldValue)
+            trackedRefs = Set(sessions.flatMap(\.trackedPRs))
+            if sessionsBefore == nil { sessionsBefore = oldValue }
+            listRebuild.request()
         }
     }
 
@@ -168,18 +167,48 @@ final class AppModel {
     }
 
     // What the pilot knows decides Watching and Stalled in the sidebar, so each change rebuilds the list.
-    private(set) var github = GitHubState() { didSet { rebuildList() } }
+    private(set) var github = GitHubState() { didSet { listRebuild.request() } }
     private(set) var pullDetails: [String: PullDetail] = [:] {
         didSet {
-            rebuildList()
+            listRebuild.request()
             // Reviewers' faces for the PR cards.
             if !isFixture { Avatars.shared.load(pullDetails.values.flatMap { $0.reviews.map(\.author) }) }
         }
     }
 
-    private(set) var feedback: [String: PullFeedback] = [:] { didSet { rebuildList() } }
+    private(set) var feedback: [String: PullFeedback] = [:] { didSet { listRebuild.request() } }
     /// What the pilot noticed and did, newest first.
-    private(set) var pilotLog: [PilotEvent] = [] { didSet { rebuildList() } }
+    private(set) var pilotLog: [PilotEvent] = [] { didSet { listRebuild.request() } }
+    /// The sidebar's rebuild: at once when one of its inputs changes on its own, once per `commit` however many of
+    /// them it writes.
+    @ObservationIgnored lazy var listRebuild = Coalesced { [unowned self] in
+        rebuildList()
+        guard let old = sessionsBefore else { return }
+        sessionsBefore = nil
+        if filters[.repos] != nil { rebuildWorktreeRows() }
+        updateOutsideWindow()
+        noteStateChanges(from: old)
+    }
+
+    /// The sessions as they were before the writes the next rebuild covers: what changed state is news.
+    @ObservationIgnored private var sessionsBefore: [Session]?
+    /// Every PR some session tracks, kept with `sessions`: whether a PR has a session is asked per PR per rebuild.
+    @ObservationIgnored private var trackedRefs: Set<PullRef> = []
+    /// Move on when an input of a kept derived value (`Derived`) changes: its readers read the counter too, so they
+    /// redraw. One counter per value, so one value's change never writes the counter it is being read through.
+    private(set) var attentionEntriesGeneration = 0
+    private(set) var attentionListingGeneration = 0
+    /// Attention's entries and its listing, worked out once per change of what they read (AppModel+Attention).
+    @ObservationIgnored lazy var attentionEntriesKept = Derived<[AttentionEntry]> { [unowned self] in
+        attentionEntriesGeneration &+= 1
+    }
+
+    @ObservationIgnored lazy var attentionListingKept = Derived<AttentionListing> { [unowned self] in
+        attentionListingGeneration &+= 1
+    }
+
+    /// Each PR's pilot state and each session's, while one rebuild of the list asks for them more than once.
+    @ObservationIgnored private var pilotMemo: PilotMemo?
     private(set) var mergeRuns: [String: [MergeRun]] = [:]
     private(set) var registeredWorktrees: Set<String> = []
     private(set) var list = SessionList([])
@@ -196,20 +225,19 @@ final class AppModel {
     /// What detection found per agent, for Settings › Agents.
     var llmStatuses: [LLMAgentStatus] = []
     /// Settings' Test per agent: running, or how the last one ended.
-    var llmTests: [String: LLMTest] = [:]
+    var llmTests: [String: TestRun<AgentTestAnswer>] = [:]
     /// Settings › Model calls (AppModel+Inference): whether Apple's on-device model can run here, the last
     /// tests (kept between launches), the decision test running, and the title bar reminder hidden for this launch.
     var localModel = LocalModel.unsupported
     var setupTests = SetupTests() { didSet { saveSetupTests() } }
-    var decisionTest: DecisionTest?
+    var decisionTest: TestRun<DecisionTestAnswer>?
     var inferenceReminderHidden = false
     /// Screenshots show the setup reminder only where a shot asks for it.
     var inferenceReminderInShots = false
     /// Swarm tasks a shot crops to, by slug: the shot says which, so views never name fixture data.
     var shotTaskRegions: [String: ShotRegion] = [:]
-    /// heed's own nudges (AppModel+Nudges): the one shown, the title bar pill hidden for this launch, what's new put
-    /// off with Not now, and config.toml written this launch.
-    var nudge: NudgeDialog?
+    /// heed's own nudges (AppModel+Nudges): the title bar pill hidden for this launch, what's new put off with Not
+    /// now, and config.toml written this launch. The nudge shown is a dialog (AppModel+Modal).
     var nudgePillHidden = false
     var nudgePillInShots = false
     var whatsNewPostponed = false
@@ -226,15 +254,30 @@ final class AppModel {
     /// Sizes Start work's longer prompts (`[start_work] size_check`); nil while sizing is off or cannot run.
     @ObservationIgnored var startWorkSizer: TaskSizeScheduler?
     /// Make it a goal's popover on a growing session (`goal.promote`); nil while closed.
-    var goalPromotion: GoalPromotion? {
+    /// The popover and the handoff it waits for, in one value (`PromotionFlow`): there is no handoff without it.
+    var promotionFlow: PromotionFlow? {
         didSet {
-            updateScope()
-            if goalPromotion == nil { endHandoffAsk() }
+            if promotionFlow?.promotion != oldValue?.promotion { updateScope() }
+            // The popover is gone or done: nobody waits for a handoff any more.
+            if promotionFlow?.handoff == nil, oldValue?.handoff != nil { endHandoffAsk() }
+        }
+    }
+
+    /// What the popover would make; setting one for another session starts over (no ask), nil closes it.
+    var goalPromotion: GoalPromotion? {
+        get { promotionFlow?.promotion }
+        set {
+            guard let newValue else { return promotionFlow = nil }
+            if promotionFlow?.session == newValue.session {
+                promotionFlow?.edit { $0 = newValue }
+            } else {
+                promotionFlow = PromotionFlow(newValue)
+            }
         }
     }
 
     /// Make it a goal asking the session's agent for a handoff, while the popover waits for it; nil otherwise.
-    var promotionHandoff: HandoffAsk?
+    var promotionHandoff: HandoffAsk? { promotionFlow?.handoff }
     @ObservationIgnored var handoffTask: Task<Void, Never>?
     /// Sessions whose "growing into a goal" line was put away (`x`): kept in UserDefaults, except in the fake world.
     var promotionsSetAside: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "promotionsSetAside") ?? [])
@@ -250,8 +293,6 @@ final class AppModel {
     private var sweepTask: Task<Void, Never>?
     /// Results of pinned tasks by pane: the exit code of the last run.
     private(set) var taskResults: [String: Int] = [:]
-    /// The first-run screen, while shown.
-    private(set) var firstRun: FirstRunReport?
     /// Where git and gh were found, and the search path every command and pane runs with.
     private(set) var tools: ToolReport?
     /// Screenshots: what Settings › Tools found.
@@ -336,16 +377,13 @@ final class AppModel {
 
     private(set) var picked: [AppView: Set<String>] = [:]
 
-    // Resume on launch
-    private(set) var resume: ResumeForm? {
-        didSet { if resume == nil, oldValue != nil { showPendingAwaySummary() } }
-    }
-
     // The resume banner (ResumeBanner): which panes have an agent running, whether each session's agent still has
     // its conversation (checked off the main actor), and the sessions whose banner you dismissed until heed restarts.
     var agentPresence = AgentPresence()
-    var conversationOnDisk: [String: Bool] = [:]
+    var conversationChecks = ConversationChecks()
     var resumeBannerDismissed: Set<String> = []
+    /// What Settings says when the session key could not be read or kept this run (`SessionKeyRead`); nil when it was.
+    var sessionKeyNotice: String?
 
     /// Resumed sessions that were mid-turn: they get the continue prompt once their agent reports idle.
     private var pendingContinue: Set<String> = []
@@ -461,10 +499,10 @@ final class AppModel {
 
     /// The readers' threads, body and comments as GitHub renders them, by `ThreadConversation.key`: fetched when a
     /// reader or Attention's detail opens one, kept in memory for the session (AppModel+Threads).
-    var conversations: [String: ThreadConversation] = [:]
-    /// Why a thread's conversation did not load, by key, until it does.
-    var conversationErrors: [String: String] = [:]
-    var conversationsLoading: Set<String> = []
+    /// Each is loading (what was fetched before stays on screen), loaded, or failed with why until it loads again.
+    var threads: [String: Load<ThreadConversation>] = [:]
+    /// The fetch a reader started for a thread, by key, while it runs: a summary awaits it instead of fetching again.
+    @ObservationIgnored var threadFetches: [String: (token: LoadToken, task: Task<ThreadConversation, Error>)] = [:]
     /// The PR the overlay shows (one of the current session's).
     private(set) var overlayPull: PullRef?
     private(set) var feedbackCursor = 0
@@ -493,8 +531,11 @@ final class AppModel {
 
     // Diff overlay
     private(set) var diffScope: DiffScope = .all
-    private(set) var diffFiles: [FileDiff] = []
-    private(set) var diffCommits: [CommitSummary] = []
+    /// The current session's diff: its files and commits, kept on screen while a new scope loads.
+    private(set) var diffLoad: Load<DiffContent> = .idle
+    var diffFiles: [FileDiff] { diffLoad.value?.files ?? [] }
+    var diffCommits: [CommitSummary] { diffLoad.value?.commits ?? [] }
+    var diffLoading: Bool { diffLoad.isLoading }
     /// The file, the row and the selection: keys and clicks move it through `DiffCursor`'s functions.
     private(set) var diffCursor = DiffCursor()
     var diffFileIndex: Int { diffCursor.file }
@@ -504,7 +545,6 @@ final class AppModel {
     private(set) var diffNote: HunkNoteDraft?
     /// Sessions whose queued notes you asked to send while their agent was busy: they go once it is idle.
     private var pendingNotes: Set<String> = []
-    private(set) var diffLoading = false
     private var diffTask: Task<Void, Never>?
 
     /// Bots you said not to suggest for `trusted_reviewers` (`ReviewerSuggestion.id`): kept per Mac.
@@ -571,23 +611,74 @@ final class AppModel {
     func say(_ message: String) { flash = message }
     private(set) var hintText = ""
     private var hintThenInsert = false
-    /// The Start work dialog, while open. Set from AppModel+StartWorkSmarts too (the model's advice).
-    var startWork: StartWorkForm? {
-        didSet {
-            if startWork == nil, startWorkStandalone {
-                startWorkStandalone = false
-                StartWorkPanelController.shared.close()
-            }
-            adviseStartWork()
-            sizeStartWork()
+    /// The dialogs open over the window, one of each kind at most (AppModel+Modal: each has its own accessor, and
+    /// `dialogOpen` says whether any is).
+    var dialogs = DialogStack<Modal.Kind, Modal>()
+
+    // The dialogs whose setters stay private to this file (the others are in AppModel+Modal).
+
+    /// The first-run screen, while shown.
+    private(set) var firstRun: FirstRunReport? {
+        get { if case let .firstRun(value) = dialogs[.firstRun] { value } else { nil } }
+        set { setDialog(.firstRun, newValue.map(Modal.firstRun)) }
+    }
+
+    /// The resume dialog on launch; closing it shows an away summary that waited for it.
+    private(set) var resume: ResumeForm? {
+        get { if case let .resume(value) = dialogs[.resume] { value } else { nil } }
+        set {
+            let wasOpen = resume != nil
+            setDialog(.resume, newValue.map(Modal.resume))
+            if newValue == nil, wasOpen { showPendingAwaySummary() }
         }
     }
 
-    /// The Start work dialog is showing in its own panel over other apps (`[keys] global_start_work`).
-    private(set) var startWorkStandalone = false
-    /// Why the last start failed, shown in the dialog (the standalone panel has no status bar).
-    private(set) var startWorkError: String?
-    private(set) var startingWork = false
+    private(set) var hostsPicker: Typeahead<HostRow>? {
+        get { if case let .hostsPicker(value) = dialogs[.hostsPicker] { value } else { nil } }
+        set { setDialog(.hostsPicker, newValue.map(Modal.hostsPicker)) }
+    }
+
+    /// `gB` / `gR` with more than one place to go.
+    private(set) var linkPicker: LinkPicker? {
+        get { if case let .linkPicker(value) = dialogs[.linkPicker] { value } else { nil } }
+        set { setDialog(.linkPicker, newValue.map(Modal.linkPicker)) }
+    }
+
+    /// "Where are your projects on @host?", while it shows.
+    private(set) var hostRootsChooser: HostRootsChooser? {
+        get { if case let .hostRootsChooser(value) = dialogs[.hostRootsChooser] { value } else { nil } }
+        set { setDialog(.hostRootsChooser, newValue.map(Modal.hostRootsChooser)) }
+    }
+
+    /// A question waiting for y / n (`ask`).
+    private(set) var confirmation: Confirmation? {
+        get { if case let .confirmation(value) = dialogs[.confirmation] { value } else { nil } }
+        set { setDialog(.confirmation, newValue.map(Modal.confirmation)) }
+    }
+
+    /// `I` in Sessions: pick a worktree without a session (main checkouts included) to import.
+    private(set) var importPicker: Typeahead<Worktree>? {
+        get { if case let .importPicker(value) = dialogs[.importPicker] { value } else { nil } }
+        set { setDialog(.importPicker, newValue.map(Modal.importPicker)) }
+    }
+
+    /// `Ia` in Sessions: pick any agent session kept on this Mac to import and resume (`AppModel+AgentImport`).
+    var agentImport: Typeahead<Import.AgentSession>? {
+        get { if case let .agentImport(value) = dialogs[.agentImport] { value } else { nil } }
+        set { setDialog(.agentImport, newValue.map(Modal.agentImport)) }
+    }
+
+    /// `P` in Sessions, while it shows.
+    private(set) var pathImport: PathImport? {
+        get { if case let .pathImport(value) = dialogs[.pathImport] { value } else { nil } }
+        set { setDialog(.pathImport, newValue.map(Modal.pathImport)) }
+    }
+
+    private(set) var taskPicker: TaskPickerState? {
+        get { if case let .taskPicker(value) = dialogs[.taskPicker] { value } else { nil } }
+        set { setDialog(.taskPicker, newValue.map(Modal.taskPicker)) }
+    }
+
     /// What heed found out about repos typed into a form (`RepoEntry`): GitHub's answer for a slug, or what is
     /// checked out at a path. Kept for the run, so typing a repo again asks nothing.
     var repoLookups: [String: RepoEntry.Lookup] = [:]
@@ -636,7 +727,7 @@ final class AppModel {
             tailnet = Fixtures.tailnet
             tailscalePath = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
             issueInfo = Fixtures.issueInfo
-            conversations = Fixtures.conversations
+            threads = Fixtures.conversations.mapValues { .loaded($0) }
             llmStatuses = Self.fixtureLLMStatuses
             localModel = .available
             for (id, live) in Fixtures.subagents {
@@ -681,34 +772,51 @@ final class AppModel {
 
     // MARK: Domain
 
-    /// Starts from the cache, then refreshes from git. The window is already up showing whatever the cache holds.
+    /// Starts from the cache, then refreshes from git. The cache is read while the call log opens, and drawn as soon
+    /// as config.toml is read. A pane drawn before the tools and zmx's live sessions are known waits for them for its
+    /// terminal (`TerminalSurfaces.holdPanes`); telemetry opens, and today's model spend is read, meanwhile.
     func start(cache file: URL) async {
-        await startCallLog(beside: file)
+        // Signposts (`Perf`): each wait before the cached domain is drawn, and the whole of it.
+        let toCache = Perf.begin("start.toCache")
+        let toPanes = Perf.begin("start.toPanes")
+        TerminalSurfaces.shared.holdPanes()
+        let loading = Task.detached(priority: .userInitiated) { () -> (Domain, EventLog?) in
+            let loaded = await Perf.measure("start.loadDomain") { await DomainStore.load(from: file) }
+            // History and timelines live in the event log, beside the domain file; without it they stay in that file.
+            let log = await Perf.measure("start.openLog") {
+                await EventLog.open(at: file.deletingLastPathComponent().appendingPathComponent("heed.sqlite"))
+            }
+            let cached = await Perf.measure("start.adopt") { await log?.adopt(loaded) ?? loaded }
+            return (cached, log)
+        }
+        await Perf.measure("start.callLog") { await startCallLog(beside: file) }
+        noteSessionKey()
         startConfig()
         Notifier.shared.attach(self)
-        if !isFixture { await detectTools() }
-        await startLLM()
-        startHooks()
-        await startTelemetry(beside: file)
-        let integration = integration
-        Task.detached(priority: .utility) {
-            do { try integration.write() } catch { NSLog("heed: could not write hook files: \(error)") }
-        }
-        let loaded = await DomainStore.load(from: file)
-        // History and timelines live in the event log, beside the domain file; without it they stay in that file.
-        let log = await EventLog.open(at: file.deletingLastPathComponent().appendingPathComponent("heed.sqlite"))
-        let cached = await log?.adopt(loaded) ?? loaded
-        // Before any pane is drawn: which panes still have a live zmx session to reattach to.
-        await TerminalSurfaces.shared.refreshLivePanes()
-        replace(with: cached)
-        loadAvatars()
+        let (cached, log) = await loading.value
+        Perf.measure("start.replace") { replace(with: cached) }
+        toCache.end()
         store = DomainStore(domain: cached, file: file, log: log)
         eventLog = log
-        pruneScreenSnapshots()
         historyBrowser.attach(log: log) { [weak self] in self?.currentDomain ?? .empty }
         dashboard.attach(log: log) { [weak self] in self?.currentDomain ?? .empty } goals: { [weak self] in
             self?.dashboardGoals ?? .init()
         }
+        let telemetryStarted = Task { await Perf.measure("start.telemetry") { await startTelemetry(beside: file) } }
+        if !isFixture { await Perf.measure("start.detectTools") { await detectTools() } }
+        await Perf.measure("start.llm") { await startLLM() }
+        startHooks()
+        await telemetryStarted.value
+        let integration = integration
+        Task.detached(priority: .utility) {
+            do { try integration.write() } catch { NSLog("heed: could not write hook files: \(error)") }
+        }
+        // Before any pane's terminal is made: which panes still have a live zmx session to reattach to.
+        await Perf.measure("start.livePanes") { await TerminalSurfaces.shared.refreshLivePanes() }
+        TerminalSurfaces.shared.releasePanes()
+        toPanes.end()
+        loadAvatars()
+        pruneScreenSnapshots()
         startLedger(log: log)
         startAudit(log: log)
         noticeOrigins()
@@ -760,12 +868,24 @@ final class AppModel {
     /// Turns that went quiet without their end hook (cursor), and when each pane's hooks last spoke.
     var quietTurns = QuietTurn()
     var lastHookAt: [String: Date] = [:]
+    /// Each agent's patterns compiled once, and each pane's last guess with the screen it was made from.
+    @ObservationIgnored var screenGuesser = ScreenGuesser()
 
     private func readScreens() async {
+        let perf = Perf.begin("readScreens")
+        defer { perf.end() }
+        // Each pane is read at most once a tick, and only once the cheap checks say it is needed.
+        var read: [String: String?] = [:]
+        func screen(_ pane: String) -> String? {
+            if let known = read[pane] { return known }
+            let text = TerminalSurfaces.shared.visibleText(paneID: pane)
+            read[pane] = .some(text)
+            return text
+        }
         // Each live run's last line, for the sidebar and the PR card; set only when it changed.
         let now = Date()
         for (id, live) in liveRuns {
-            let text = TerminalSurfaces.shared.visibleText(paneID: live.paneID)
+            let text = screen(live.paneID)
             let line = text.flatMap(Runs.lastLine)
             if runLastLines[id] != line { runLastLines[id] = line }
             // A run whose end hook never came (cursor, codex): done once it has worked and gone quiet.
@@ -780,8 +900,8 @@ final class AppModel {
             }
         }
         for (id, live) in liveReviews {
-            guard let text = TerminalSurfaces.shared.visibleText(paneID: live.paneID), live.worked,
-                  runStates[live.paneID] == .working, QuietTurn.applies(to: live.agent),
+            guard live.worked, runStates[live.paneID] == .working, QuietTurn.applies(to: live.agent),
+                  let text = screen(live.paneID),
                   quietTurns.isQuiet(
                       pane: live.paneID, text: text, lastHook: lastHookAt[live.paneID], now: now,
                       after: QuietTurn.runAfter
@@ -790,13 +910,13 @@ final class AppModel {
             runStates[live.paneID] = .done
             endReviewRun(id)
         }
-        readWorkerScreens(now: now)
-        readWorkerPanesWithHunch(now: now)
+        readWorkerScreens(now: now, screen: screen)
+        readWorkerPanesWithHunch(now: now, screen: screen)
         // A session left working without its end hook (cursor, codex): done (guessed) once quiet.
         var quiet: [DomainChange] = []
         for session in sessions where QuietTurn.applies(to: session.agent) && session.state.state == .working {
             guard let layout = layouts[session.id], let (_, paneID) = agentPane(in: layout),
-                  let text = TerminalSurfaces.shared.visibleText(paneID: paneID),
+                  let text = screen(paneID),
                   quietTurns.isQuiet(pane: paneID, text: text, lastHook: lastHookAt[paneID], now: now)
             else { continue }
             var updated = session
@@ -807,28 +927,43 @@ final class AppModel {
         }
         commit(quiet)
         sampleWorkingScreens(now: now)
-        var work: [(String, String, ScreenGuess.Patterns, Set<AgentState>)] = []
+        // A pane whose screen and agent did not change since the last tick keeps its last guess; only the others are
+        // matched, off the main actor.
+        var order: [(id: String, reported: Set<AgentState>)] = []
         var panes: [String: String] = [:]
+        var known: [String: AgentState?] = [:]
+        var work: [(id: String, pane: String, text: String, agent: AgentProfile, compiled: ScreenGuess.Compiled)] = []
         for session in sessions {
             guard let agent = settings.agent(session.agent) else { continue }
             let reported = ScreenGuess.reported(by: agent.name)
             guard reported.count < 7, let layout = layouts[session.id], let (_, paneID) = agentPane(in: layout),
-                  let text = TerminalSurfaces.shared.visibleText(paneID: paneID)
+                  let text = screen(paneID)
             else { continue }
-            work.append((session.id, text, ScreenGuess.patterns(for: agent), reported))
+            order.append((session.id, reported))
             panes[session.id] = paneID
+            if let remembered = screenGuesser.remembered(pane: paneID, text: text, agent: agent) {
+                known[session.id] = remembered
+            } else {
+                work.append((session.id, paneID, text, agent, screenGuesser.compiled(for: agent)))
+            }
             readWithHunch(pane: paneID, text: text, subject: session.id, now: now)
         }
-        guard !work.isEmpty else { return }
-        let guesses = await Task.detached(priority: .utility) {
-            work.map { id, text, patterns, reported -> (String, AgentState?, Set<AgentState>) in
-                // Only states the agent cannot report are guessed, so such a guess may replace a reported state.
-                let state = ScreenGuess.guess(text, patterns: patterns)
-                return (id, state.flatMap { reported.contains($0) ? nil : $0 }, reported)
+        screenGuesser.keep(only: Set(panes.values))
+        guard !order.isEmpty else { return }
+        if !work.isEmpty {
+            let matching = work.map { ($0.text, $0.compiled) }
+            let fresh = await Task.detached(priority: .utility) {
+                matching.map { text, compiled in ScreenGuess.guess(text, compiled: compiled) }
+            }.value
+            for (item, guess) in zip(work, fresh) {
+                screenGuesser.remember(pane: item.pane, text: item.text, agent: item.agent, guess: guess)
+                known[item.id] = .some(guess)
             }
-        }.value
+        }
         var changes: [DomainChange] = []
-        for (id, patternGuess, reported) in guesses {
+        for (id, reported) in order {
+            // Only states the agent cannot report are guessed, so such a guess may replace a reported state.
+            let patternGuess = (known[id] ?? nil).flatMap { reported.contains($0) ? nil : $0 }
             guard var session = sessions.first(where: { $0.id == id }) else { continue }
             // Where the patterns see nothing, Hunch's reading of the pane (when it reads screens) may.
             let reading = panes[id].flatMap(hunchReading(pane:)).flatMap { $0.counts ? $0 : nil }
@@ -856,7 +991,7 @@ final class AppModel {
             let previous = session.state
             session.state = next
             if next.state == .exited { setSubagents(nil, of: id) }
-            if let pane = panes[id] { agentPresence.observed(next.state, in: pane) }
+            if let pane = panes[id] { observePresence(next.state, in: pane) }
             if next.state == .exited { checkConversations(of: [id]) }
             session.activity = "\(next.state.rawValue) · " + (next.reason == Self.fromHunch ? "Hunch" : "guessed")
             changes.append(.sessionUpserted(session))
@@ -931,7 +1066,16 @@ final class AppModel {
     // MARK: GitHub
 
     private var githubTask: Task<Void, Never>?
+    /// A fetch from GitHub is running (the status bar's "syncing…").
     private(set) var syncing = false
+    /// One sync at a time; an ask made meanwhile runs after it instead of being dropped.
+    private var syncQueue = SyncQueue()
+    /// The stamp of the newest sync that brought no new data. `github` keeps the stamp of the sync that last changed
+    /// its data, so such a sync changes nothing drawn from the data; what shows when it synced reads `githubNow`.
+    private(set) var githubStamp: GitHubSyncStamp?
+
+    /// `github` with the newest sync stamp: when it last synced, and what each source's last fetch brought.
+    var githubNow: GitHubState { github.freshened(by: githubStamp) }
 
     private var syncSchedule = SyncSchedule()
 
@@ -961,25 +1105,44 @@ final class AppModel {
     }
 
     /// `force` (gr refresh, :github.sync, signing in): every part. Otherwise what is due; `parts` asks for some now.
+    /// Asked while a sync runs, it runs once that one ends (asks made meanwhile merged into one).
     func syncGitHub(force: Bool = true, parts wanted: Set<GitHubPart> = []) async {
-        guard !isFixture, !syncing else { return }
+        guard !isFixture, var request = syncQueue.ask(SyncRequest(force: force, parts: wanted)) else { return }
+        while true {
+            await runSync(request)
+            guard let next = syncQueue.finished() else { return }
+            request = next
+        }
+    }
+
+    private func runSync(_ request: SyncRequest) async {
         syncSchedule.front = TimeInterval(config.githubPollSeconds)
-        let parts = wanted.isEmpty ? syncSchedule.due(now: Date(), front: frontParts, force: force) : wanted
+        let schedule = syncSchedule
+        let front = frontParts
+        let parts = request.parts { force in schedule.due(now: Date(), front: front, force: force) }
         guard !parts.isEmpty else {
             await refreshWatchedDetails()
             return
         }
         syncing = true
         defer { syncing = false }
-        let previous = github
+        let previous = githubNow
         let tracked = Array(Set(sessions.flatMap(\.trackedPRs)))
         do {
             let state = try await GitHub.sync(
-                parts: parts, tracked: tracked, previous: previous, refreshTeams: force && wanted.isEmpty,
-                caller: "github.sync"
+                parts: parts, tracked: tracked, previous: previous, refreshTeams: request.refreshesTeams,
+                maxAgeDays: config.attention.maxAgeDays, caller: "github.sync"
             )
             syncSchedule.fetched(parts, at: Date())
-            commit([.githubSynced(state)] + PullTracking.changes(sessions: sessions, pulls: state.pulls))
+            let pullChanges = PullTracking.changes(sessions: sessions, pulls: state.pulls)
+            if state.sameData(as: github) {
+                // Nothing new: only the stamp moves. It is saved as every sync is, and the domain is left alone.
+                githubStamp = state.stamp
+                if let store { Task { await store.apply([.githubSynced(state)]) } }
+                commit(pullChanges)
+            } else {
+                commit([.githubSynced(state)] + pullChanges)
+            }
             await refreshWatchedDetails()
             await refreshIssueInfo()
             await attentionSynced()
@@ -994,7 +1157,7 @@ final class AppModel {
 
     /// Switching to a view whose data is older than a poll fetches it right away instead of on the next tick.
     private func viewChangedForSync() {
-        guard !isFixture, github.syncedAt != nil else { return }
+        guard !isFixture, githubNow.syncedAt != nil else { return }
         let due = syncSchedule.due(now: Date(), front: frontParts).intersection(frontParts)
         if !due.isEmpty { Task { await syncGitHub(parts: due) } }
     }
@@ -1074,8 +1237,9 @@ final class AppModel {
         resume = form
     }
 
-    /// Starts each chosen session's agent pane on its resume (or fresh) command, now, even off screen.
-    func resumeSessions(_ chosen: [ResumeCandidate]) {
+    /// Starts each chosen session's agent pane on its resume (or fresh) command, now, even off screen. `restarting`
+    /// (`session.reconnect`): the pane's process ends first, its zmx session too, whether or not it still runs.
+    func resumeSessions(_ chosen: [ResumeCandidate], restarting: Bool = false) {
         guard !isFixture else {
             flash = "fixture: no IO"
             return
@@ -1085,19 +1249,28 @@ final class AppModel {
             else { continue }
             guard let (tabIndex, paneID) = agentPane(in: layout) else { continue }
             layout.tabs[tabIndex].tree = layout.tabs[tabIndex].tree.updating(paneID) { $0.command = candidate.command }
-            session.record(candidate.startsFresh ? "relaunched · started fresh" : "resumed after restart")
-            session.state = ObservedState(.idle, source: .guessed, reason: "resuming")
+            session.record(
+                restarting ?
+                    (candidate.startsFresh ? "restarted to reconnect · started fresh" : "restarted to reconnect")
+                    : candidate.startsFresh ? "relaunched · started fresh" : "resumed after restart"
+            )
+            session.state = ObservedState(.idle, source: .guessed, reason: restarting ? "reconnecting" : "resuming")
             commit([.layoutChanged(session: session.id, layout), .sessionUpserted(session)])
             TerminalSurfaces.shared.autostartPanes.insert(paneID)
             agentPresence.started(paneID)
             if let pane = layout.tabs[tabIndex].tree.panes.first(where: { $0.id == paneID }) {
-                TerminalSurfaces.shared.prepare(pane, sessionID: session.id)
+                if restarting {
+                    TerminalSurfaces.shared.restart(pane, sessionID: session.id)
+                } else {
+                    TerminalSurfaces.shared.prepare(pane, sessionID: session.id)
+                }
             }
-            if candidate.mode == .resumeThenContinue, !settings.continuePrompt.isEmpty {
+            // A restarted agent's last state is one heed did not hear: nothing says it was mid-turn.
+            if !restarting, candidate.mode == .resumeThenContinue, !settings.continuePrompt.isEmpty {
                 pendingContinue.insert(session.id)
             }
         }
-        if !chosen.isEmpty { flash = "resumed \(chosen.count) session\(chosen.count == 1 ? "" : "s")" }
+        if !chosen.isEmpty, !restarting { flash = "resumed \(chosen.count) session\(chosen.count == 1 ? "" : "s")" }
     }
 
     /// The pane the agent runs in: the first `.agent` pane, else the first pane. A run's tab is never it.
@@ -1183,6 +1356,7 @@ final class AppModel {
         updateScope()
         keyProblems = built.problems
         Palette.shared.apply(decoded)
+        if !isFixture { AppearanceControl.apply(decoded.appearance, darkTerminal: decoded.darkTerminal) }
         if !isFixture {
             let shortcuts: [(GlobalHotKey.Name, String, () -> Void)] = [
                 (.startWork, decoded.globalStartWork, { [weak self] in self?.openStandaloneStartWork() }),
@@ -1320,12 +1494,41 @@ final class AppModel {
         }
     }
 
+    /// A hook message heed did not take: still not taken, but a session heed has, from its agent pane, says so
+    /// (`Unheard`), so it is not filed by a state its agent stopped reporting. Kept for this run only, never committed.
+    private func noteUnheard(_ message: HookMessage) {
+        guard let reason = Unheard.reason(
+            token: message.token, session: message.session, pane: message.pane, keys: PaneTokens.keys
+        ), let index = sessions.firstIndex(where: { $0.id == message.session }) else { return }
+        if let pane = message.pane, retiredPanes.contains(pane) { return }
+        let agentPane = layouts[message.session].flatMap { agentPane(in: $0)?.1 }
+        guard let unheard = Unheard.noting(
+            reason, pane: message.pane, agentPane: agentPane, on: sessions[index].unheard, at: Clock.now
+        ) else { return }
+        sessions[index].unheard = unheard
+    }
+
+    /// A message heed took: its pane is heard again.
+    private func heard(_ message: HookMessage) {
+        guard let index = sessions.firstIndex(where: { $0.id == message.session }),
+              let unheard = sessions[index].unheard,
+              Unheard.heard(pane: message.pane, on: unheard) == nil else { return }
+        sessions[index].unheard = nil
+    }
+
     /// One message from an agent's hook, applied to its session. Only from the pane it says it is from: its token
     /// must be heed's for that session and pane (`SessionKeys`).
     func receive(_ message: HookMessage) {
-        guard PaneTokens.keys.verifies(message.token, session: message.session, pane: message.pane) else { return }
-        // The agent a handoff stopped, on its way out: the session is the new agent's now.
-        if let pane = message.pane, retiredPanes.contains(pane) { return }
+        let route = HookRouter.route(
+            verified: PaneTokens.keys.verifies(message.token, session: message.session, pane: message.pane),
+            pane: message.pane,
+            panes: HookRouter.Panes(
+                retired: retiredPanes, reviews: reviewPanes, workers: workerPanes, runs: runPanes
+            )
+        )
+        if route == .unheard { return noteUnheard(message) }
+        heard(message)
+        if route == .retired { return }
         if let pane = message.pane {
             lastHookAt[pane] = message.sentAt
             noteInbox(message, pane: pane)
@@ -1334,62 +1537,17 @@ final class AppModel {
         guard var session = sessions.first(where: { $0.id == message.session }) else { return }
         if case let .toolCall(call) = message.kind { auditToolCall(call, message: message, session: session) }
         if case let .origin(report) = message.kind { noticeOrigin(report, message: message, session: session) }
-        // A reviewer's hooks: its turn over ends it, as a run's does.
-        if let pane = message.pane, reviewPanes.contains(pane) {
-            guard let id = liveReviews.first(where: { $0.value.paneID == pane })?.key else { return }
-            if case let .taskExit(code) = message.kind,
-               code != 0 { return endReviewRun(id, failure: "it did not start") }
-            let reported: AgentState? = switch message.kind {
-            case let .state(state, _): state
-            case .guess: .done
-            case .atPrompt: .idle
-            default: nil
-            }
-            if let state = reported {
-                runStates[pane] = state
-                if state == .working { liveReviews[id]?.worked = true }
-                if let live = liveReviews[id], Runs.ended(state, worked: live.worked) { endReviewRun(id) }
-            }
-            return
-        }
-        // A swarm worker's hooks: its own state and usage, as a run's.
-        if let pane = message.pane, workerPanes.contains(pane) { return receiveWorker(message, pane: pane) }
-        // A run's hooks: its own state, not the session's. Its turn over (idle after working, or exited) ends it;
-        // asking or blocked shows the session in Needs you (through `sessionPilot`).
-        if let pane = message.pane, runPanes.contains(pane) {
-            // Its agent's last words (the exit as its tab closes) come after the run ended: nobody's news.
-            guard let id = liveRuns.first(where: { $0.value.paneID == pane })?.key else { return }
-            // A run's pane reports an exit code only when its setup failed: the agent never started.
-            if case let .taskExit(code) = message.kind, code != 0, let live = liveRuns[id] {
-                let setup = settings.setup.commands(for: live.ref.repo) ?? []
-                return endRun(id, outcome: .failed(WorktreeSetup.failureReason(setup)))
-            }
-            // What its agent used goes on the run's record, not the session's.
-            if case let .usage(report) = message.kind, var run = runs.first(where: { $0.id == id }) {
-                let usage = (run.usage ?? AgentUsage()).applying(report)
-                guard usage != run.usage else { return }
-                run.usage = usage
-                commit(.runUpdated(run))
-                return
-            }
-            // A run's turn is over when it ends, question or not: nobody is there to answer it.
-            let reported: AgentState? = switch message.kind {
-            case let .state(state, _): state
-            case .guess: .done
-            case .atPrompt: .idle
-            default: nil
-            }
-            if let state = reported {
-                runStates[pane] = state
-                if state == .working { liveRuns[id]?.worked = true }
-                rebuildList()
-                if let live = liveRuns[id], Runs.ended(state, worked: live.worked) { endRun(id) }
-            }
-            return
+        switch route {
+        case let .review(pane): return receiveReview(message, pane: pane)
+        case let .worker(pane): return receiveWorker(message, pane: pane)
+        case let .run(pane): return receiveRun(message, pane: pane)
+        case .unheard, .retired, .session: break
         }
         // Another agent took over the pane (you quit one and started another there): the session follows it, so its
         // screen is read and its turns judged as that agent's.
-        if let agent = message.agent, agent != session.agent, settings.agent(agent) != nil {
+        if let agent = HookRouter.takeover(
+            by: message.agent, current: session.agent, known: { self.settings.agent($0) != nil }
+        ) {
             session.agent = agent
             session.record("\(agent) took over in its pane")
             commit(.sessionUpserted(session))
@@ -1398,22 +1556,10 @@ final class AppModel {
         noteAgent(kind, pane: message.pane, session: session)
         switch kind {
         case .state, .guess, .atPrompt:
-            var next: ObservedState = switch kind {
-            case let .state(state, reason): session.state.accepting(ObservedState(state, reason: reason))
-            case let .guess(state, reason): session.state.guessing(state, reason: reason)
-            default: session.state.atPrompt()
-            }
-            // What the session kept is not news: an idle prompt over a finished turn, cursor's done after the reply
-            // that asked you. A report that changes nothing (the next tool of a working turn) still is.
-            switch kind {
-            case let .state(state, _) where state != next.state: return
-            case .guess where next == session.state, .atPrompt where next == session.state: return
-            default: break
-            }
-            // Rate limited, with its reset known (the hook sends usage first): say when it lifts.
-            if case .state(.limited, _) = kind, let resets = session.usage?.resetText(now: message.sentAt) {
-                next.reason = "\(next.reason ?? "rate limited") · \(resets)"
-            }
+            guard let turn = HookRouter.session(
+                kind, current: session.state, resets: session.usage?.resetText(now: message.sentAt)
+            ) else { return }
+            let next = turn.state
             let state = next.state, reason = next.reason
             let previous = session.state
             session.state = next
@@ -1423,7 +1569,7 @@ final class AppModel {
             events[session.id] = AgentEvent.log(
                 events[session.id] ?? [], adding: AgentEvent(at: message.sentAt, state: state, reason: reason)
             )
-            if state == .idle || state == .done {
+            if turn.settles {
                 let waiting = pendingDelivery.filter { session.trackedPRs.contains($0) }
                 let notes = pendingNotes.contains(session.id)
                 let id = session.id
@@ -1434,7 +1580,7 @@ final class AppModel {
                     if notes { self.deliverNotes(id, explicit: false) }
                 }
             }
-            if state == .idle, pendingContinue.remove(session.id) != nil,
+            if turn.continues, pendingContinue.remove(session.id) != nil,
                let layout = layouts[session.id], let (_, paneID) = agentPane(in: layout)
             {
                 // Typed as soon as it is idle, as it always was (no typing grace), unless its channel takes it.
@@ -1463,7 +1609,7 @@ final class AppModel {
             Task { await refreshIssueInfo(force: [issue]) }
         case let .agentSession(id, _):
             session.agentSessionID = id
-            conversationOnDisk[session.id] = nil
+            conversationChecks.forget(session.id)
             checkConversations(of: [session.id])
         case let .notify(text):
             flash = "\(session.title): \(text)"
@@ -1482,6 +1628,48 @@ final class AppModel {
             return
         }
         commit(.sessionUpserted(session))
+    }
+
+    /// A reviewer's hooks: its turn over ends it, as a run's does.
+    private func receiveReview(_ message: HookMessage, pane: String) {
+        guard let id = liveReviews.first(where: { $0.value.paneID == pane })?.key, let live = liveReviews[id] else {
+            return
+        }
+        switch HookRouter.review(message.kind, worked: live.worked) {
+        case .ignore: return
+        case .didNotStart: return endReviewRun(id, failure: "it did not start")
+        case let .turn(turn):
+            runStates[pane] = turn.state
+            if turn.state == .working { liveReviews[id]?.worked = true }
+            if turn.ended { endReviewRun(id) }
+        }
+    }
+
+    /// A run's hooks: its own state, not the session's. Its turn over (idle after working, or exited) ends it, question
+    /// or not: nobody is there to answer it. Asking or blocked shows the session in Needs you (through
+    /// `sessionPilot`).
+    private func receiveRun(_ message: HookMessage, pane: String) {
+        // Its agent's last words (the exit as its tab closes) come after the run ended: nobody's news.
+        guard let id = liveRuns.first(where: { $0.value.paneID == pane })?.key, let live = liveRuns[id] else { return }
+        let record = runs.first(where: { $0.id == id })
+        switch HookRouter.run(message.kind, worked: live.worked, recorded: record.map(\.usage)) {
+        case .ignore: return
+        case .setupFailed:
+            let setup = settings.setup.commands(for: live.ref.repo) ?? []
+            endRun(id, outcome: .failed(WorktreeSetup.failureReason(setup)))
+        case let .usage(usage):
+            guard var run = record else { return }
+            run.usage = usage
+            commit(.runUpdated(run))
+        case let .turn(turn):
+            // Only a run's state decides the sidebar (asking or blocked is Needs you): the next tool of a working turn
+            // leaves it as it was.
+            let changed = runStates[pane] != turn.state
+            runStates[pane] = turn.state
+            if turn.state == .working { liveRuns[id]?.worked = true }
+            if changed { rebuildList() }
+            if turn.ended { endRun(id) }
+        }
     }
 
     /// Keeps the session's subagents up to date from one message, and says what is left of it for the session's own
@@ -1522,11 +1710,18 @@ final class AppModel {
     }
 
     private func rebuildList() {
+        let perf = Perf.begin("rebuildList")
+        defer { perf.end() }
         // The selection is a session, not a row. A session moving between groups (parked to working, say) reorders
         // the list; the cursor follows the session it was on, so what you look at and type into never changes under
         // you. Read before the rebuild: `currentSession` still indexes the old list here.
         rebuildingList = true
-        defer { rebuildingList = false }
+        // One rebuild asks for a PR's pilot state from each of its sessions' rows, sizes and close checks: once each.
+        pilotMemo = PilotMemo()
+        defer {
+            rebuildingList = false
+            pilotMemo = nil
+        }
         let selected = currentSession?.id
         let hold = currentSession.flatMap { session in
             list.group(of: session.id).map {
@@ -1543,7 +1738,7 @@ final class AppModel {
         }, pilot: sessionPilot, hold: hold, view: sessionsView, campaign: campaign(of:), size: { [unowned self] in
             pendingChanges(of: $0).lines ?? 0
         }, closable: { [unowned self] in closeReadiness(of: $0) != nil })
-        if let selected, let index = list.ordered.firstIndex(where: { $0.id == selected }) {
+        if let selected, let index = list.index(of: selected) {
             cursor = index
         } else {
             cursor = min(cursor, max(list.ordered.count - 1, 0))
@@ -1559,6 +1754,11 @@ final class AppModel {
             replacingDomain = false
             noteOtherNeeds(seen: true)
         }
+        listRebuild.batch { replaceParts(with: domain) }
+        cursor = min(cursor, max(list.ordered.count - 1, 0))
+    }
+
+    private func replaceParts(with domain: Domain) {
         sessions = domain.sessions
         // Helper tabs do not come back: a PR that still needs work gets a fresh one on its next round.
         layouts = isFixture ? domain.layouts : domain.layouts.mapValues { layout in
@@ -1581,18 +1781,60 @@ final class AppModel {
         runs = domain.runs
         archives = domain.archives
         registeredWorktrees = domain.registeredWorktrees
-        cursor = min(cursor, max(list.ordered.count - 1, 0))
     }
 
     /// The one way the domain changes. Only properties that actually changed are written, so only their readers redraw.
     func commit(_ changes: [DomainChange]) {
         guard !changes.isEmpty else { return }
+        let perf = Perf.begin("commit")
+        defer { perf.end() }
         let before = currentDomain
         let after = before.applying(changes)
         let historyChanged = after.history != before.history
         let githubChanged = after.github != before.github
         let detailsChanged = after.pullDetails != before.pullDetails
         let sessionsChanged = after.sessions != before.sessions
+        // The next tool of a working turn: only what an agent is doing changed. What the notices below look for (a
+        // PR, a title, a turn's end, a new session) cannot have.
+        let activityOnly = sessionsChanged && !historyChanged && !githubChanged && !detailsChanged
+            && after.feedback == before.feedback && Self.onlyActivity(changes, before: before, after: after)
+        listRebuild.batch {
+            write(after, over: before, changed: (historyChanged, githubChanged, detailsChanged, sessionsChanged))
+        }
+        if let store { Task { await store.apply(changes) } }
+        if !replacingDomain, !activityOnly, historyChanged || githubChanged || detailsChanged || sessionsChanged {
+            noticeLedger(before: before, after: after)
+        }
+        if !replacingDomain, !activityOnly, sessionsChanged || githubChanged {
+            noticeNaming(before: before, after: after)
+        }
+        if !replacingDomain, !activityOnly, sessionsChanged { noticeTurnEnds(before: before, after: after) }
+        if !replacingDomain, !activityOnly, sessionsChanged { noticeAuditSessions(before: before, after: after) }
+        if !replacingDomain, sessionsChanged || after.worktrees != before.worktrees {
+            noticeSessionPanel(before: before, after: after)
+        }
+        if !replacingDomain, githubChanged || sessionsChanged { noticeGoalPulls() }
+        if !replacingDomain, detailsChanged || githubChanged || after.repos != before.repos
+            || after.worktrees != before.worktrees { noticeOrigins() }
+        if !replacingDomain, githubChanged { tickSwarms() }
+        if !replacingDomain, !activityOnly, sessionsChanged { noticeGoalAttach(before: before, after: after) }
+    }
+
+    /// Whether every change is a session that was there and changed only in what its agent is doing.
+    private static func onlyActivity(_ changes: [DomainChange], before: Domain, after: Domain) -> Bool {
+        changes.allSatisfy { change in
+            guard case let .sessionUpserted(session) = change, let old = before.session(session.id),
+                  let new = after.session(session.id) else { return false }
+            return new.changedOnlyActivity(from: old)
+        }
+    }
+
+    /// The parts of `after` that differ from `before`, each written once, so only their readers redraw.
+    private func write(
+        _ after: Domain, over before: Domain,
+        changed: (history: Bool, github: Bool, details: Bool, sessions: Bool)
+    ) {
+        let (historyChanged, githubChanged, detailsChanged, sessionsChanged) = changed
         if historyChanged { history = after.history }
         if githubChanged { github = after.github }
         if after.repos != before.repos || after.github.pulls != before.github.pulls { loadAvatars() }
@@ -1610,21 +1852,6 @@ final class AppModel {
         if after.layouts != before.layouts { layouts = after.layouts }
         if after.repos != before.repos { repos = after.repos }
         if after.worktrees != before.worktrees { worktrees = after.worktrees }
-        if let store { Task { await store.apply(changes) } }
-        if !replacingDomain, historyChanged || githubChanged || detailsChanged || sessionsChanged {
-            noticeLedger(before: before, after: after)
-        }
-        if !replacingDomain, sessionsChanged || githubChanged { noticeNaming(before: before, after: after) }
-        if !replacingDomain, sessionsChanged { noticeTurnEnds(before: before, after: after) }
-        if !replacingDomain, sessionsChanged { noticeAuditSessions(before: before, after: after) }
-        if !replacingDomain, sessionsChanged || after.worktrees != before.worktrees {
-            noticeSessionPanel(before: before, after: after)
-        }
-        if !replacingDomain, githubChanged || sessionsChanged { noticeGoalPulls() }
-        if !replacingDomain, detailsChanged || githubChanged || after.repos != before.repos
-            || after.worktrees != before.worktrees { noticeOrigins() }
-        if !replacingDomain, githubChanged { tickSwarms() }
-        if !replacingDomain, sessionsChanged { noticeGoalAttach(before: before, after: after) }
     }
 
     func commit(_ change: DomainChange) { commit([change]) }
@@ -1892,9 +2119,6 @@ final class AppModel {
         var id: String { (machine == nil ? "" : "tailnet:") + name }
     }
 
-    private(set) var hostsPicker: Typeahead<HostRow>?
-    /// `gB` / `gR` with more than one place to go.
-    private(set) var linkPicker: LinkPicker?
     /// The get it green / get it merged runs running now, by run id: their tab, pane and worktree. In memory only.
     struct LiveRun: Equatable {
         let runID: String
@@ -2022,17 +2246,8 @@ final class AppModel {
     private(set) var runs: [PilotRun] = []
     /// Work saved from removed worktrees, as each repo last listed it (the domain's): what the sweep's retention reads.
     private(set) var archives: [ArchiveRef] = []
-    /// The run the reader shows (`↩` on a Runs row).
-    var runReader: PilotRun?
-    /// While you were away (`summary`), while it shows.
-    var awaySummary: AwaySummary?
     /// Since when the summary that opened on its own goes back, while it waits for the resume dialog to close.
     var pendingAwaySince: Date?
-    /// The PR `pilot.why` explains: what heed will do for it and what holds it back.
-    var pilotExplain: PullRef?
-    /// The setup wizard for a repo's get it merged and get it green (`repo.setup`), while it shows
-    /// (AppModel+RepoSetup).
-    var repoSetup: RepoSetupWizard?
     @ObservationIgnored var repoSetupTask: Task<Void, Never>?
     /// What GitHub said about each repo's merge settings, by slug, from the wizard's samples and PR details.
     var repoMergeSettings: [String: RepoMergeSettings] = [:]
@@ -2148,8 +2363,6 @@ final class AppModel {
 
     // MARK: Where a host's projects are (host.roots)
 
-    /// "Where are your projects on @host?", while it shows.
-    private(set) var hostRootsChooser: HostRootsChooser?
     /// How many repos the last scan found on each host that answered.
     private(set) var hostRepoCounts: [String: Int] = [:]
 
@@ -2812,6 +3025,7 @@ final class AppModel {
             )
         case "agent.resume": resumeAgent(command.target, fresh: false)
         case "agent.fresh": resumeAgent(command.target, fresh: true)
+        case "session.reconnect": reconnect(command.target)
         case "agent.resume.dismiss": dismissResumeBanner(command.target)
         case "work.again": openStartWork(prompt: currentSession?.prompt ?? "", chat: currentSession?.isChat == true)
         case "chat.promote": promoteChat()
@@ -3606,7 +3820,7 @@ final class AppModel {
     }
 
     func select(sessionID: String) {
-        if let index = list.ordered.firstIndex(where: { $0.id == sessionID }) { setCursor(index) }
+        if let index = list.index(of: sessionID) { setCursor(index) }
     }
 
     /// The summary's keys: j/k over what waits on you, ↩ goes to that session, ⎋ closes.
@@ -3999,14 +4213,16 @@ final class AppModel {
         var onCancel: (@MainActor () -> Void)?
     }
 
-    private(set) var confirmation: Confirmation?
-
+    /// Asks; a question still open is replaced, and counts as cancelled (its `onCancel` runs), so whatever waited on
+    /// its answer (a start waiting on trust) is not left waiting.
     func ask(_ confirmation: Confirmation) {
         if mode == .insert {
             engine.enter(.normal)
             modeChanged(from: .insert)
         }
+        let replaced = self.confirmation
         self.confirmation = confirmation
+        replaced?.onCancel?()
     }
 
     private func answerConfirmation(_ stroke: KeyStroke) {
@@ -4316,12 +4532,6 @@ final class AppModel {
 
     // MARK: Import picker
 
-    /// `I` in Sessions: pick a worktree without a session (main checkouts included) to import.
-    private(set) var importPicker: Typeahead<Worktree>?
-
-    /// `Ia` in Sessions: pick any agent session kept on this Mac to import and resume (`AppModel+AgentImport`).
-    var agentImport: Typeahead<Import.AgentSession>?
-
     private func answerAgentImport(_ stroke: KeyStroke) {
         guard var picker = agentImport else { return }
         if let text = pasted(stroke) {
@@ -4357,10 +4567,6 @@ final class AppModel {
         var importable = false
     }
 
-    private(set) var pathImport: PathImport?
-
-    /// Repos › Add or clone (`a`, `:repo.add`): the field, the lists, what is picked; nil when closed.
-    var addRepoDialog: AddRepoForm?
     /// The dialog's lookups and folder completions: a newer keystroke cancels the older.
     @ObservationIgnored var addRepoFieldTask: Task<Void, Never>?
     /// What `gh repo list` last answered, loaded from the caches folder on first use.
@@ -5560,6 +5766,8 @@ final class AppModel {
                 commit(.feedbackChanged(pipeline))
             }
             commit(.pullDetailFetched(detail))
+            // A sync replaces what heed knew of who the PR is from.
+            PullTrustBook.shared.record(PullAuthorship(detail), for: ref)
             trackLinked(detail)
             let fixed = feedback[ref.description]?.items
                 .filter { before.contains($0.id) && $0.status == .resolved } ?? []
@@ -5685,11 +5893,13 @@ final class AppModel {
     }
 
     func pilotStatus(for ref: PullRef) -> PilotStatus {
-        PilotStatus.of(
+        if let known = pilotMemo?.pulls[ref] { return known }
+        let status = PilotStatus.of(
             pull: github.pull(ref), pipeline: feedback[ref.description], settings: pilotSettings(for: ref),
-            hasSession: sessions.contains { $0.trackedPRs.contains(ref) }, detail: pullDetails[ref.description],
-            now: Clock.now
+            hasSession: trackedRefs.contains(ref), detail: pullDetails[ref.description], now: Clock.now
         )
+        pilotMemo?.pulls[ref] = status
+        return status
     }
 
     /// Every PR a session tracks, most urgent group first, then most recently updated; narrowed by `/`.
@@ -5773,6 +5983,14 @@ final class AppModel {
     func sessionPilot(_ session: Session) -> SessionPilot {
         let refs = session.trackedPRs
         guard !refs.isEmpty else { return SessionPilot() }
+        if let known = pilotMemo?.sessions[session.id] { return known }
+        let pilot = sessionPilotNow(session)
+        pilotMemo?.sessions[session.id] = pilot
+        return pilot
+    }
+
+    private func sessionPilotNow(_ session: Session) -> SessionPilot {
+        let refs = session.trackedPRs
         let acting = refs.contains { pilotStatus(for: $0).heedActing(pilot(for: $0)) }
         // The log is newest first.
         let lastAction = pilotLog.first { refs.contains($0.ref) && PilotEvent.actions.contains($0.kind) }?.at
@@ -6045,7 +6263,7 @@ final class AppModel {
         guard let detail = pullDetails[ref.description] else { return [] }
         let merge = pilot(for: ref).merge == .heed ? HeedMerge.verdict(
             detail, settings: pilotSettings(for: ref), selfReview: feedback[ref.description]?.selfReview,
-            now: Clock.now
+            now: Clock.now, viewer: github.viewer
         ) : nil
         return PilotPlan.holds(GreenVerdict.of(detail), merge: merge)
     }
@@ -6096,8 +6314,7 @@ final class AppModel {
                 ref: ref, sessionID: sessionID, goal: goal, agent: agentName, model: model,
                 startedAt: Date(), items: items, prBranch: "", branch: "", worktree: "", startSHA: nil
             )
-            run.endedAt = Date()
-            run.outcome = .failed(reason)
+            run.end(.failed(reason), at: Date())
             commit(.runUpdated(run))
             logPilot(ref, .helperDone, "\(goal.rawValue) run could not start: \(reason)")
             return nil
@@ -6136,9 +6353,10 @@ final class AppModel {
         // outside the repo), the approved setup in its pane.
         let checkout = repos.first { $0.repo == ref.repo && $0.location == record.location }?.path ?? record.path
         let viewer = github.viewer
-        let trusted = await PullTrustBook.shared.resolve(ref, viewer: viewer) { ref in
-            try await GitHub.pullAuthorship(ref, caller: "pilot.author")
-        }
+        let trustedAuthors = pilotSettings(for: ref).trustedAuthors
+        let trusted = await PullTrustBook.shared.resolveOnGitHub(
+            ref, viewer: viewer, trustedAuthors: trustedAuthors, caller: "pilot.author"
+        )
         if HelperSetup.steps(trusted: trusted, commands: []).copyIncludes {
             await WorktreeInclude.copy(from: checkout, to: worktree, on: record.location)
         }
@@ -6199,6 +6417,11 @@ final class AppModel {
     /// one (timed out, stopped); otherwise it is what the remote branch shows.
     private func endRun(_ id: String, outcome forced: PilotRun.Outcome? = nil) {
         guard let live = liveRuns.removeValue(forKey: id) else { return }
+        // Still the PR's run until its end is read: the next round waits for it (`deliver`).
+        if var run = runs.first(where: { $0.id == id }), run.state == .running {
+            run.beginEnding()
+            commit(.runUpdated(run))
+        }
         runLastLines[id] = nil
         quietTurns.forget(pane: live.paneID)
         lastHookAt[live.paneID] = nil
@@ -6222,8 +6445,7 @@ final class AppModel {
             await Git.removeWorktree(live.record, path: live.worktree, branch: live.branch)
             if let main = live.mainPath { await Git.fastForwardIfClean(at: main, on: live.record.location) }
             guard var run = runs.first(where: { $0.id == id }) else { return }
-            run.endedAt = Date()
-            run.outcome = forced ?? Runs.outcome(before: before, after: after, commits: count)
+            run.end(forced ?? Runs.outcome(before: before, after: after, commits: count), at: Date())
             run.screen = screen
             commit(.runUpdated(run))
             logPilot(live.ref, .helperDone, "\(run.goal.rawValue) run: \(run.outcome?.text ?? "ended")")
@@ -6282,15 +6504,18 @@ final class AppModel {
         let integrationArguments = files
             .map { AgentIntegration.launchArguments(agent: agent, sessionID: agentSession, files: $0) } ?? []
         let sandboxed = RunSandbox.isSandboxed(agent: agent.name)
-        let present = record.location.isLocal ? Array(ProcessInfo.processInfo.environment.keys) : []
         let reviewPrompt = prompt(folder)
+        let launchEnvironment = files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
+        // The run's environment is chosen in the pane's shell (on the host for a host's run), after your shell config.
         let command = agent.launchCommand(
             prompt: reviewPrompt,
             extraArguments: ReviewRun.restrictions(
                 agent: agent.name, worktree: worktree, folder: folder, hooks: files != nil
             ) + (agent.name == "claude" ? RunSandbox.withoutSettings(integrationArguments) : integrationArguments),
-            environment: files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:],
-            model: model, prefix: sandboxed ? RunSandbox.environment(present: present, folder: folder) : []
+            environment: launchEnvironment, model: model,
+            prefix: sandboxed
+                ? RunSandbox.environment(agent: agent.name, folder: folder, keeping: Array(launchEnvironment.keys))
+                : []
         )
         let title = "review: " + (ReviewerKind(rawValue: reviewer.split(separator: "-").first.map(String.init) ?? "")
             .map { $0.short.lowercased() } ?? reviewer)
@@ -6371,8 +6596,7 @@ final class AppModel {
     private func interruptRuns() {
         let open = runs.filter(\.isRunning)
         for var run in open {
-            run.endedAt = Date()
-            run.outcome = .interrupted
+            run.end(.interrupted, at: Date())
             commit(.runUpdated(run))
         }
     }
@@ -6493,111 +6717,99 @@ final class AppModel {
 
     /// Sends a PR's queued feedback to a run of its own (one per PR at a time), when delivery allows.
     func deliver(_ ref: PullRef, explicit: Bool) {
-        guard let pipeline = feedback[ref.description],
-              let prompt = pipeline.prompt(instructions: pilotSettings(for: ref).greenInstructions)
-        else {
+        let pullSettings = pilotSettings(for: ref)
+        let pipeline = feedback[ref.description]
+        let prompt = pipeline?.prompt(instructions: pullSettings.greenInstructions)
+        let session = sessions.first { $0.trackedPRs.contains(ref) }
+        let swarmPull = swarmPulls[ref.description]
+        let decision = FeedbackDelivery.decide(FeedbackDelivery.Facts(
+            explicit: explicit, queued: prompt != nil, causedByPullEvent: Cause.current?.trigger == .pullEvent,
+            state: pullState(ref), effective: pilot(for: ref), roundsExhausted: pipeline?.roundsExhausted ?? false,
+            paused: pipeline?.isPaused(Clock.now) ?? false, isFixture: isFixture, tutor: tutor != nil,
+            runIn: pullSettings.runIn, swarm: swarmPull != nil, hasSession: session != nil,
+            runWorking: liveRun(for: ref) != nil || startingRuns.contains(ref.description)
+                || runs.contains(where: { $0.ref == ref && $0.isEnding }),
+            needsHandback: !SwarmHandback.needs(pipeline?.items ?? []).isEmpty,
+            trusted: { [github] in
+                PullTrustBook.shared.trusted(ref, viewer: github.viewer, trustedAuthors: pullSettings.trustedAuthors)
+            },
+            handback: { swarmPull.map { self.handbackRoute($0) } ?? .pilot("") }
+        ))
+        guard let pipeline, let prompt else {
             if explicit { flash = "nothing queued (space queues an item)" }
             return
         }
-        // Audit: feedback heed sends on its own is caused by what arrived on the PR.
-        if !explicit, Cause.current?.trigger != .pullEvent {
+        switch decision {
+        case .nothingQueued:
+            return
+        case .attributeCause:
+            // Audit: feedback heed sends on its own is caused by what arrived on the PR.
             let items = pipeline.queued.count
             return withCause(
                 .pullEvent, "\(items) new item\(items == 1 ? "" : "s") of feedback on #\(ref.number)",
-                session: sessions.first { $0.trackedPRs.contains(ref) }, authors: prompt.authors
+                session: session, authors: prompt.authors
             ) { deliver(ref, explicit: explicit) }
-        }
-        // A merged or closed PR has nothing left to fix.
-        if let state = pullState(ref), state != .open {
+        case let .finished(state):
             pendingDelivery.remove(ref)
             if explicit { flash = "#\(ref.number) is \(state == .merged ? "merged" : "closed"): nothing to send" }
-            return
-        }
-        let effective = pilot(for: ref)
-        guard explicit || (effective.green == .auto && effective.watching && !pipeline.roundsExhausted
-            && !pipeline.isPaused(Clock.now))
-        else {
-            if pipeline.roundsExhausted, effective.green == .auto {
-                flash = "auto-feed stopped on #\(ref.number): \(pipeline.maxRounds) rounds without a new approval"
-                logPilot(ref, .stuck, "\(pipeline.maxRounds) rounds without a new approval: stopped sending")
+        case let .held(stuck):
+            guard stuck else { return }
+            flash = "auto-feed stopped on #\(ref.number): \(pipeline.maxRounds) rounds without a new approval"
+            logPilot(ref, .stuck, "\(pipeline.maxRounds) rounds without a new approval: stopped sending")
+        case .heldForAuthor:
+            logPilot(ref, .waiting, Runs.heldForAuthor)
+        case .resolveTrust:
+            let viewer = github.viewer
+            let trustedAuthors = pullSettings.trustedAuthors
+            Task {
+                let trusted = await PullTrustBook.shared.resolveOnGitHub(
+                    ref, viewer: viewer, trustedAuthors: trustedAuthors, caller: "pilot.author"
+                )
+                if trusted { deliver(ref, explicit: false) } else { logPilot(ref, .waiting, Runs.heldForAuthor) }
             }
-            return
-        }
-        // On its own, a run starts only on a PR from you or someone who can write to the repo.
-        if !isFixture {
-            switch Runs.ownStart(explicit: explicit, trusted: PullTrustBook.shared.trusted(
-                ref,
-                viewer: github.viewer
-            )) {
-            case .go: break
-            case .hold:
-                logPilot(ref, .waiting, Runs.heldForAuthor)
-                return
-            case .ask:
-                let viewer = github.viewer
-                Task {
-                    let trusted = await PullTrustBook.shared.resolve(ref, viewer: viewer) { ref in
-                        try await GitHub.pullAuthorship(ref, caller: "pilot.author")
-                    }
-                    if trusted { deliver(ref, explicit: false) } else { logPilot(ref, .waiting, Runs.heldForAuthor) }
-                }
-                return
-            }
-        }
-        // A helper (the default): an agent over ACP in its own worktree, drawn in heed. It needs no session; the one
-        // that tracks the PR is told, never typed into. A swarm PR's feedback goes to its own runs, as before.
-        if !isFixture, pilotSettings(for: ref).runIn == .helper, swarmPulls[ref.description] == nil {
-            return deliverToHelper(ref, prompt: prompt, explicit: explicit)
-        }
-        guard let session = sessions.first(where: { $0.trackedPRs.contains(ref) }) else {
+        case .helper:
+            // An agent over ACP in its own worktree, drawn in heed. It needs no session; the one that tracks the PR is
+            // told, never typed into.
+            deliverToHelper(ref, prompt: prompt, explicit: explicit)
+        case .noSession:
             if explicit { flash = "no session tracks #\(ref.number)" }
-            return
-        }
-        guard !isFixture else {
-            if tutor != nil {
+        case let .fixture(tutor):
+            if tutor {
                 updateFeedback { $0.markSent(at: pullDetails[ref.description]?.headSHA) }
                 flash = "sent (tutor: nothing was typed)"
             } else {
                 flash = "fixture: no IO"
             }
-            return
-        }
-        // A swarm PR's session is the lead's: its feedback goes to a run of its own, never typed to the lead.
-        if pilotSettings(for: ref).runIn == .session, swarmPulls[ref.description] == nil {
+        case .inSession:
+            // A swarm PR's session is the lead's: its feedback goes to a run of its own, never typed to the lead.
+            guard let session else { return }
             deliverInSession(ref, prompt: prompt, explicit: explicit, session: session)
-            return
-        }
-        // One run per PR at a time: the next round waits for it to end.
-        if liveRun(for: ref) != nil || startingRuns.contains(ref.description) {
+        case .waitForRun:
             pendingDelivery.insert(ref)
             if explicit { flash = "a run is working on #\(ref.number); this goes once it ends" }
             logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: a run is working on it")
-            return
-        }
-        // A swarm PR's conflict or rebase goes back to its task's own worker, when that worker can take it.
-        if let pull = swarmPulls[ref.description], !SwarmHandback.needs(pipeline.items).isEmpty {
-            switch handbackRoute(pull) {
-            case let .worker(worker):
-                return returnToWorker(ref, pull: pull, worker: worker, items: pipeline.queued, session: session.id)
-            case let .wait(why):
-                pendingDelivery.insert(ref)
-                if explicit { flash = "#\(ref.number) waits: \(why)" }
-                logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: \(why)")
-                return
-            case let .pilot(why):
-                noteHandbackToPilot(pull, items: pipeline.queued, why: why)
+        case let .returnToWorker(worker):
+            // A swarm PR's conflict or rebase goes back to its task's own worker.
+            guard let swarmPull, let session else { return }
+            returnToWorker(ref, pull: swarmPull, worker: worker, items: pipeline.queued, session: session.id)
+        case let .waitForWorker(why):
+            pendingDelivery.insert(ref)
+            if explicit { flash = "#\(ref.number) waits: \(why)" }
+            logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: \(why)")
+        case let .startRun(handback):
+            guard let session else { return }
+            if let handback, let swarmPull { noteHandbackToPilot(swarmPull, items: pipeline.queued, why: handback) }
+            startingRuns.insert(ref.description)
+            let items = pipeline.queued.count
+            let sessionID = session.id
+            Task {
+                defer { startingRuns.remove(ref.description) }
+                guard let target = await startRun(ref, prompt: prompt, items: items, sessionID: sessionID),
+                      var pipeline = feedback[ref.description],
+                      var session = sessions.first(where: { $0.id == sessionID })
+                else { return }
+                markSent(ref, pipeline: &pipeline, session: &session, to: target, byYou: explicit)
             }
-        }
-        startingRuns.insert(ref.description)
-        let items = pipeline.queued.count
-        let sessionID = session.id
-        Task {
-            defer { startingRuns.remove(ref.description) }
-            guard let target = await startRun(ref, prompt: prompt, items: items, sessionID: sessionID),
-                  var pipeline = feedback[ref.description],
-                  var session = sessions.first(where: { $0.id == sessionID })
-            else { return }
-            markSent(ref, pipeline: &pipeline, session: &session, to: target, byYou: explicit)
         }
     }
 
@@ -6619,11 +6831,12 @@ final class AppModel {
         let kind: HelperKind = Runs.goal(for: pilotStatus(for: ref)) == .merged ? .conflict : .green
         let sessionID = sessions.first { $0.trackedPRs.contains(ref) }?.id
         let viewer = github.viewer
+        let trustedAuthors = pilotSettings(for: ref).trustedAuthors
         Task {
             defer { startingRuns.remove(ref.description) }
-            let trusted = await PullTrustBook.shared.resolve(ref, viewer: viewer) { ref in
-                try await GitHub.pullAuthorship(ref, caller: "pilot.author")
-            }
+            let trusted = await PullTrustBook.shared.resolveOnGitHub(
+                ref, viewer: viewer, trustedAuthors: trustedAuthors, caller: "pilot.author"
+            )
             guard let target = await startHelper(
                 kind, ref: ref, items: queued, sessionID: sessionID, trusted: trusted, prompt: {
                     HelperPrompt.green(feedback: prompt, branch: $0, prBranch: $1)
@@ -6860,7 +7073,7 @@ final class AppModel {
             ref: ref, detail: detail, settings: pilotSettings(for: ref),
             paused: feedback[ref.description]?.isPaused(Clock.now) == true, mode: pilot(for: ref).merge,
             selfReview: feedback[ref.description]?.selfReview, now: Clock.now,
-            held: swarmPulls[ref.description]?.hold
+            held: swarmPulls[ref.description]?.hold, viewer: github.viewer
         )
     }
 
@@ -6965,8 +7178,11 @@ final class AppModel {
             for ref in refs {
                 if !isFixture, let detail = try? await GitHub.pullDetail(ref, caller: "mergeQueue.run") {
                     commit(.pullDetailFetched(detail))
+                    PullTrustBook.shared.record(PullAuthorship(detail), for: ref)
                     details[ref] = detail
-                } else if let detail = pullDetails[ref.description] {
+                } else if isFixture, let detail = pullDetails[ref.description] {
+                    // The fake world has no gh. Live, a PR whose details could not be fetched sits this run out:
+                    // who may merge it is decided on fresh details, never on ones cached before the rules changed.
                     details[ref] = detail
                 }
             }
@@ -7024,7 +7240,9 @@ final class AppModel {
                     guard let detail = details[ref] else { break }
                     let review = await runSelfReview(ref, detail)
                     guard review.approved else {
-                        record(ref, .held, "self-review asked for changes", review.summary)
+                        let what = review.summary.hasPrefix("not run:") ? "self-review not run"
+                            : "self-review asked for changes"
+                        record(ref, .held, what, review.summary)
                         break
                     }
                     record(ref, nil, "self-review approved", String(detail.headSHA.prefix(7)))
@@ -7056,7 +7274,8 @@ final class AppModel {
     ) async {
         guard let detail = details[ref] else { return }
         let verdict = HeedMerge.verdict(
-            detail, settings: pilotSettings(for: ref), selfReview: feedback[ref.description]?.selfReview, now: Clock.now
+            detail, settings: pilotSettings(for: ref), selfReview: feedback[ref.description]?.selfReview,
+            now: Clock.now, viewer: github.viewer
         )
         let adminRetry: Bool
         switch HeedMerge.attempt(verdict, adminMerge: admin) {
@@ -7109,20 +7328,14 @@ final class AppModel {
         guard let command = pilotSettings(for: ref).selfReview else {
             return SelfReview(sha: detail.headSHA, approved: false, summary: "no self_review command", at: Clock.now)
         }
-        let review: SelfReview
-        if isFixture {
-            review = SelfReview(sha: detail.headSHA, approved: true, summary: "approved", at: Clock.now)
+        let review: SelfReview = if isFixture {
+            SelfReview(sha: detail.headSHA, approved: true, summary: "approved", at: Clock.now)
         } else {
-            do {
-                let diff = try await GitHub.diff(ref, caller: "pilot.selfReview")
-                let output = try await SelfReview.run(command, prompt: SelfReview.prompt(
-                    detail, diff: diff, instructions: pilotSettings(for: ref).reviewInstructions
-                ))
-                review = SelfReview.parse(output, sha: detail.headSHA, at: Clock.now)
-            } catch {
-                review = SelfReview(
-                    sha: detail.headSHA, approved: false, summary: "the self-review failed: \(error)", at: Clock.now
-                )
+            // The diff of the very commit the verdict is stamped with, which the merge then names.
+            await SelfReview.review(
+                detail, command: command, instructions: pilotSettings(for: ref).reviewInstructions, now: Clock.now
+            ) { base, head in
+                try await GitHub.compareDiff(ref.repo, base: base, head: head, caller: "pilot.selfReview")
             }
         }
         if var pipeline = feedback[ref.description] {
@@ -7161,16 +7374,16 @@ final class AppModel {
         let targets = worktrees.filter { session.owns($0) }
             .map { worktree in (worktree, repos.first { $0.repo == worktree.repo }?.defaultBranch ?? "main") }
         guard !targets.isEmpty, !isFixture else {
-            diffFiles = isFixture ? Fixtures.diff : []
-            diffCommits = isFixture ? Fixtures.diffCommits : []
+            diffTask?.cancel()
+            diffLoad = .loaded(isFixture ? DiffContent(files: Fixtures.diff, commits: Fixtures.diffCommits) : .empty)
             if !isFixture { flash = "no worktree for \(session.branch) yet" }
             return
         }
         let scope = diffScope
-        diffLoading = true
         diffTask?.cancel()
+        // A load replaced by this one may still finish: its token is no longer current, so it changes nothing.
+        let token = diffLoad.start()
         diffTask = Task {
-            defer { diffLoading = false }
             var files: [FileDiff] = []
             for (worktree, base) in targets {
                 if let diff = try? await Git.diff(at: worktree.path, scope: scope, base: base, repo: worktree.repo) {
@@ -7178,9 +7391,11 @@ final class AppModel {
                 }
             }
             let commits = await (try? Git.commits(at: targets[0].0.path, base: targets[0].1)) ?? []
-            guard !Task.isCancelled else { return }
-            diffFiles = files
-            diffCommits = commits
+            guard !Task.isCancelled else {
+                diffLoad.abandon(token)
+                return
+            }
+            guard diffLoad.finish(token, with: DiffContent(files: files, commits: commits)) else { return }
             diffCursor.reset(in: files)
             leaveDiffVisual()
         }
@@ -7537,7 +7752,7 @@ final class AppModel {
             // Called from another app: what heed's cursor is on says nothing about this work.
             openStartWork(prompt: "", fromCursor: false)
         }
-        startWorkStandalone = true
+        startWorkSession?.presentation = .standalone
         StartWorkPanelController.shared.show(model: self)
     }
 
@@ -7551,7 +7766,7 @@ final class AppModel {
         prompt: String, fromCursor: Bool = true, chat: Bool = false, promotion: Promotion? = nil,
         context given: StartContext? = nil
     ) {
-        startWorkError = nil
+        startWorkSession?.clearFailure()
         let context = given ?? (fromCursor ? startContext : nil)
         if view == .history { view = .sessions }
         var form = StartWorkForm(
@@ -7750,17 +7965,26 @@ final class AppModel {
         var hostFiles: [String: String] = [:]
         if let host {
             guard let onHost = hostAgentFiles(host) else {
-                startWorkError = "@\(host) does not answer: gH shows why"
+                startWorkSession?.fail("@\(host) does not answer: gH shows why")
                 return
             }
             hostFiles = onHost.files
         }
-        startingWork = true
         // The standalone panel cannot show the offer: it waits for a start from the window.
-        guard !startWorkStandalone else { return launch(plan, hostFiles: hostFiles) }
+        guard !startWorkStandalone else {
+            startWorkSession?.launch()
+            return launch(plan, hostFiles: hostFiles)
+        }
+        guard let start = startWorkSession?.awaitTrust() else { return }
         Task {
-            guard let offer = await trustOffer(for: plan) else { return launch(plan, hostFiles: hostFiles) }
-            offerTrust(offer) { [weak self] in self?.launch(plan, hostFiles: hostFiles) }
+            // Answered either way (a replaced question counts as Not now), the start goes on: unless it is no longer
+            // the one waiting, as when the dialog was closed meanwhile.
+            let go: @MainActor () -> Void = { [weak self] in
+                guard let self, startWorkSession?.trustAnswered(start) == true else { return }
+                launch(plan, hostFiles: hostFiles)
+            }
+            guard let offer = await trustOffer(for: plan) else { return go() }
+            offerTrust(offer, then: go)
         }
     }
 
@@ -7769,9 +7993,7 @@ final class AppModel {
         let host = plan.location.hostName
         let settings = settings
         let hosts = config.hosts
-        startingWork = true
         Task {
-            defer { startingWork = false }
             do {
                 if let host {
                     flash = "setting up @\(host)…"
@@ -7809,7 +8031,7 @@ final class AppModel {
                 proposeSetup(for: plan.repos)
             } catch {
                 flash = "start work failed: \(error)"
-                startWorkError = "start failed: \(error)"
+                startWorkSession?.fail("start failed: \(error)")
             }
         }
     }
@@ -7941,6 +8163,8 @@ final class AppModel {
         session.agent = agent.name
         session.agentSessionID = AgentIntegration.preassignedSessionID(agent: agent, sessionID: agentSession)
         session.usage = nil
+        // The new pane has this run's token.
+        session.unheard = nil
         session.state = ObservedState(.idle, source: .guessed, reason: "handed off")
         session.activity = "starting"
         session.lastActivity = Clock.now
@@ -8163,8 +8387,6 @@ final class AppModel {
         var loading: Bool
         var sessionID: String
     }
-
-    private(set) var taskPicker: TaskPickerState?
 
     /// The worktree a session's tasks run in, and where: its first repo's.
     private func taskWorktree(of session: Session) -> (path: String, location: Location, pinned: [TaskSpec])? {
@@ -8845,16 +9067,14 @@ final class AppModel {
     /// Clicking into a terminal means typing there: focus that pane and enter INSERT. Without this a click left
     /// NORMAL on, and the next letters ran as commands (x closes the session).
     func clickedPane(_ paneID: String) {
-        guard startWork == nil, resume == nil, firstRun == nil, nudge == nil, !filtering else { return }
+        guard !dialogOpen, !filtering else { return }
         if currentTab?.focused != paneID { focusPane(paneID) }
         enterInsert()
     }
 
     /// Whether a click on a list may act: not while a dialog or form has the keyboard.
     var clicksReachLists: Bool {
-        startWork == nil && confirmation == nil && resume == nil && firstRun == nil && importPicker == nil
-            && agentImport == nil && pathImport == nil && tutorPicker == nil && awaySummary == nil
-            && repoSetup == nil && nudge == nil && addRepoDialog == nil
+        !dialogOpen
     }
 
     /// A click on a session in the sidebar or the rail selects it; a double-click also types into its agent pane.
@@ -9040,4 +9260,10 @@ enum HintTarget: Hashable {
 extension String {
     /// Nil for "", so an optional detail stays out.
     var nilIfEmpty: String? { isEmpty ? nil : self }
+}
+
+/// What one rebuild of the sidebar already worked out: each PR's pilot state, each session's.
+private struct PilotMemo {
+    var pulls: [PullRef: PilotStatus] = [:]
+    var sessions: [String: SessionPilot] = [:]
 }

@@ -2,9 +2,14 @@ import Foundation
 @testable import HeedCore
 import Testing
 
-struct AuditGrantTests {
+final class AuditGrantTests {
+    /// Each test's own folder, removed when the test ends.
+    private let root = FileManager.default.temporaryDirectory.appendingPathComponent("heed-audit-\(UUID().uuidString)")
+
+    deinit { try? FileManager.default.removeItem(at: root) }
+
     private func folder() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("heed-audit-\(UUID().uuidString)")
+        let url = root.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }
@@ -27,13 +32,78 @@ struct AuditGrantTests {
         var book = AuditBook([.grant(rule)])
         #expect(book.grantRows(before: [before, duplicate]).map(\.id) == ["g1", "before:1"])
         book.apply([.revoke(AuditRevocation(grant: rule, at: now.addingTimeInterval(5), result: "removed"))])
-        #expect(book.grantRows().first?.revoked?.result == "removed")
+        #expect(book.grantRows().first?.state == .revoked(AuditRevocation(
+            grant: rule, at: now.addingTimeInterval(5), result: "removed"
+        )))
         var again = rule
         again.id = "g2"
         again.at = now.addingTimeInterval(10)
         book.apply([.grant(again)])
         #expect(book.grantRows().map(\.id) == ["g2"])
-        #expect(book.grantRows().first?.revoked == nil)
+        #expect(book.grantRows().first?.state == .standing)
+    }
+
+    private var rule: AuditGrant {
+        AuditGrant(
+            id: "g1", at: now, kind: .alwaysRule, subject: "Bash(npm test:*)", scope: "/r/.claude/settings.local.json",
+            why: "always in approvals"
+        )
+    }
+
+    @Test func aFailedRevokeLeavesTheGrantStandingAndCanBeTriedAgain() {
+        var book = AuditBook([.grant(rule)])
+        let started1 = book.startRevoke(rule, at: now.addingTimeInterval(1))
+        #expect(started1)
+        #expect(book.grantRows().first?.state == .revoking(since: now.addingTimeInterval(1)))
+        let failed = AuditRevocation(
+            grant: rule, at: now.addingTimeInterval(2), outcome: .failure(AuditRevokeFailure("permission denied"))
+        )
+        book.apply([.revoke(failed)])
+        let state = book.grantRows().first?.state
+        #expect(state == .failed(failed) && state?.canRevoke == true && state?.isRevoked == false)
+        #expect(failed.failed && failed.result == "permission denied")
+        // `d` again tries again, and this time it works.
+        let started2 = book.startRevoke(rule, at: now.addingTimeInterval(3))
+        #expect(started2)
+        let done = AuditRevocation(grant: rule, at: now.addingTimeInterval(4), outcome: .success("removed"))
+        book.apply([.revoke(done)])
+        #expect(book.grantRows().first?.state == .revoked(done))
+        let started3 = book.startRevoke(rule, at: now.addingTimeInterval(5))
+        #expect(!started3)
+    }
+
+    @Test func aSecondRevokeWhileOneIsUnderWayDoesNothing() {
+        var book = AuditBook([.grant(rule)])
+        let started4 = book.startRevoke(rule, at: now.addingTimeInterval(1))
+        #expect(started4)
+        let started5 = book.startRevoke(rule, at: now.addingTimeInterval(2))
+        #expect(!started5)
+        #expect(book.grantRows().first?.state == .revoking(since: now.addingTimeInterval(1)))
+    }
+
+    @Test func theReducerGoesFromStandingToRevokedOrFailed() {
+        let failed = AuditRevocation(grant: rule, at: now, result: "no", failed: true)
+        let done = AuditRevocation(grant: rule, at: now, result: "yes")
+        let started = GrantState.Event.revokeStarted(at: now)
+        #expect(GrantState.standing.reduce(started) == .revoking(since: now))
+        #expect(GrantState.failed(failed).reduce(started) == .revoking(since: now))
+        #expect(GrantState.revoking(since: now).reduce(.revokeStarted(at: now + 1)) == .revoking(since: now))
+        #expect(GrantState.revoked(done).reduce(started) == .revoked(done))
+        #expect(GrantState.revoking(since: now).reduce(.revokeFinished(failed)) == .failed(failed))
+        #expect(GrantState.revoking(since: now).reduce(.revokeFinished(done)) == .revoked(done))
+    }
+
+    @Test func aRevocationRowFromBeforeFailuresWereKeptReadsAsTakenBack() throws {
+        let old = #"{"at":1800000005,"grant":{"at":1800000000,"beforeAudit":false,"id":"g1","kind":"always rule","#
+            + #""scope":"\/r","subject":"x","why":"w"},"result":"took x out of its settings"}"#
+        guard case let .revoke(revocation) = try #require(AuditRecord.decode(kind: "revoke", body: old)) else {
+            Issue.record("not a revocation")
+            return
+        }
+        #expect(!revocation.failed)
+        #expect(AuditBook([.revoke(revocation)]).grantState(revocation.grant).isRevoked)
+        let failed = AuditRevocation(grant: revocation.grant, at: now, result: "no", failed: true)
+        #expect(try AuditRecord.decode(kind: "revoke", body: AuditRecord.revoke(failed).body()) == .revoke(failed))
     }
 
     @Test func revokingAnAlwaysRuleTakesOnlyThatRuleOut() throws {

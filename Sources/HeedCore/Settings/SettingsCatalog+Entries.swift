@@ -84,6 +84,16 @@ extension SettingsCatalog {
 
     static let general: [SettingsEntry] = [
         global(
+            "ui.appearance", .general, "Appearance", "Theme",
+            "Light, Dark, or System, which follows macOS and changes with it. Terminal panes follow too.",
+            since: "0.46.0", example: "appearance = \"system\""
+        ) { .text($0.appearance.rawValue) },
+        global(
+            "ui.dark_terminal", .general, "Appearance", "Always dark terminals",
+            "Terminal panes stay dark when heed is light, as most terminal programs expect.",
+            since: "0.46.0"
+        ) { .bool($0.darkTerminal) },
+        global(
             "sessions.default_agent", .general, "Sessions", "Default agent",
             "The agent Start work picks when nothing else does.", since: "0.1.0"
         ) { .text($0.work.defaultAgent) },
@@ -643,6 +653,12 @@ extension SettingsCatalog {
                 + "open one; Off: none.",
             since: "0.39.0"
         ) { .text($0.attention.summaries.rawValue) },
+        global(
+            "attention.max_age_days", .attention, "Age", "Oldest GitHub item",
+            "Attention leaves out GitHub items not updated in this many days. 0 shows everything. Sessions' PRs and "
+                + "issues, goals' and the ones the pilot watches stay.",
+            level: .advanced, since: "0.46.0"
+        ) { .integer($0.attention.maxAgeDays) },
     ]
 
     static let tools: [SettingsEntry] = [
@@ -851,7 +867,8 @@ extension SettingsCatalog {
             ) { .list($0.trustedReviewers) },
             entry(
                 "self_review", "Self-review",
-                "heed merges: a command that reads the diff on stdin and answers APPROVE (e.g. claude -p). Empty: none.",
+                "heed merges: a command that reads the diff on stdin and answers APPROVE (e.g. claude -p), run with "
+                    + "its tools off, so claude or pi. Empty: none.",
                 level: .advanced, since: "0.2.0", example: "self_review = \"claude -p\""
             ) { $0.selfReview.map(SettingValue.text) },
             entry(

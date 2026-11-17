@@ -355,7 +355,8 @@ struct SwarmLandingDoneTests {
         #expect(rows.map(\.state) == [.open, .merged, .held, .held])
         let done = SwarmFixtures.running(.done, now: now)
         #expect(done.swarm.status == .done)
-        #expect(done.swarm.workers.allSatisfy { $0.base == "main" && $0.stackedOn == nil })
+        #expect(!done.swarm.workers.isEmpty && done.swarm.workers
+            .allSatisfy { $0.base == "main" && $0.stackedOn == nil })
     }
 }
 

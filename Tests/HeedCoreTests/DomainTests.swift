@@ -90,12 +90,9 @@ struct StartWorkTests {
         // Dots alone, or at a word's ends, never start the name with `-`.
         #expect(StartWork.branchName(for: "... tidy the .env loader.", prefixes: none) == "tidy-env-loader")
         #expect(StartWork.branchName(for: "... tidy", prefixes: none) == "tidy")
-        // References go, and a very long word is read once.
+        // References go, and a very long word is read (how long that takes is `BranchNameBench`).
         #expect(StartWork.branchName(for: "Fix acme/docs#12 and #7 anchors") == "fix/anchors")
-        let started = Date()
-        #expect(StartWork.branchName(for: String(repeating: "x", count: 200_000) + "#a fix", prefixes: none)
-            .hasPrefix("xxxx"))
-        #expect(Date().timeIntervalSince(started) < 5)
+        #expect(StartWork.branchName(for: BranchNameBench.longWord, prefixes: none).hasPrefix("xxxx"))
         #expect(WorkSettings(worktreeRoot: "/wt")
             .worktreePath(repo: Repo(org: "o", name: "r"), name: "fix/a-b") == "/wt/r/fix-a-b")
     }
@@ -241,10 +238,9 @@ struct DomainChangeTests {
 }
 
 struct GitIntegrationTests {
-    private func makeRepo() async throws -> String {
-        let path = FileManager.default.temporaryDirectory.appendingPathComponent("heed-repo-\(UUID().uuidString)").path
+    private func makeRepo(in parent: URL = FileManager.default.temporaryDirectory) async throws -> String {
+        let path = parent.appendingPathComponent("heed-repo-\(UUID().uuidString)").path
         try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
-        GitEnvironment.isolate()
         for args in [
             ["init", "-q", "-b", "main"], ["config", "user.email", "t@t"], ["config", "user.name", "t"],
             ["commit", "-q", "--allow-empty", "-m", "first"],
@@ -301,12 +297,30 @@ struct GitIntegrationTests {
         }
     }
 
+    /// What something the command started writes after the command exited still arrives, while its pipes are open.
+    @Test func outputAfterTheExitIsKept() async throws {
+        let result = try await ProcessRunner.run(
+            "/bin/sh", ["-c", "(sleep 0.1; echo late) & echo early"], caller: "test"
+        )
+        #expect(result.stdout == "early\nlate\n")
+    }
+
+    /// Something the command started that keeps its pipes open is not waited for: the result comes back without it.
+    /// The time limit ends a run that waits for the background sleep.
+    @Test(.timeLimit(.minutes(1))) func aChildHoldingThePipesIsNotWaitedFor() async throws {
+        let result = try await ProcessRunner.run("/bin/sh", ["-c", "sleep 90 & echo $!"], caller: "test")
+        let child = try #require(Int32(result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)))
+        kill(child, SIGTERM)
+        #expect(result.succeeded)
+    }
+
     @Test func scannerFindsMainCheckoutsOnly() async throws {
-        let path = try await makeRepo()
-        defer { try? FileManager.default.removeItem(atPath: path) }
-        let parent = (path as NSString).deletingLastPathComponent
-        let found = RepoScanner.candidates(in: parent, depth: 1)
-        #expect(found.contains(path))
+        // A folder of its own to scan: the shared temporary directory holds every other test's folders.
+        let parent = FileManager.default.temporaryDirectory.appendingPathComponent("heed-scan-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: parent) }
+        let path = try await makeRepo(in: parent)
+        let found = RepoScanner.candidates(in: parent.path, depth: 1)
+        #expect(found == [path])
     }
 }
 
@@ -423,7 +437,7 @@ struct RepoOrderTests {
         let old = StartWork.guessRepos(
             for: "tidy", in: repos, lastWorked: ["a/two": now.addingTimeInterval(-86400 * 30)], now: now
         )
-        #expect(old.allSatisfy { $0.confidence == 0 })
+        #expect(old.count == 3 && old.allSatisfy { $0.confidence == 0 })
         #expect(old.first?.repo.id == "a/two")
         // A repo the prompt names still wins.
         let named = StartWork.guessRepos(for: "fix one", in: repos, lastWorked: lastWorked, now: now)
@@ -474,6 +488,6 @@ struct RepoOrderTests {
         #expect(guesses.first { $0.repo.id == "acme/docs" }.map { $0.confidence < 80 } == true)
         #expect(guesses.first { $0.repo.id == "acme/docs-eng-team" }.map { $0.confidence < 80 } == true)
         let reference = StartWork.guessRepos(for: "Fixes acme/docs-eng-team#1025", in: repos)
-        #expect(reference.allSatisfy { $0.confidence < 80 })
+        #expect(reference.count == 3 && reference.allSatisfy { $0.confidence < 80 })
     }
 }

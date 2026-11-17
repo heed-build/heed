@@ -992,6 +992,7 @@ struct SwarmStuckScreenTests {
 /// How much activity one busy worker-hour leaves in the event log, from a fixture of real-shaped hook payloads
 /// (`Fixtures/worker-hour.jsonl`: every PostToolUse of an hour and a `git status` a minute). The numbers are in
 /// docs/goals/swarms/watching.md; this keeps them true.
+@Suite(.scratch)
 struct ActivityVolumeTests {
     private struct Hour {
         var calls: [(at: Date, input: [String: Any])] = []
@@ -1018,8 +1019,7 @@ struct ActivityVolumeTests {
     }
 
     private func folder() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("heed-activity-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        let url = try Scratch.folder("heed-activity")
         return url
     }
 

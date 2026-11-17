@@ -21,6 +21,9 @@
 - `mise run live` (`HEED_LIVE=1`) runs the live checks in `Tests/HeedCoreTests/Live`: helpers, approvals, the goal wizard and
   OpenTelemetry against real Claude Code on haiku, in throwaway repos. They call a model, so `mise run test` and CI skip
   them; turn what they capture into a scrubbed fixture under `Fixtures/live` when the agents change.
+- `mise run bench` (`HEED_BENCH=1`) runs `Tests/HeedCoreTests/Bench`: timings, in an optimized build, one at a time. A test in
+  the suite never asserts a duration (the suite runs in parallel on loaded machines); it checks what a cost comes from
+  (reads, sizes, counts) and the timing goes to a bench.
 - `mise run test` and `mise run lint` before committing. Core logic goes in `HeedCore` with tests; the app layer
   stays thin.
 - Text other people wrote (PR and issue text, comments, checks) is `ExternalText`, and what leaves heed for an agent
@@ -32,3 +35,18 @@
   anywhere else.
 - Check UI against the design with `HEED_SNAPSHOT` (see README).
 - GitHub only via `gh`.
+
+## Measuring the app
+
+- `Perf` (`Sources/HeedCore/Store/Perf.swift`) puts os_signpost intervals on the hot paths, subsystem `build.heed.app`,
+  category `perf`: `commit`, `rebuildList`, `readScreens`, `attentionEntries`, `audit.refilter`, `domain.flush`,
+  `telemetry.costs`, and startup: up to the cached domain drawn (`start.toCache`, inside it `start.callLog`,
+  `start.loadDomain`, `start.openLog`, `start.adopt`, `start.replace`), and up to the panes' terminals made
+  (`start.toPanes`, inside it also `start.detectTools`, `start.llm`, `start.telemetry`, `start.livePanes`). Add one with `let perf = Perf.begin("name")` and `defer { perf.end() }`; while
+  nothing records, it costs one `isEnabled` check.
+- To record them: Instruments' Logging template (or Time Profiler or SwiftUI with the os_signpost instrument added),
+  filtered to subsystem `build.heed.app`; or, beside the CPU samples,
+  `xcrun xctrace record --template 'Time Profiler' --instrument os_signpost --attach Heed --time-limit 60s
+  --output heed.trace` and `open heed.trace`. The intervals show under os_signpost, category perf, with each one's
+  count and durations.
+- `mise run bench` builds only the test product (HeedCore and its tests) with `-O`, not the app and MLX.

@@ -33,7 +33,22 @@ jobs:
         run: brew install fish
 
       - name: Test
-        run: mise run test
+        id: test
+        shell: bash
+        run: mise run test 2>&1 | tee "$RUNNER_TEMP/test-1.log"
+
+      # On main the suite runs a second time, on the same build, and a test that fails in only one of the two runs
+      # fails the job by name as flaky. Nothing is retried: a flake is a bug to fix, not to hide. Pull requests run once.
+      - name: Test again for flakes
+        if: >-
+          !cancelled() && github.event_name == 'push'
+          && (steps.test.outcome == 'success' || steps.test.outcome == 'failure')
+        shell: bash
+        run: |
+          status=0
+          mise run test --skip-build 2>&1 | tee "$RUNNER_TEMP/test-2.log" || status=$?
+          scripts/flaky-tests.sh "$RUNNER_TEMP/test-1.log" "$RUNNER_TEMP/test-2.log"
+          exit "$status"
 
       # Rebuilds heed's own sources to see every warning again: other people's text in a plain String fails here.
       - name: Text check
@@ -73,8 +88,9 @@ jobs:
           done
           ls build/Heed.app/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate >/dev/null
 
+      # The script `mise run tutor-check` runs, without its bundle step: it fails when the app prints no summary line.
       - name: Tutor check
-        run: HEED_TUTOR_CHECK=1 build/Heed.app/Contents/MacOS/Heed
+        run: scripts/tutor-check.sh
 
       - name: Save .build
         if: github.ref == 'refs/heads/main'

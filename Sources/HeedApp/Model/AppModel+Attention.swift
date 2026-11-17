@@ -29,20 +29,54 @@ extension AppModel {
         let titles = Dictionary(goals.snapshot.goals.map { ($0.id, $0.title) }) { first, _ in first }
         return AttentionFeed.items(
             github: state, sessions: sessions, details: attention.details, pilotDriving: pilotDriving,
-            readyToMerge: readyToMergeRefs, goals: GoalNotice.of(goals.snapshot)
+            readyToMerge: readyToMergeRefs, goals: GoalNotice.of(goals.snapshot),
+            maxAgeDays: config.attention.maxAgeDays, exempt: attentionAgeExempt
         ) + GoalAttachAsks.items(goals.attach.asks, titles: titles).map(\.item) + goalAttentionItems
             + goalMirrorAttention
     }
 
-    var attentionEntries: [AttentionEntry] {
-        AttentionRanking.entries(
-            live: attentionItems, stored: attention.stored.map(\.item), rules: config.attention.parsedRules,
-            marks: attention.marks, viewer: github.viewer, now: Clock.now
+    /// The threads `[attention] max_age_days` leaves alone: a session's PRs and issues, a goal's (PR links, items
+    /// sourced from a PR or issue), and the PRs the pilot watches.
+    var attentionAgeExempt: Set<String> {
+        let snapshot = goals.snapshot
+        let sourced = snapshot.items.compactMap(\.sourced)
+        return AttentionAge.exempt(
+            sessions: sessions,
+            goalPulls: snapshot.links.filter { $0.kind == .pr }.map(\.target) + sourced.filter { $0.kind == .pr }
+                .map(\.ref),
+            goalIssues: sourced.filter { $0.kind == .issue }.map(\.ref),
+            watched: feedback.values.filter(\.watching).map(\.ref)
         )
+    }
+
+    /// Every Attention entry, ranked: kept until something it reads changes (`Derived`), since the title bar's badge,
+    /// the counts, the coverage line and the list all read it on every redraw.
+    var attentionEntries: [AttentionEntry] {
+        _ = attentionEntriesGeneration
+        return attentionEntriesKept.value(now: Clock.now) { attentionEntriesNow }
+    }
+
+    private var attentionEntriesNow: [AttentionEntry] {
+        Perf.measure("attentionEntries") {
+            let days = config.attention.maxAgeDays
+            return AttentionRanking.entries(
+                live: attentionItems,
+                stored: AttentionAge.apply(
+                    to: attention.stored.map(\.item), days: days, now: Clock.now, exempt: attentionAgeExempt
+                ),
+                rules: config.attention.parsedRules,
+                marks: attention.marks, viewer: github.viewer, now: Clock.now
+            )
+        }
     }
 
     /// What the tab lists, in its sections: the tab, the sort, and `/`.
     var attentionListing: AttentionListing {
+        _ = attentionListingGeneration
+        return attentionListingKept.value(now: Clock.now) { attentionListingNow }
+    }
+
+    private var attentionListingNow: AttentionListing {
         let text = filter(for: .attention)
         let entries = attentionEntries.filter { entry in
             let item = entry.item
@@ -76,7 +110,12 @@ extension AppModel {
 
     /// What Attention has of each source, against what GitHub says: the line at the foot of the list.
     var attentionCoverage: AttentionCoverage {
-        AttentionCoverage.of(github: attentionGitHub, entries: attentionEntries, now: Clock.now)
+        // The newest sync's fetches: a sync that brought nothing new still says when it fetched.
+        AttentionCoverage.of(
+            github: attentionGitHub.freshened(by: githubStamp),
+            entries: attentionEntries,
+            now: Clock.now
+        )
     }
 
     /// The row under the cursor.

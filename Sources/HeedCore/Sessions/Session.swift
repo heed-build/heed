@@ -113,12 +113,28 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
 
     /// When you last touched it, or when it started.
     public var touched: Date { lastTouched ?? createdAt }
+
+    /// Whether this is `old` with only what its agent is doing changed: its activity line, when it last did
+    /// something, and the reason or source of a state that stayed the same (the next tool of a working turn). Such a
+    /// change moves no group, PR, title or turn, so what watches for those need not look.
+    public func changedOnlyActivity(from old: Session) -> Bool {
+        guard id == old.id, state.state == old.state.state else { return false }
+        var same = old
+        same.activity = activity
+        same.lastActivity = lastActivity
+        same.state = state
+        return same == self
+    }
+
     /// Who gave it its title (`SessionNaming`): the prompt until heed names it, then heed, or you.
     public var titleBy: TitleSource = .prompt
     /// False after heed renames it, until the cursor has been on it: the row says it has a new name.
     public var titleSeen = true
     /// How often heed has named it (`SessionNaming.perSession` at most).
     public var namings = 0
+    /// Its agent pane sends hook messages heed does not take (`Unheard`); nil while heed hears it. Not kept: the next
+    /// message after a relaunch says it again.
+    public var unheard: Unheard?
 
     /// The chat's folder; nil for a session in worktrees.
     public var chat: ChatFolder? {
@@ -300,15 +316,18 @@ public enum SessionGroup: String, CaseIterable, Sendable {
 
     /// Pinned, then what needs you, then what you parked; then chats, which have no PRs for the pilot; then stalled,
     /// then watching (heed is driving, the session is not yours); then the agent's state decides, working or parked.
+    /// A session heed cannot hear (`Session.unheard`) has no state to decide by: what it last reported is stale, so
+    /// it neither needs you nor is parked by it. Its pane is sending, so its agent runs: Working, where its row says
+    /// so and how to reconnect it.
     public static func of(_ session: Session, pilot: SessionPilot = SessionPilot()) -> SessionGroup {
+        let state: AgentState? = session.unheard == nil ? session.state.state : nil
         if session.pinned { return .pinned }
-        if session.state.state.needsYou || pilot.status?.needsYou == true || pilot.helperNeedsYou { return .needsYou }
+        if state?.needsYou == true || pilot.status?.needsYou == true || pilot.helperNeedsYou { return .needsYou }
         if session.parked { return .parked }
         if session.isChat { return .chats }
         if case .stalled = pilot.status { return .stalled }
         if pilot.acting, !pilot.yours { return .watching }
-        if session.parked || session.state.state == .done || session.state.state == .idle
-            || session.state.state == .exited { return .parked }
+        if let state, [.done, .idle, .exited].contains(state) { return .parked }
         return .working
     }
 }
@@ -425,10 +444,18 @@ public struct SessionList: Sendable {
                 groups[session.id] = natural
             }
         }
-        let all = Self.sorted(sessions, by: view.sort, groups: groups, size: size)
+        // Each size once: the sort compares it many times.
+        var sizes: [String: Int] = [:]
+        if view.sort == .size {
+            for session in sessions where sizes[session.id] == nil {
+                sizes[session.id] = size(session)
+            }
+        }
+        let all = Self.sorted(sessions, by: view.sort, groups: groups, size: { sizes[$0.id] ?? 0 })
         // What is done with leaves its group for the band at the bottom; what is pinned or needs you never does.
         let done = all.filter { ![.pinned, .needsYou].contains(groups[$0.id]) && closable($0) }
-        let sorted = all.filter { !done.contains($0) }
+        let doneIDs = Set(done.map(\.id))
+        let sorted = doneIDs.isEmpty ? all : all.filter { !doneIDs.contains($0.id) }
         var sections: [Section] = []
         if view.grouping == .status {
             for group in SessionGroup.allCases {
@@ -458,9 +485,13 @@ public struct SessionList: Sendable {
             // Unplaced and chats last. Parked sessions go after the live ones in their group.
             let last: Set<Section.Header> = [.unplaced, .status(.chats)]
             var firstLive: [Section.Header: Int] = [:]
+            var restIndex: [String: Int] = [:]
+            for (index, session) in rest.enumerated() where restIndex[session.id] == nil {
+                restIndex[session.id] = index
+            }
             for header in order {
                 if let index = members[header]?.firstIndex(where: { groups[$0.id] != .parked }) {
-                    firstLive[header] = rest.firstIndex(of: members[header]![index])
+                    firstLive[header] = restIndex[members[header]![index].id]
                 }
             }
             let live = order.filter { firstLive[$0] != nil }.sorted { firstLive[$0]! < firstLive[$1]! }
@@ -476,7 +507,28 @@ public struct SessionList: Sendable {
         ordered = sections.flatMap(\.sessions)
         self.groups = groups
         self.view = view
+        (positions, pinPositions) = Self.positions(ordered)
     }
+
+    /// Each session's row in `ordered`, and each pinned one's place among the pins: the rows ask for theirs.
+    private let positions: [String: Int]
+    private let pinPositions: [String: Int]
+
+    private static func positions(_ ordered: [Session]) -> ([String: Int], [String: Int]) {
+        var rows: [String: Int] = [:], pins: [String: Int] = [:]
+        rows.reserveCapacity(ordered.count)
+        for (index, session) in ordered.enumerated() where rows[session.id] == nil {
+            rows[session.id] = index
+            if session.pinned { pins[session.id] = pins.count }
+        }
+        return (rows, pins)
+    }
+
+    /// The row of the session with this id, in `ordered`.
+    public func index(of id: String) -> Int? { positions[id] }
+
+    /// The place of the pinned session with this id among `pins` (0 is `'1`); nil when it is not pinned.
+    public func pinIndex(of id: String) -> Int? { pinPositions[id] }
 
     /// `sessions` in `sort`'s order. Every sort is stable: sessions that tie keep the order they came in.
     static func sorted(

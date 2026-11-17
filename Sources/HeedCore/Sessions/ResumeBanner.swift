@@ -27,6 +27,11 @@ public struct AgentPresence: Equatable, Sendable {
         if state == .exited { live.remove(pane) } else { live.insert(pane) }
     }
 
+    /// Whether `observed(state, in: pane)` would change anything.
+    public func changes(observing state: AgentState, in pane: String) -> Bool {
+        live.contains(pane) == (state == .exited)
+    }
+
     public mutating func forget(_ pane: String) { live.remove(pane) }
 }
 
@@ -65,5 +70,16 @@ public enum ResumeBanner {
         let agentPanes = panes.filter { $0.role == .agent || $0.role == .shell }
         guard !agentPanes.contains(where: { presence.isRunning($0.id) }) else { return nil }
         return Offer(sessionID: session.id, agent: agent.name, conversation: conversation)
+    }
+
+    /// The offer as the app asks it: the conversation as last checked (`ConversationCheck.onDisk`).
+    public static func offer(
+        session: Session, layout: SessionLayout?, agent: AgentProfile?, presence: AgentPresence,
+        conversation: ConversationCheck
+    ) -> Offer? {
+        offer(
+            session: session, layout: layout, agent: agent, presence: presence,
+            conversationOnDisk: conversation.onDisk
+        )
     }
 }

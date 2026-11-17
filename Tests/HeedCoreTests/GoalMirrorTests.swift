@@ -417,7 +417,8 @@ struct GoalMirrorSyncTests {
         await tracker.clearCalls()
         let state = await GoalMirrorSync(ops: ops, github: tracker, limits: .tests).sync(goal: id, now: now + 60)
         #expect(await tracker.issues.count == 3)
-        #expect(await tracker.calls.allSatisfy { !$0.hasPrefix("create") && !$0.hasPrefix("attach") })
+        let calls = await tracker.calls
+        #expect(!calls.isEmpty && calls.allSatisfy { !$0.hasPrefix("create") && !$0.hasPrefix("attach") })
         #expect(state.meta?.number == 1 && state.items.count == 2 && state.error == nil)
     }
 
@@ -476,10 +477,14 @@ struct GoalMirrorSyncTests {
         let tracker = FakeTracker()
         let sync = GoalMirrorSync(ops: ops, github: tracker, limits: .tests)
         await sync.sync(goal: id, now: now)
+        // Both items were mirrored to the first tracker, so clearing their numbers is a change.
+        let mirrored = try await ops.snapshot().items(of: id)
+        #expect(mirrored.count == 2 && mirrored.allSatisfy { $0.issueNumber != nil })
         try await ops.setTracker(goal: id, repo: "acme/roadmap", now: now)
         let state = try await ops.mirror(of: id)
         #expect(state.on && state.repo == "acme/roadmap" && state.meta == nil && state.items.isEmpty)
-        #expect(try await ops.snapshot().items(of: id).allSatisfy { $0.issueNumber == nil })
+        let items = try await ops.snapshot().items(of: id)
+        #expect(items.count == 2 && items.allSatisfy { $0.issueNumber == nil })
     }
 }
 
@@ -615,10 +620,10 @@ struct TrackerCheckTests {
 }
 
 /// The gh adapter: argument shapes as GitHub's REST docs give them, and a `github` row per call, writes as writes.
+@Suite(.scratch)
 struct GitHubMirrorTests {
     private func folder() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("heed-mirror-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        let url = try Scratch.folder("heed-mirror")
         return url
     }
 

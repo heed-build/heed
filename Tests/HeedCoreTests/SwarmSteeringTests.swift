@@ -825,8 +825,11 @@ struct SwarmSteeringControlTests {
         let id = try #require(asked.question)
         let answered = await run(GoalCommand(.swarmAnswer, text: "A", question: id), ops, caller: nil)
         let board = try await ops.board(of: swarm.id)
-        #expect(answered?.exit != .ok || board.steering.allSatisfy { $0.actor != .you })
-        #expect(board.questions.first { $0.id == id }?.answer?.actor != .you)
+        // The question is someone's to answer, and not a command line's: refused, and it stays unanswered.
+        #expect(answered?.exit == .refused)
+        #expect(!board.steering.contains { $0.actor == .you && [.answer, .overrule].contains($0.kind) })
+        let question = try #require(board.questions.first { $0.id == id })
+        #expect(question.answer == nil)
         #expect(await run(GoalCommand(.swarmSummary, text: "done"), ops, caller: nil)?.exit == .refused)
     }
 

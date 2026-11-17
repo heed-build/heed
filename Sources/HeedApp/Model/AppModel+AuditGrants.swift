@@ -70,7 +70,11 @@ extension AppModel {
         guard audit.section == .grants
         else { return flash = "\(keyText(for: "audit.grants", in: "audit")) shows the grants" }
         guard let row = audit.selectedGrant else { return flash = "no grant here" }
-        if row.revoked != nil { return flash = "already revoked" }
+        switch row.state {
+        case .revoked: return flash = "already revoked"
+        case .revoking: return flash = "already revoking it"
+        case .standing, .failed: break
+        }
         let grant = row.grant
         guard grant.kind.revocable else { return flash = "a helper's Always ends with its run: nothing to revoke" }
         ask(Confirmation(
@@ -91,54 +95,50 @@ extension AppModel {
         }
     }
 
+    /// Takes `grant` back where it lives, once: a second `d` while this runs does nothing. What came of it is recorded
+    /// as revoked, or as a failed try that leaves the grant standing for `d` to try again.
     private func revoke(_ grant: AuditGrant) {
+        guard audit.startRevoke(grant) else { return }
         let cause = keyCause(CommandInvocation(name: "audit.revoke"))
         audit.note(cause)
-        func done(_ result: String) {
-            audit.record(AuditRevocation(grant: grant, at: Clock.now, cause: cause.id, result: result))
-            flash = result
+        Task {
+            let outcome = isFixture ? .success("revoked (fixture: nothing changed)") : await revokeOutcome(grant)
+            let revocation = AuditRevocation(grant: grant, at: Clock.now, cause: cause.id, outcome: outcome)
+            audit.record(revocation)
+            flash = revocation.failed ? "could not revoke: \(revocation.result)" : revocation.result
         }
-        if isFixture { return done("revoked (fixture: nothing changed)") }
+    }
+
+    /// Does the taking back, off the main actor where it touches files or runs a command.
+    private func revokeOutcome(_ grant: AuditGrant) async -> Result<String, AuditRevokeFailure> {
+        func attempt(_ body: @escaping @Sendable () throws -> String) async -> Result<String, AuditRevokeFailure> {
+            await Task.detached {
+                do { return try .success(body()) } catch { return .failure(AuditRevokeFailure("\(error)")) }
+            }.value
+        }
         switch grant.kind {
         case .alwaysRule:
             let file = URL(fileURLWithPath: Paths.expand(grant.scope))
-            Task {
-                let result = await Task.detached { () -> String in
-                    do {
-                        return try AlwaysRules.remove(grant.subject, from: file)
-                            ? "took \(grant.subject) out of its settings" : "\(grant.subject) was no longer there"
-                    } catch {
-                        return "\(error)"
-                    }
-                }.value
-                done(result)
+            return await attempt {
+                try AlwaysRules.remove(grant.subject, from: file)
+                    ? "took \(grant.subject) out of its settings" : "\(grant.subject) was no longer there"
             }
         case .claudeTrust:
             let path = Paths.expand(grant.subject)
-            Task {
-                let result = await Task.detached { () -> String in
-                    do {
-                        return try ClaudeTrust.untrust(path) ? "Claude no longer trusts \(grant.subject)"
-                            : "Claude did not trust \(grant.subject)"
-                    } catch {
-                        return "\(error)"
-                    }
-                }.value
-                done(result)
+            return await attempt {
+                try ClaudeTrust.untrust(path) ? "Claude no longer trusts \(grant.subject)"
+                    : "Claude did not trust \(grant.subject)"
             }
         case .miseTrust:
-            let path = Paths.expand(grant.subject)
-            Task {
-                do {
-                    try await MiseTrust.untrust(path)
-                    done("mise no longer trusts \(grant.subject)")
-                } catch {
-                    done("mise trust --untrust: \(error)")
-                }
+            do {
+                try await MiseTrust.untrust(Paths.expand(grant.subject))
+                return .success("mise no longer trusts \(grant.subject)")
+            } catch {
+                return .failure(AuditRevokeFailure("mise trust --untrust: \(error)"))
             }
         case .trustedReviewer, .trustedAuthor:
             let slug = grant.scope.split(separator: "/", maxSplits: 1).map(String.init)
-            guard slug.count == 2 else { return done("no repo \(grant.scope)") }
+            guard slug.count == 2 else { return .failure(AuditRevokeFailure("no repo \(grant.scope)")) }
             let repo = Repo(org: slug[0], name: slug[1])
             let settings = config.pilot.resolve(repo)
             let key = grant.kind == .trustedReviewer ? "trusted_reviewers" : "trusted_authors"
@@ -146,17 +146,22 @@ extension AppModel {
                 grant.subject,
                 from: grant.kind == .trustedReviewer ? settings.trustedReviewers : settings.trustedAuthors
             )
-            writeAutopilot([AutopilotSwitch.Write(["repos", repo.slug, key], .array(list.map(TOMLValue.string)))])
-            done("\(grant.subject) is out of \(key) for \(repo.slug)")
+            let file = configFile
+            return await attempt {
+                try ConfigWatcher.set(["repos", repo.slug, key], to: .array(list.map(TOMLValue.string)), in: file)
+                return "\(grant.subject) is out of \(key) for \(repo.slug)"
+            }
         case .memory:
             let parts = grant.scope.split(separator: "|", maxSplits: 1).map(String.init)
-            guard parts.count == 2 else { return done("heed cannot tell where that decision is") }
-            Task {
-                await mindmap.change(parts[0]) { _ = $0.dropDecision(grant.subject, in: parts[1], now: Date()) }
-                done("dropped the decision: sessions are no longer told it")
+            guard parts.count == 2 else {
+                return .failure(AuditRevokeFailure("heed cannot tell where that decision is"))
             }
+            var dropped = false
+            await mindmap.change(parts[0]) { dropped = $0.dropDecision(grant.subject, in: parts[1], now: Date()) }
+            return .success(dropped ? "dropped the decision: sessions are no longer told it"
+                : "the decision was no longer in the Mindmap")
         case .helperAlways:
-            break
+            return .failure(AuditRevokeFailure("a helper's Always ends with its run: nothing to revoke"))
         }
     }
 }

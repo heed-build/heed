@@ -50,11 +50,16 @@ struct PromptBuilderTests {
         let member = try #require(PullAuthorship.parse(
             #"{"author": {"login": "mate", "is_bot": false}, "authorAssociation": "MEMBER", "isCrossRepository": false}"#
         ))
-        #expect(member.by == ExternalText.Author(login: "mate", trust: .collaborator) && member.trusted(viewer: nil))
+        // A member, not a collaborator: trusted only once gh says they can write to the repo.
+        #expect(member.by == ExternalText.Author(login: "mate", trust: .member))
+        #expect(!member.trusted(viewer: nil, trustedAuthors: []))
+        var writer = member
+        writer.canWrite = true
+        #expect(writer.trusted(viewer: nil, trustedAuthors: []))
         let bot = try #require(PullAuthorship.parse(
             #"{"author": {"login": "app/x", "is_bot": true}, "authorAssociation": "MEMBER", "isCrossRepository": false}"#
         ))
-        #expect(bot.by.trust == .bot && !bot.trusted(viewer: nil))
+        #expect(bot.by.trust == .bot && !bot.trusted(viewer: nil, trustedAuthors: []))
     }
 
     @Test func aSessionsPRTitlesAndAGoalsFoundItemsAreFenced() {

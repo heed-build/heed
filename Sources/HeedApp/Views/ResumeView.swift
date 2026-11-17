@@ -9,7 +9,7 @@ struct ResumeView: View {
         if let form = model.resume {
             GeometryReader { geometry in
                 ZStack {
-                    Color.black.opacity(0.6)
+                    Theme.scrim.opacity(0.6)
                     ListScroll {
                         dialog(form)
                             .frame(width: min(1060, max(geometry.size.width - 48, 360)))
@@ -43,7 +43,7 @@ struct ResumeView: View {
             ForEach(Array(form.candidates.enumerated()), id: \.element.id) { index, candidate in
                 row(candidate, selected: form.selected.contains(candidate.id), focused: index == form.cursor)
                     .contentShape(Rectangle())
-                    .onTapGesture { model.clickResume(row: index) }
+                    .tap { model.clickResume(row: index) }
                     .pointerStyle(.link)
                     .help(form.selected.contains(candidate.id) ? "Leave this session closed" : "Resume this session")
             }
@@ -80,7 +80,7 @@ struct ResumeView: View {
                     Text("toggle").foregroundStyle(Theme.fg3)
                 }
                 .clickable()
-                .onTapGesture { model.press([KeyStroke("Space")]) }
+                .tap { model.press([KeyStroke("Space")]) }
                 .help("Tick or untick the highlighted session")
                 KeyCap(text: "j k")
                 Text("move").foregroundStyle(Theme.fg3)
@@ -94,7 +94,7 @@ struct ResumeView: View {
                 .padding(.vertical, 8)
                 .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
                 .contentShape(Rectangle())
-                .onTapGesture { model.press([.escape]) }
+                .tap { model.press([.escape]) }
                 .pointerStyle(.link)
                 .help("Start without resuming anything")
                 HStack(spacing: 6) {
@@ -107,7 +107,7 @@ struct ResumeView: View {
                 .padding(.vertical, 8)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Theme.inverse))
                 .contentShape(Rectangle())
-                .onTapGesture { model.press([KeyStroke("CR")]) }
+                .tap { model.press([KeyStroke("CR")]) }
                 .pointerStyle(.link)
                 .help("Resume the ticked sessions")
             }
@@ -199,5 +199,38 @@ struct ResumeBannerStrip: View {
             Text(title).font(Theme.ui(12, weight: weight)).foregroundStyle(color).fixedSize()
         }
         .fixedSize()
+    }
+}
+
+/// The quiet strip across the top of a session's panes when heed can't hear its agent pane (`Unheard`): what is
+/// wrong, why on hover, and the key that restarts the agent so it reports again. Grey, not a colour: nothing is
+/// broken in the work, and heed asks for nothing urgent.
+struct UnheardStrip: View {
+    @Environment(AppModel.self) private var model
+    let session: String
+    let unheard: Unheard
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Text("heed can't hear this pane — restart it to reconnect")
+                .font(Theme.ui(12.5)).foregroundStyle(Theme.fg2).lineLimit(1)
+                .layoutPriority(1)
+                .help(
+                    "Since \(unheard.firstSeen.formatted(date: .omitted, time: .shortened)): "
+                        + "\(unheard.count) hook message\(unheard.count == 1 ? "" : "s") heed did not take"
+                )
+            KeyHint("session.reconnect", target: .session(session), scope: "sessions", spacing: 6) {
+                Text("Restart").font(Theme.ui(12, weight: .semibold)).foregroundStyle(Theme.fg).fixedSize()
+            }
+            .fixedSize()
+            Spacer(minLength: 8)
+            Text(unheard.reason.text).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 30)
+        .background(Theme.bg2)
+        .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+        .shotRegion(.unheardBanner)
     }
 }

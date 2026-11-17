@@ -29,6 +29,8 @@ public struct HandoffAsk: Equatable, Sendable {
         case without(String?)
     }
 
+    /// This ask, not another for the same session: what a delivery that ends late is matched on.
+    public let id = UUID()
     public var session: String
     public var agent: String
     public var startedAt: Date

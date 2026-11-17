@@ -149,7 +149,8 @@ struct RecordedAgentTests {
             "claude-otlp-metrics-3.json",
         ]
         .reduce(TelemetryRecords()) { try $0 + TelemetryReader.records(OTLPJSON.decode(Self.fixture($1))) }
-        #expect(records.spans.allSatisfy { $0.agent == "claude" && $0.agentSession == session })
+        #expect(!records.spans.isEmpty && records.spans
+            .allSatisfy { $0.agent == "claude" && $0.agentSession == session })
         #expect(records.prompts.count == 1)
         #expect(records.prompts.first?.agentSession == session)
         #expect(records.prompts.first?.text == nil, "a redacted prompt is no text")
@@ -161,7 +162,7 @@ struct RecordedAgentTests {
             sessions: [session: .init(title: "live", repo: "live", agent: "claude")], byAgentSession: [session: session]
         )
         let spans = TelemetryResolve.spans(records, context: context)
-        #expect(spans.allSatisfy { $0.heedSession == session })
+        #expect(!spans.isEmpty && spans.allSatisfy { $0.heedSession == session })
         let turn = try #require(spans.first { $0.kind == .turn })
         #expect(turn.detail == "turn 1")
         // The answer's request: its span, with the cost its event carried, counted once; and Claude Code's own

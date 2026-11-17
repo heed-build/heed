@@ -5,14 +5,6 @@ import HeedCore
     import FoundationModels
 #endif
 
-/// How Settings › Model calls' decision test went.
-struct DecisionTest: Equatable {
-    var running = false
-    var answer: String?
-    var error: String?
-    var seconds: Double?
-}
-
 /// Settings › Model calls: where model calls and decisions stand (`InferenceSetup`), one click to set both
 /// up from what is detected, a test of each, and the title bar's reminder while they are not set up.
 extension AppModel {
@@ -81,30 +73,7 @@ extension AppModel {
             )
             return
         }
-        guard !isFixture, llmTests[agent]?.running != true else { return }
-        llmTests[agent] = LLMTest(running: true)
-        let request = LLMRequest(
-            call: LLMCall(
-                system: "You check that a connection works. Reply in at most five words.", prompt: "Say hello."
-            ),
-            priority: .interactive, caller: "settings.test", operation: "test", agent: agent, cached: false
-        )
-        Task {
-            do {
-                let response = try await runLLM(request)
-                let answer = response.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                llmTests[agent] = LLMTest(
-                    answer: answer, model: response.model, seconds: response.duration, cost: response.cost
-                )
-                setupTests.inference = SetupTest(
-                    subject: subject, ok: true, detail: answer, seconds: response.duration, at: Clock.now
-                )
-            } catch {
-                llmTests[agent] = LLMTest(error: "\(error)")
-                setupTests.inference = SetupTest(subject: subject, ok: false, detail: "\(error)", at: Clock.now)
-            }
-            await refreshLLMStatuses()
-        }
+        runAgentTest(agent, setupSubject: subject)
     }
 
     /// The question the decision test asks: its answer is plain from the state.
@@ -116,8 +85,8 @@ extension AppModel {
     /// One decision through `choice` (default: the one chosen), shown with its pick, confidence and time.
     func testDecision(choice: DecisionSettings.Choice? = nil) {
         let choice = choice ?? config.decisions.effective
-        guard !isFixture, decisionTest?.running != true else { return }
-        decisionTest = DecisionTest(running: true)
+        guard !isFixture, TestRun.canStart(over: decisionTest) else { return }
+        decisionTest = .running
         let decider = decider(caller: "settings.test", priority: .interactive, choice: choice)
         let started = Date()
         Task {
@@ -128,12 +97,12 @@ extension AppModel {
                 let seconds = Date().timeIntervalSince(started)
                 let answer = answers["stands"].map { "\($0.choice ?? "?") (confidence \(Int($0.confidence * 100))%)" }
                     ?? "?"
-                decisionTest = DecisionTest(answer: answer, seconds: seconds)
+                decisionTest = .passed(DecisionTestAnswer(text: answer, seconds: seconds))
                 setupTests.decisions = SetupTest(
                     subject: choice.rawValue, ok: true, detail: answer, seconds: seconds, at: Clock.now
                 )
             } catch {
-                decisionTest = DecisionTest(error: "\(error)")
+                decisionTest = .failed("\(error)")
                 setupTests.decisions = SetupTest(
                     subject: choice.rawValue, ok: false, detail: "\(error)", at: Clock.now
                 )

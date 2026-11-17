@@ -109,15 +109,16 @@ public enum RunFolder {
 ///   writes only to the worktree and the run's folder, no network but the hosts the run needs, credential folders
 ///   unreadable), only your user settings besides (`--setting-sources user`: none from the worktree, which the branch
 ///   could carry), and no MCP servers (`--strict-mcp-config`).
-/// - codex: `--sandbox workspace-write` with `sandbox_workspace_write.network_access=false`, and the run's folder
-///   writable (`--add-dir`).
+/// - codex: a permissions profile of heed's (`default_permissions`, checked against `codex sandbox` 0.163.0): writes
+///   in the worktree, the run's folder and the temp folders, credential folders unreadable, no network.
 /// - others: no sandbox heed can ask for; heed says so on the run and does not start them on its own for someone
 ///   else's PR.
 ///
 /// What a sandboxed run cannot do: reach the network (a review not at all; a walk only package registries; codex
 /// never),
 /// write outside its worktree and its run folder (so caches in your home and the repo's shared git folder are
-/// read-only), use your GitHub, ssh or cloud logins, or run anything outside the sandbox. Tests that download
+/// read-only), use your GitHub, ssh or cloud logins, or run anything outside the sandbox. Its environment starts
+/// empty and gets back only what it needs (`environment`). Tests that download
 /// packages or need a login fail there, and the run is told to say so in its report rather than retry.
 public enum RunSandbox {
     /// What the run may reach over the network.
@@ -207,52 +208,139 @@ public enum RunSandbox {
         ] + allowed + ["--disallowedTools"] + deny + ["--permission-mode", mode]
     }
 
-    /// codex's: writes in the worktree and the run's folder, no network.
+    /// The name of the permissions profile heed gives a codex run (`default_permissions`).
+    static let codexProfile = "heed-run"
+
+    /// codex's: a permissions profile of heed's own (`default_permissions`), on codex's `:workspace` (writes in the
+    /// worktree and the temp folders), with the run's folder writable, the credential folders unreadable and no
+    /// network. No `--sandbox` flag: codex takes the flag over the profile (checked with `codex exec` 0.163.0).
     public static func codex(folder: String) -> [String] {
-        ["--sandbox", "workspace-write", "-c", "sandbox_workspace_write.network_access=false", "--add-dir", folder]
+        let entries = credentialPaths.map { "\(tomlString($0))=\"none\"" } + ["\(tomlString(folder))=\"write\""]
+        let profile = "permissions.\(codexProfile)"
+        return [
+            "-c", "default_permissions=\(tomlString(codexProfile))",
+            "-c", "\(profile).extends=\":workspace\"",
+            "-c", "\(profile).network.enabled=false",
+            "-c", "\(profile).filesystem={\(entries.joined(separator: ","))}",
+        ]
+    }
+
+    /// `text` as a TOML basic string.
+    static func tomlString(_ text: String) -> String {
+        "\"" + text.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
     }
 
     // MARK: The run's environment
 
-    /// Variables that carry logins, always unset.
-    public static let credentialVariables = [
-        "GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN", "GH_HOST", "SSH_AUTH_SOCK",
-        "SSH_AGENT_PID", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_PROFILE",
-        "GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_API_KEY", "CLOUDSDK_AUTH_ACCESS_TOKEN", "AZURE_CLIENT_SECRET",
-        "AZURE_CLIENT_ID", "AZURE_TENANT_ID", "NPM_TOKEN", "NODE_AUTH_TOKEN", "DOCKER_AUTH_CONFIG",
-        "HOMEBREW_GITHUB_API_TOKEN",
+    /// What every run gets from the environment it starts in: where programs and home are, who you are, the terminal,
+    /// the language and the temp folder.
+    public static let baseVariables = [
+        "PATH", "HOME", "USER", "LOGNAME", "SHELL", "TMPDIR", "TERM", "TERMINFO", "COLORTERM", "LANG", "LC_ALL",
+        "LC_CTYPE", "LC_COLLATE", "LC_MESSAGES", "LC_MONETARY", "LC_NUMERIC", "LC_TIME",
     ]
 
-    /// Prefixes of cloud and service logins.
-    static let credentialPrefixes = [
-        "AWS_", "GOOGLE_", "GCLOUD_", "CLOUDSDK_", "AZURE_", "ARM_", "DIGITALOCEAN_", "HEROKU_", "VAULT_", "OP_",
+    /// heed's own, which the run's hooks and `heed goal` reach heed with.
+    public static let heedVariables = [
+        HeedEnvironment.sessionID, HeedEnvironment.pane, HeedEnvironment.token, HeedEnvironment.socket,
+        HeedEnvironment.binary, HeedControl.socketVariable, GoalCommandLine.goalVariable,
     ]
 
-    /// Suffixes of secrets, outside the agents' own (`ANTHROPIC_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`).
-    static let secretSuffixes = ["_TOKEN", "_SECRET", "_PASSWORD", "_SECRET_ACCESS_KEY", "_API_KEY"]
-
-    static let agentPrefixes = ["ANTHROPIC_", "CLAUDE_", "OPENAI_", "CODEX_", "GEMINI_", "OPENROUTER_", "HEED_"]
-
-    /// The variables to unset: the fixed ones, and those of `present` (the names in heed's environment) that look
-    /// like a login. A cloud the agent itself runs on stays (Bedrock, Vertex, Foundry).
-    public static func unset(present: [String]) -> [String] {
-        let keep: [String] = (present.contains("CLAUDE_CODE_USE_BEDROCK") ? ["AWS_"] : [])
-            + (present.contains("CLAUDE_CODE_USE_VERTEX") ? ["GOOGLE_", "GCLOUD_", "CLOUDSDK_"] : [])
-            + (present.contains("CLAUDE_CODE_USE_FOUNDRY") ? ["AZURE_"] : [])
-        func kept(_ name: String) -> Bool { keep.contains { name.hasPrefix($0) } }
-        let found = present.filter { name in
-            guard !agentPrefixes.contains(where: { name.hasPrefix($0) }) else { return false }
-            return credentialPrefixes.contains { name.hasPrefix($0) } || secretSuffixes.contains { name.hasSuffix($0) }
+    /// The login and config variables of the agent itself: only the running agent's are kept.
+    public static func agentVariables(_ agent: String) -> [String] {
+        switch agent {
+        case "claude":
+            [
+                "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "ANTHROPIC_CUSTOM_HEADERS",
+                "CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CONFIG_DIR", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX",
+                "CLAUDE_CODE_USE_FOUNDRY",
+            ]
+        case "codex": ["OPENAI_API_KEY", "CODEX_API_KEY", "OPENAI_BASE_URL", "CODEX_HOME"]
+        default: []
         }
-        var seen: Set<String> = []
-        return (credentialVariables + found.sorted()).filter { !kept($0) && seen.insert($0).inserted }
     }
 
-    /// The words that start a sandboxed run's command: `/usr/bin/env`, each login unset, `gh` pointed at an empty
-    /// folder and git kept from asking for a password. The agent's own words follow.
-    public static func environment(present: [String], folder: String) -> [String] {
-        ["/usr/bin/env"] + unset(present: present).flatMap { ["-u", $0] }
-            + ["GH_CONFIG_DIR=\(RunFolder.ghConfig(folder))", "GIT_TERMINAL_PROMPT=0"]
+    /// A cloud the agent itself runs on: its variables, kept only when `variable` is set (claude on Bedrock, Vertex or
+    /// Foundry).
+    public struct AgentCloud: Hashable, Sendable {
+        public var variable: String
+        public var names: [String]
+    }
+
+    public static func agentClouds(_ agent: String) -> [AgentCloud] {
+        guard agent == "claude" else { return [] }
+        return [
+            AgentCloud(variable: "CLAUDE_CODE_USE_BEDROCK", names: [
+                "AWS_REGION", "AWS_DEFAULT_REGION", "AWS_PROFILE", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY",
+                "AWS_SESSION_TOKEN", "AWS_BEARER_TOKEN_BEDROCK", "AWS_CONFIG_FILE", "AWS_SHARED_CREDENTIALS_FILE",
+                "ANTHROPIC_BEDROCK_BASE_URL", "CLAUDE_CODE_SKIP_BEDROCK_AUTH",
+            ]),
+            AgentCloud(variable: "CLAUDE_CODE_USE_VERTEX", names: [
+                "ANTHROPIC_VERTEX_PROJECT_ID", "CLOUD_ML_REGION", "GOOGLE_APPLICATION_CREDENTIALS",
+                "GOOGLE_CLOUD_PROJECT", "CLOUDSDK_CONFIG", "ANTHROPIC_VERTEX_BASE_URL", "CLAUDE_CODE_SKIP_VERTEX_AUTH",
+            ]),
+            AgentCloud(variable: "CLAUDE_CODE_USE_FOUNDRY", names: [
+                "ANTHROPIC_FOUNDRY_API_KEY", "ANTHROPIC_FOUNDRY_RESOURCE", "ANTHROPIC_FOUNDRY_BASE_URL",
+                "AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_CLIENT_SECRET", "CLAUDE_CODE_SKIP_FOUNDRY_AUTH",
+            ]),
+        ]
+    }
+
+    /// The names a run of `agent` keeps whatever else is set: the base, heed's and the agent's own, then `extra`
+    /// (what heed itself sets on the agent's line, such as its telemetry). Only shell names.
+    public static func keptNames(agent: String, extra: [String] = []) -> [String] {
+        var seen: Set<String> = []
+        return (baseVariables + heedVariables + agentVariables(agent) + extra.sorted())
+            .filter { isName($0) && seen.insert($0).inserted }
+    }
+
+    static func isName(_ text: String) -> Bool {
+        guard let first = text.unicodeScalars.first, first == "_" || CharacterSet.letters.contains(first) else {
+            return false
+        }
+        let allowed = CharacterSet(charactersIn: "_").union(.alphanumerics)
+        return text.unicodeScalars.allSatisfy { $0.isASCII && allowed.contains($0) }
+    }
+
+    /// The variables a run of `agent` gets from `environment`: only the kept names, a cloud's only when its switch is
+    /// set; then `gh` pointed at an empty folder and git kept from asking for a password. For a process heed starts
+    /// itself with a set environment (a helper over ACP).
+    public static func kept(_ environment: [String: String], agent: String, folder: String) -> [String: String] {
+        var names = keptNames(agent: agent)
+        for cloud in agentClouds(agent) where !(environment[cloud.variable] ?? "").isEmpty {
+            names += cloud.names
+        }
+        var out = environment.filter { names.contains($0.key) }
+        out["GH_CONFIG_DIR"] = RunFolder.ghConfig(folder)
+        out["GIT_TERMINAL_PROMPT"] = "0"
+        return out
+    }
+
+    /// The words that start a sandboxed run's command: `/bin/sh -c <script> sh`, the agent's own words after them.
+    /// The script runs where the run does (in the pane's shell for a run in a tab, on the host for a host's), so it
+    /// sees the environment the agent would have, your shell config's exports included, and hands the agent only
+    /// what `keptNames` lists: it starts it under `/usr/bin/env -i`, which begins from an empty environment, with
+    /// each kept variable that is set, `gh` pointed at an empty folder and git kept from asking for a password.
+    /// POSIX sh, whatever the pane's shell is.
+    public static func environment(agent: String, folder: String, keeping extra: [String] = []) -> [String] {
+        ["/bin/sh", "-c", environmentScript(agent: agent, folder: folder, keeping: extra), "sh"]
+    }
+
+    static func environmentScript(agent: String, folder: String, keeping extra: [String] = []) -> String {
+        // Each set variable goes before the agent's words, as `NAME=value` for env to set.
+        func keep(_ names: [String]) -> String {
+            #"for n in \#(names.joined(separator: " ")); do eval "[ -z \"\${$n+x}\" ] || "#
+                + #"set -- \"$n=\${$n}\" \"\$@\""; done"#
+        }
+        let clouds = agentClouds(agent).map { cloud in
+            "if [ -n \"${\(cloud.variable):-}\" ]; then \(keep(cloud.names.filter(isName))); fi"
+        }
+        let gh = RunFolder.ghConfig(folder)
+        let ghWord = gh.hasPrefix("~/")
+            ? "GH_CONFIG_DIR=\"$HOME\"/" + ShellQuote.quote(String(gh.dropFirst(2)))
+            : ShellQuote.quote("GH_CONFIG_DIR=\(gh)")
+        return ([keep(keptNames(agent: agent, extra: extra))] + clouds
+            + ["exec /usr/bin/env -i \(ghWord) GIT_TERMINAL_PROMPT=0 \"$@\""])
+            .joined(separator: "\n")
     }
 
     /// What a sandboxed run is told about where it is.

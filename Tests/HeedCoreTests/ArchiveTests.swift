@@ -17,7 +17,6 @@ struct ArchiveGitTests {
     private func world() async throws -> (record: RepoRecord, worktree: Worktree, commit: String) {
         let remote = base + "/remote.git", clone = base + "/clone", path = base + "/wt/r/spike"
         try FileManager.default.createDirectory(atPath: base, withIntermediateDirectories: true)
-        GitEnvironment.isolate()
         _ = try await ProcessRunner.output("git", ["init", "-q", "--bare", "-b", "main", remote], caller: "test")
         _ = try await ProcessRunner.output("git", ["clone", "-q", remote, clone], caller: "test")
         try "one\n".write(toFile: clone + "/a.txt", atomically: true, encoding: .utf8)
@@ -251,7 +250,6 @@ struct ReopenPlaceTests {
         defer { try? FileManager.default.removeItem(atPath: base) }
         let clone = base + "/clone"
         try FileManager.default.createDirectory(atPath: clone, withIntermediateDirectories: true)
-        GitEnvironment.isolate()
         for args in [
             ["init", "-q", "-b", "main"], ["config", "user.email", "t@t"], ["config", "user.name", "t"],
             ["commit", "-q", "--allow-empty", "-m", "a"], ["branch", "spike"],

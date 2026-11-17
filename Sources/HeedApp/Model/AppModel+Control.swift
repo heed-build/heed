@@ -28,7 +28,10 @@ extension AppModel {
     var controlSessions: [ControlSession] {
         sessions.map { session in
             let pilot = sessionPilot(session)
-            let needsYou = session.state.state.needsYou || pilot.status?.needsYou == true || pilot.helperNeedsYou
+            // A state heed no longer hears (`Unheard`) says nothing, as in the sidebar.
+            let stale = session.unheard != nil
+            let needsYou = !stale && session.state.state.needsYou || pilot.status?.needsYou == true
+                || pilot.helperNeedsYou
             return ControlSession(session, needsYou: needsYou, group: SessionGroup.of(session, pilot: pilot))
         }
     }

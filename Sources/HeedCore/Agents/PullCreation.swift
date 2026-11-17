@@ -14,20 +14,26 @@ public enum PullCreation {
         let name = (tool ?? "").lowercased()
         if name.contains("create_pull_request") { return true }
         guard let command = command?.lowercased() else { return false }
-        if command.range(of: #"\bgh\s+pr\s+create\b"#, options: .regularExpression) != nil { return true }
-        if command.range(of: #"\bhub\s+pull-request\b"#, options: .regularExpression) != nil { return true }
+        if matches(command, ghCreate) || matches(command, hubCreate) { return true }
         // `gh api repos/o/r/pulls -X POST` (or with -f fields, which makes it a POST).
-        if command.range(of: #"\bgh\s+api\b.*\/pulls\b"#, options: .regularExpression) != nil {
-            return command.contains("post") || command.range(of: #"\s-(f|F)\s"#, options: .regularExpression) != nil
-        }
+        if matches(command, ghAPIPulls) { return command.contains("post") || matches(command, fieldFlag) }
         return false
+    }
+
+    // Compiled once: these run in the agent's hooks, on every tool call.
+    private static let ghCreate = try? NSRegularExpression(pattern: #"\bgh\s+pr\s+create\b"#)
+    private static let hubCreate = try? NSRegularExpression(pattern: #"\bhub\s+pull-request\b"#)
+    private static let ghAPIPulls = try? NSRegularExpression(pattern: #"\bgh\s+api\b.*\/pulls\b"#)
+    private static let fieldFlag = try? NSRegularExpression(pattern: #"\s-(f|F)\s"#)
+    private static let pullURL = try? NSRegularExpression(pattern: #"https://github\.com/[\w.-]+/[\w.-]+/pull/\d+"#)
+
+    private static func matches(_ text: String, _ regex: NSRegularExpression?) -> Bool {
+        regex?.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
     }
 
     /// `https://github.com/o/r/pull/12` links, each once, in the order they appear.
     public static func pullURLs(in text: String) -> [String] {
-        guard let regex = try? NSRegularExpression(pattern: #"https://github\.com/[\w.-]+/[\w.-]+/pull/\d+"#) else {
-            return []
-        }
+        guard let regex = pullURL else { return [] }
         var seen: [String] = []
         for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
             guard let range = Range(match.range, in: text) else { continue }

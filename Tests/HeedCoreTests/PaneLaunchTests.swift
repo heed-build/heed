@@ -190,7 +190,7 @@ private func runInTerminal(
 private var canRun: Bool { FileManager.default.isExecutableFile(atPath: python) }
 
 /// zmx as you installed it, for the zmx cases; nil skips them.
-private let zmx = [
+private let zmxPath = [
     ProcessInfo.processInfo.environment["HEED_ZMX"], "/opt/homebrew/bin/zmx", "/usr/local/bin/zmx",
 ].compactMap(\.self).first { FileManager.default.isExecutableFile(atPath: $0) }
 
@@ -233,8 +233,8 @@ struct PaneLaunchTests {
     /// The pane's process as heed builds it, run as Ghostty runs it in a terminal, in each shell: your config's
     /// function of the agent's name gets the prompt as exactly one argument, intact, and once the agent is done a login
     /// shell is left in the pane. The prompt is never on the command line.
-    @Test func theAgentGetsThePromptIntactAndAShellRemains() async throws {
-        guard canRun else { return }
+    @Test(.enabled(if: canRun, "needs python3 at /usr/bin/python3 to drive the terminal"))
+    func theAgentGetsThePromptIntactAndAShellRemains() async throws {
         for shell in shells {
             for test in try commands() {
                 let home = try Home(for: shell)
@@ -253,8 +253,8 @@ struct PaneLaunchTests {
     }
 
     /// A setup that fails says so, names the agent, and still leaves a login shell in the pane.
-    @Test func aFailedSetupLeavesAShell() async throws {
-        guard canRun else { return }
+    @Test(.enabled(if: canRun, "needs python3 at /usr/bin/python3 to drive the terminal"))
+    func aFailedSetupLeavesAShell() async throws {
         let agent = stub.launchCommand(prompt: .owner(prompt))
         let command = try #require(WorktreeSetup.paneCommand(setup: ["sh -c 'exit 3'"], then: agent))
         for shell in shells {
@@ -275,8 +275,12 @@ struct PaneLaunchTests {
     }
 
     /// With zmx, the session's process is the same launch.
-    @Test func throughZmx() async throws {
-        guard canRun, let zmx else { return }
+    @Test(
+        .enabled(if: canRun, "needs python3 at /usr/bin/python3 to drive the terminal"),
+        .enabled(if: zmxPath != nil, "needs zmx (HEED_ZMX, or in /opt/homebrew/bin or /usr/local/bin)")
+    )
+    func throughZmx() async throws {
+        let zmx = try #require(zmxPath)
         for shell in shells {
             let home = try Home(for: shell)
             defer { home.remove() }
@@ -298,10 +302,10 @@ struct PaneLaunchTests {
     /// On a host: the pane's ssh line, with an ssh that does what sshd does (runs the part after `--` with your login
     /// shell, `$SHELL -c`, where the prompt is not in the environment). The prompt crosses in that part, quoted for the
     /// host's shell; with zmx on the host and without.
-    @Test func onAHost() async throws {
-        guard canRun else { return }
+    @Test(.enabled(if: canRun, "needs python3 at /usr/bin/python3 to drive the terminal"))
+    func onAHost() async throws {
         for shell in shells {
-            for hostZmx in [nil, zmx] {
+            for hostZmx in [nil, zmxPath] {
                 let home = try Home(for: shell)
                 defer { home.remove() }
                 let ssh = """

@@ -87,7 +87,7 @@ extension AppModel {
     func agentReadiness(_ agent: AgentProfile) -> AgentReadiness {
         let status = llmStatuses.first { $0.name == agent.name }
         let test = llmTests[agent.name]
-        return AgentReadiness.of(agent, status: status, lastTestFailed: test?.running == false && test?.error != nil)
+        return AgentReadiness.of(agent, status: status, lastTestFailed: test?.error != nil)
     }
 }
 
@@ -396,25 +396,14 @@ private struct TestResult: View {
     var body: some View {
         let test = model.llmTests[agent]
         HStack(alignment: .firstTextBaseline, spacing: 10) {
-            if let test, !test.running {
-                if let error = test.error {
-                    Text(error).font(Theme.ui(12)).foregroundStyle(Theme.err).lineLimit(2)
-                        .frame(maxWidth: 260, alignment: .trailing)
-                } else {
-                    Text(summary(test)).font(Theme.mono(12)).foregroundStyle(Theme.fg)
-                }
+            if let error = test?.error {
+                Text(error).font(Theme.ui(12)).foregroundStyle(Theme.err).lineLimit(2)
+                    .frame(maxWidth: 260, alignment: .trailing)
+            } else if let answer = test?.answer {
+                Text(answer.summary).font(Theme.mono(12)).foregroundStyle(Theme.fg)
             }
-            Button(test?.running == true ? "Testing…" : "Test") { model.testLLM(agent: agent) }
-                .disabled(test?.running == true)
+            Button(test?.isRunning == true ? "Testing…" : "Test") { model.testLLM(agent: agent) }
+                .disabled(test?.isRunning == true)
         }
-    }
-
-    private func summary(_ test: LLMTest) -> String {
-        var parts = ["“\(test.answer ?? "")”"]
-        if let model = test.model { parts.append(model) }
-        if let seconds = test.seconds { parts.append(String(format: "%.1fs", seconds)) }
-        // A test costs a fraction of a cent: shown to four places, not as <$0.01.
-        if let cost = test.cost { parts.append(cost < 0.01 ? String(format: "$%.4f", cost) : AgentUsage.dollars(cost)) }
-        return parts.joined(separator: " · ")
     }
 }

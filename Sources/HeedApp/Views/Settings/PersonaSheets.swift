@@ -46,7 +46,7 @@ private struct AddLeft: View {
                     .padding(.horizontal, 8).padding(.vertical, 4)
                     .background(RoundedRectangle(cornerRadius: 3).fill(on ? Theme.selected : Theme.chip))
                     .contentShape(Rectangle())
-                    .onTapGesture { model.perform(CommandInvocation(name: "personas.repo", arguments: [repo])) }
+                    .tap { model.perform(CommandInvocation(name: "personas.repo", arguments: [repo])) }
                     .help(on ? "heed reads it; click to leave it out" : "Read it too (the same org only)")
                 }
             }
@@ -206,7 +206,7 @@ private struct ProposalRow: View {
         .background(RoundedRectangle(cornerRadius: 5).fill(Theme.bg3.opacity(0.6)))
         .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(cursor ? Theme.paneActive : .clear, lineWidth: 1.5))
         .contentShape(Rectangle())
-        .onTapGesture { model.clickProposal(proposal.id) }
+        .tap { model.clickProposal(proposal.id) }
     }
 }
 

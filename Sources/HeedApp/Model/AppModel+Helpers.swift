@@ -407,12 +407,16 @@ extension AppModel {
         flash = "starting a review helper on #\(ref.number)…"
         let instructions = pilotSettings(for: ref).reviewInstructions
         let viewer = github.viewer
+        let trustedAuthors = pilotSettings(for: ref).trustedAuthors
         Task {
             do {
                 let pull = try await GitHub.pullForReview(ref, caller: "helper.review")
                 if let authorship = pull.authorship { PullTrustBook.shared.record(authorship, for: ref) }
-                // From someone outside the repo: none of your files or setup, and its code is read, not run.
-                let trusted = pull.authorship?.trusted(viewer: viewer) ?? false
+                // From someone outside the repo: none of your files or setup, and its code is read, not run. An
+                // organisation member's permission is asked for when gh's answer did not carry it.
+                let trusted = pull.authorship == nil ? false : await PullTrustBook.shared.resolveOnGitHub(
+                    ref, viewer: viewer, trustedAuthors: trustedAuthors, caller: "helper.review"
+                )
                 _ = await startHelper(
                     .review,
                     ref: ref,
@@ -473,14 +477,10 @@ extension AppModel {
         helpers.records[id] = record
         if view == .attention || view == .watch { openHelper(id) }
         func fail(_ why: String) -> String? {
-            helpers.update(id) {
-                $0.phase = .failed(why)
-                $0.endedAt = Clock.now
-                $0.append(.note(why), at: Clock.now)
-            }
+            let effects = helpers.apply(id, .couldNotStart(why), at: Clock.now)
             flash = "helper on #\(ref.number): \(why)"
             logPilot(ref, .helperDone, "\(kind.title(ref.number)) could not start: \(why)")
-            recordRun(id, outcome: .failed(why))
+            perform(effects, helper: id)
             return nil
         }
         let worktree: String
@@ -516,7 +516,7 @@ extension AppModel {
             if !trusted {
                 let folder = RunFolder.path(run: "heed-helper-\(id)", root: NSTemporaryDirectory())
                 try? RunFolder.prepare(folder)
-                environment = HelperSetup.environment(environment, folder: folder)
+                environment = HelperSetup.environment(environment, agent: adapter.agent, folder: folder)
             }
             let transport = try ACPProcessTransport(
                 executable: executable, arguments: adapter.arguments, directory: worktree, environment: environment
@@ -536,10 +536,7 @@ extension AppModel {
             let info = try await client.initialize(clientVersion: appVersion)
             let session = try await client.newSession(cwd: worktree)
             helpers.sessionIDs[id] = session
-            helpers.update(id) {
-                $0.phase = .working
-                $0.append(.note("\(info.name ?? adapter.title) started in \(worktree)"), at: Clock.now)
-            }
+            _ = helpers.apply(id, .ready(note: "\(info.name ?? adapter.title) started in \(worktree)"), at: Clock.now)
         } catch let ACPError.rpc(_, message) where message.localizedCaseInsensitiveContains("auth") {
             await client.close()
             return fail("\(adapter.agent) needs you to sign in first (run \(adapter.agent) once in a terminal)")
@@ -557,11 +554,9 @@ extension AppModel {
     /// One prompt turn; its end is read by why it was cancelled, if it was.
     func runTurn(_ id: String, _ text: Prompt) {
         guard let client = helpers.clients[id], let session = helpers.sessionIDs[id] else { return }
+        // A helper that failed or was closed out takes no more turns.
+        guard helpers.apply(id, .turnStarted, at: Clock.now) != nil else { return }
         auditPrompt(text, pane: "helper:\(id)", session: helpers.run(id)?.sessionID)
-        helpers.update(id) {
-            $0.phase = .working
-            $0.closeOut = nil
-        }
         helpers.turns[id] = Task { [weak self] in
             do {
                 let stop = try await client.prompt(sessionID: session, text: text)
@@ -574,38 +569,26 @@ extension AppModel {
 
     private func turnEnded(_ id: String, _ stop: ACPStopReason) {
         helpers.turns[id] = nil
-        switch helpers.cancelling.removeValue(forKey: id) {
-        case .pause:
-            helpers.update(id) {
-                $0.phase = .paused
-                $0.append(.note("paused"), at: Clock.now)
-            }
-        case let .steer(text):
-            guard helpers.clients[id] != nil else {
-                return helpers.update(id) { $0.phase = .paused }
-            }
-            runTurn(id, HelperPrompt.steer(text))
-        case let .stop(why):
-            helpers.update(id) { $0.phase = .stopped(why) }
-            finishTurn(id)
-        case nil:
-            helpers.update(id) {
-                $0.withdrawPermission()
-                $0.phase = .done(stop)
-            }
-            finishTurn(id)
-        }
+        let cancel = helpers.cancelling.removeValue(forKey: id)
+        let connected = helpers.clients[id] != nil
+        perform(helpers.apply(id, .turnEnded(stop, cancel: cancel, connected: connected), at: Clock.now), helper: id)
     }
 
     private func turnFailed(_ id: String, _ error: Error) {
         helpers.turns[id] = nil
         helpers.cancelling[id] = nil
-        guard let helper = helpers.run(id), helper.phase.isLive else { return }
-        helpers.update(id) {
-            $0.phase = .failed("\(error)")
-            $0.append(.note("\(error)"), at: Clock.now)
+        perform(helpers.apply(id, .turnFailed("\(error)"), at: Clock.now), helper: id)
+    }
+
+    /// What a helper's event leaves the app to do.
+    private func perform(_ effects: [HelperRun.Effect]?, helper id: String) {
+        for effect in effects ?? [] {
+            switch effect {
+            case .finishTurn: finishTurn(id)
+            case let .steer(text): runTurn(id, HelperPrompt.steer(text))
+            case let .recordFailure(why): recordRun(id, outcome: .failed(why))
+            }
         }
-        recordRun(id, outcome: .failed("\(error)"))
     }
 
     /// Its turn ended: what it did, from its last message and git. With the repo's Always (get it green on auto),
@@ -617,10 +600,10 @@ extension AppModel {
         let threads = HelperPrompt.threads(helpers.items[id] ?? [])
         guard !isFixture else {
             // The fake world's helper stops where it is: no git to ask.
-            helpers.update(id) {
-                $0.closeOut = $0.closeOut ?? HelperCloseOut(summary: "Stopped in the fake world.")
-                $0.endedAt = Clock.now
-            }
+            _ = helpers.apply(
+                id, .closeOut(HelperCloseOut(summary: "Stopped in the fake world."), files: nil, keep: true),
+                at: Clock.now
+            )
             return
         }
         let message = helper.feed.reversed().lazy.compactMap { entry -> String? in
@@ -632,11 +615,10 @@ extension AppModel {
             var closeOut = HelperPrompt.closeOut(message, threads: threads)
             closeOut.commits = changes.commits
             closeOut.dirty = changes.dirty
-            helpers.update(id) {
-                $0.closeOut = closeOut
-                if !changes.files.isEmpty || closeOut.hasChanges { $0.files = changes.files }
-                $0.endedAt = Clock.now
-            }
+            // Closed out or taken over while git was asked: its close-out is not news any more.
+            let files = !changes.files.isEmpty || closeOut.hasChanges ? changes.files : nil
+            guard helpers.apply(id, .closeOut(closeOut, files: files, keep: false), at: Clock.now) != nil
+            else { return }
             logPilot(helper.ref, .helperDone, "\(helper.headline): \(helper.phase.text), waiting for your close-out")
             if helper.kind != .review, closeOut.hasChanges, pilot(for: helper.ref).green == .auto {
                 closeOutHelper(id, replies: true)
@@ -668,14 +650,8 @@ extension AppModel {
             }
         case let .closed(reason):
             helpers.clients[id] = nil
-            guard let helper = helpers.run(id), helper.phase.isLive else { return }
             let why = "its agent exited" + (reason.map { ": \($0)" } ?? "")
-            helpers.update(id) {
-                $0.withdrawPermission()
-                $0.phase = .failed(why)
-                $0.append(.note(why), at: Clock.now)
-            }
-            recordRun(id, outcome: .failed(why))
+            perform(helpers.apply(id, .agentExited(why), at: Clock.now), helper: id)
         }
     }
 
@@ -745,8 +721,7 @@ extension AppModel {
         guard let helper = helpers.run(id) else { return }
         guard helper.phase.isLive else { return flash = "the helper is \(helper.phase.text)" }
         if case .paused = helper.phase {
-            helpers.update(id) { $0.phase = .stopped(why) }
-            return finishTurn(id)
+            return perform(helpers.apply(id, .stopped(why), at: Clock.now), helper: id)
         }
         cancelTurn(id, .stop(why))
     }
@@ -863,10 +838,7 @@ extension AppModel {
             await self?.helpers.clients[id]?.close()
         }
         notifySession(session.id, helperID: id, HelperPrompt.takeOverNote(helper))
-        helpers.update(id) {
-            $0.phase = .closed("taken over")
-            $0.endedAt = Clock.now
-        }
+        _ = helpers.apply(id, .closed("taken over"), at: Clock.now)
         recordRun(id, outcome: .stopped)
         if helpers.shown == id { helpers.shown = nil }
         flash = "the helper stopped; its branch \(helper.branch) is yours"
@@ -875,10 +847,7 @@ extension AppModel {
     private func finish(_ id: String, how: String, record: RepoRecord?, outcome: PilotRun.Outcome) {
         guard let helper = helpers.run(id) else { return }
         let client = helpers.clients.removeValue(forKey: id)
-        helpers.update(id) {
-            $0.phase = .closed(how)
-            $0.endedAt = $0.endedAt ?? Clock.now
-        }
+        _ = helpers.apply(id, .closed(how), at: Clock.now)
         recordRun(id, outcome: outcome)
         logPilot(helper.ref, .helperDone, "\(helper.headline): \(how)")
         flash = "\(helper.headline): \(how)"
@@ -902,10 +871,7 @@ extension AppModel {
             model: nil, startedAt: helper.startedAt, items: helpers.items[id]?.count ?? 0, prBranch: helper.prBranch,
             branch: helper.branch, worktree: helper.worktree, startSHA: helpers.bases[id]
         )
-        if let outcome {
-            run.endedAt = Clock.now
-            run.outcome = outcome
-        }
+        if let outcome { run.end(outcome, at: Clock.now) }
         commit(.runUpdated(run))
     }
 
@@ -979,7 +945,7 @@ extension AppModel {
                     }
                 }
             }
-            helpers.update(id) { $0.phase = .working }
+            _ = helpers.apply(id, .ready(note: nil), at: Clock.now)
         } catch {
             await client.close()
             return partHelperFailed(id, "\(error)")
@@ -1017,11 +983,7 @@ extension AppModel {
 
     private func partHelperFailed(_ id: String, _ why: String) -> Result<String, PartHelperError> {
         partHelperWorkers[id] = nil
-        helpers.update(id) {
-            $0.phase = .failed(why)
-            $0.endedAt = Clock.now
-            $0.append(.note(why), at: Clock.now)
-        }
+        _ = helpers.apply(id, .couldNotStart(why), at: Clock.now)
         return .failure(PartHelperError(why))
     }
 
@@ -1040,11 +1002,8 @@ extension AppModel {
             }
         }
         partHelperMail[id] = nil
-        helpers.update(id) {
-            $0.endedAt = $0.endedAt ?? Clock.now
-            if $0.closeOut == nil,
-               why == nil { $0.closeOut = HelperCloseOut(summary: "Its turn ended; its PR is the swarm's.") }
-        }
+        let summary = why == nil ? HelperCloseOut(summary: "Its turn ended; its PR is the swarm's.") : nil
+        _ = helpers.apply(id, .partEnded(summary: summary), at: Clock.now)
         guard let worker = partHelperWorkers.removeValue(forKey: id) else { return }
         endWorker(worker, why.map { .failed($0) } ?? .turnOver)
     }

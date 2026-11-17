@@ -40,6 +40,16 @@ run = "scripts/text-check.sh"
 description = "The live checks: heed's helper, approvals, OpenTelemetry and the goal wizard against real Claude Code on haiku (calls a model)"
 run = "swift build --product heed && HEED_LIVE=1 swift test --filter HeedCoreTests.Live"
 
+[tasks.bench]
+description = "Timings kept out of the test suite (a hook's budget and the like): optimized, one at a time"
+# Only the test product (HeedCore and its tests), not the app and MLX. A debug build with -O: optimized and testable,
+# compiled file by file (no whole-module optimization), so it builds in parallel and incrementally. Its own scratch
+# path, so `mise run test` and `mise run bench` do not rebuild each other's.
+run = [
+  "swift build --scratch-path .build/bench -Xswiftc -O --product HeedPackageTests",
+  "HEED_BENCH=1 swift test --scratch-path .build/bench --skip-build --no-parallel --filter Bench",
+]
+
 [tasks.fmt]
 description = "Format Swift sources"
 run = "swiftformat Sources Tests Package.swift"
@@ -64,15 +74,7 @@ run = "HEED_SHOTS=\"$PWD/docs/images/shots\" HEED_DOCS=\"$PWD/docs\" build/Heed.
 [tasks.tutor-check]
 description = "Play every tutor lesson with the real keys on its fake world, and report steps that do not tick off"
 depends = ["bundle"]
-# The summary line is the proof it ran: an app that exits early (another Heed running, a crash) prints none.
-run = """
-status=0
-out="$(HEED_TUTOR_CHECK=1 build/Heed.app/Contents/MacOS/Heed)" || status=$?
-printf '%s\n' "$out"
-[ "$status" = 0 ] || exit "$status"
-printf '%s\n' "$out" | grep -q '^tutor-check: [0-9][0-9]* problems*$' \
-  || { echo "tutor-check did not run: no summary line" >&2; exit 1; }
-"""
+run = "scripts/tutor-check.sh"
 
 [tasks.reels]
 description = "Record heed's films (docs/reels/*.reel) with reel on a throwaway world: every one, or the names given (hero, brand/intro)"

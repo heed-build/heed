@@ -69,11 +69,13 @@ enum ShotRunner {
         let directory = URL(fileURLWithPath: environment["HEED_SHOTS"] ?? "shots")
         let only = environment["HEED_SHOTS_ONLY"] ?? ""
         ShotMode.active = true
-        Clock.fixed = instant
-        // The fake world lives in /Users/you: paths split at its roots, as they would on a real Mac.
-        Paths.home = "/Users/you"
-        Chats.localRoot = "/Users/you/Library/Application Support/Heed/chats"
-        StartWorkForm.newSessionID = { "6f1c2a90-4b7d-4e3a-9c15-2d8e7f0a3b64" }
+        HeedContext.pinProcess {
+            $0.pinnedNow = instant
+            // The fake world lives in /Users/you: paths split at its roots, as they would on a real Mac.
+            $0.home = "/Users/you"
+            $0.chatsRoot = "/Users/you/Library/Application Support/Heed/chats"
+            $0.newSessionID = { "6f1c2a90-4b7d-4e3a-9c15-2d8e7f0a3b64" }
+        }
         NSTimeZone.default = TimeZone(identifier: "Europe/Amsterdam")!
         var written = 0
         for shot in Shots.all where only.isEmpty || shot.id.hasPrefix(only) {

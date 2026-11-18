@@ -76,31 +76,17 @@ extension BrowseModel {
     func openOrgBuilder(owner: String) {
         orgBuilder = BrowseOrgBuilder(owner: owner)
         guard !fixture else {
-            orgBuilder?.loaded(Fixtures.Browse.globexRepos, teams: Fixtures.Browse.globexTeams)
+            orgBuilder?.loaded(Fixtures.Browse.globexRepos)
             return
         }
         Task { [weak self] in
-            async let repos = BrowseFetch.orgRepos(owner: owner)
-            async let teams = BrowseFetch.orgTeams(owner: owner)
-            let loaded = await repos
-            let slugs = await teams
+            let loaded = await BrowseFetch.orgRepos(owner: owner)
             guard let self, orgBuilder?.owner == owner else { return }
             if let loaded {
-                orgBuilder?.loaded(loaded, teams: slugs)
+                orgBuilder?.loaded(loaded)
             } else {
                 orgBuilder?.problem = "gh could not list \(owner)'s repos"
-                orgBuilder?.loaded([], teams: slugs)
-            }
-        }
-    }
-
-    func loadTeam(_ slug: String, of owner: String) {
-        guard !fixture else { return }
-        Task { [weak self] in
-            let repos = await BrowseFetch.teamRepos(owner: owner, team: slug)
-            guard let self, orgBuilder?.owner == owner else { return }
-            if let repos { orgBuilder?.loadedTeam(slug, repos: repos) } else {
-                orgBuilder?.problem = "gh could not read the repos of team \(slug)"
+                orgBuilder?.loaded([])
             }
         }
     }

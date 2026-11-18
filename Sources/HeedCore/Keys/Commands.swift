@@ -966,7 +966,7 @@ public enum Commands {
         .init("browse.query.down", "Browse: move the saved query you are on one place down the rail", .selection),
         .init(
             "browse.view.new",
-            "Browse: make a view of the org you are in (topic, team, language) and pin it",
+            "Browse: make a view of the org you are in (a language, archived or not) and pin it",
             .selection
         ),
         .init(

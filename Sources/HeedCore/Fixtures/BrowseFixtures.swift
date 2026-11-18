@@ -266,17 +266,11 @@ public extension Fixtures {
 
         /// The repos of the big org the palette warns about, for the org view builder.
         public static let globexRepos: [BrowseRepoInfo] = [
-            ("glossary", "C#", ["docs", "reference"]), ("glass-api", "Go", ["api", "docs"]),
-            ("docs-site", "TypeScript", ["docs", "website"]), ("style-guide", "Markdown", ["docs"]),
-            ("billing", "C#", ["payments"]), ("ledger", "Go", ["payments", "api"]),
-            ("web-shop", "TypeScript", ["website"]), ("infra", "HCL", []), ("sdk-dotnet", "C#", ["sdk", "api"]),
-            ("sdk-go", "Go", ["sdk", "api"]), ("old-wiki", "Ruby", ["docs"]),
+            ("glossary", "C#"), ("glass-api", "Go"), ("docs-site", "TypeScript"), ("style-guide", "Markdown"),
+            ("billing", "C#"), ("ledger", "Go"), ("web-shop", "TypeScript"), ("infra", "HCL"), ("sdk-dotnet", "C#"),
+            ("sdk-go", "Go"), ("old-wiki", "Ruby"),
         ].map { entry in
-            BrowseRepoInfo(
-                slug: "globex/\(entry.0)", language: entry.1, topics: entry.2, isArchived: entry.0 == "old-wiki"
-            )
+            BrowseRepoInfo(slug: "globex/\(entry.0)", language: entry.1, isArchived: entry.0 == "old-wiki")
         }
-
-        public static let globexTeams = ["docs-eng", "payments", "platform"]
     }
 }

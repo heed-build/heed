@@ -1,8 +1,9 @@
 import HeedCore
 import SwiftUI
 
-/// "Create <org> view": topic, team, language and archived over an org's repos, the repos they keep counted live,
-/// and the way to save the result as a pinned scope. It draws a `BrowseOrgBuilder`; the keys are the model's.
+/// "Create <org> view": a language and archived over an org, the repos they keep counted live (a look at the org
+/// now, never saved), and the way to save the filters as a pinned scope. It draws a `BrowseOrgBuilder`; the keys are
+/// the model's.
 struct BrowseOrgBuilderView: View {
     @Environment(AppModel.self) private var model
     let builder: BrowseOrgBuilder
@@ -16,14 +17,17 @@ struct BrowseOrgBuilderView: View {
                 case let .values(field): values(field)
                 }
             }
-            .frame(width: 700)
+            .browseCardWidth(700)
             .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bg2))
             .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.line))
             .shadow(color: .black.opacity(0.5), radius: 30)
-            .padding(.top, 100)
+            .padding(.horizontal, sheet ? 12 : 0).padding(.top, sheet ? 62 : 100)
             .shotRegion(.browseBuilder)
         }
     }
+
+    /// Below 640 the card is a sheet across the window (the design's third width).
+    private var sheet: Bool { model.browse.layout == .third }
 
     private func orgMark(_ size: CGFloat) -> some View {
         Text(String(builder.owner.prefix(1)).uppercased()).font(.system(size: size * 0.5, weight: .bold))
@@ -45,12 +49,14 @@ struct BrowseOrgBuilderView: View {
             Theme.line.frame(height: 1)
             ForEach(Array(BrowseOrgBuilder.Field.allCases.enumerated()), id: \.element) { index, field in
                 HStack(spacing: 14) {
-                    Text(field.title).font(Theme.ui(14.5, weight: .semibold)).frame(width: 110, alignment: .leading)
+                    Text(field.title).font(Theme.ui(14.5, weight: .semibold))
+                        .frame(width: sheet ? 80 : 110, alignment: .leading)
                     Text(builder.summary(of: field)).font(Theme.ui(14, weight: .semibold))
                         .padding(.horizontal, 9).padding(.vertical, 3)
                         .background(RoundedRectangle(cornerRadius: 6).fill(Theme.chip))
                     Text(field.hint).font(Theme.ui(13)).foregroundStyle(Theme.fg2)
-                    Spacer()
+                        .lineLimit(sheet ? 2 : 1).fixedSize(horizontal: false, vertical: sheet)
+                    Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 20).padding(.vertical, 8)
                 .background(builder.stage == .fields && builder.cursor == index ? Theme.bg3 : .clear)
@@ -97,14 +103,14 @@ struct BrowseOrgBuilderView: View {
         }
     }
 
-    /// What the view is made of, said once: which filters GitHub's search takes and which heed resolves itself.
+    /// What the view is made of, said once: it stores filters, never repos, and GitHub applies them on every search.
     private var note: String {
-        "GitHub's issue search has no topic or team qualifier, so heed lists the repos these filters keep and the "
-            + "search names them. Open items are searched \(builder.repos.count > 0 ? "repo by repo, a few at a time" : "once there are repos")."
+        "The view keeps only \(builder.view.qualifier). GitHub applies it on every search, so it never goes stale; "
+            + "the count above is a look at \(builder.owner) now."
     }
 
     private func values(_ field: BrowseOrgBuilder.Field) -> some View {
-        let picker = builder.picker ?? BrowsePicker(options: [], multiple: true)
+        let picker = builder.picker ?? BrowsePicker(options: [], multiple: false)
         return VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text(field.title).font(Theme.ui(15, weight: .semibold))
@@ -126,7 +132,7 @@ struct BrowseOrgBuilderView: View {
                 .background(index == picker.cursor ? Theme.bg3 : .clear)
             }
             if picker.visible.isEmpty {
-                Text(field == .team ? "No teams: GitHub shows only the teams you may see." : "Nothing to choose from.")
+                Text("Nothing to choose from.")
                     .font(Theme.ui(13)).foregroundStyle(Theme.fg3).padding(20)
             }
         }

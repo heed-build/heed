@@ -160,8 +160,7 @@ struct BrowseFetchTests {
         let view = BrowseScope.view(BrowseOrgView(
             owner: "globex",
             name: "docs",
-            filters: [.topic("docs")],
-            repos: ["globex/a"]
+            filters: [.language("Go")]
         ))
         try await db.pin(view)
         try await db.pin(view)

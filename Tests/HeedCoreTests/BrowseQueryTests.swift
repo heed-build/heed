@@ -47,7 +47,7 @@ struct BrowseQueryTests {
             BrowseQuery(tokens: [.label(.any, ["bug", "good first issue"]), .label(.none, ["wontfix"])]),
             BrowseQuery(tokens: [.label(.all, ["bug", "perf"]), .linkedPull(true), .text("redirect loop")]),
             BrowseQuery(tokens: [.created(.newerThan(14)), .org("acme"), .project("acme/7")], showOlder: true),
-            BrowseQuery(tokens: [.activity(.olderThan(30)), .topic("docs"), .raw("sort:updated-asc")]),
+            BrowseQuery(tokens: [.activity(.olderThan(30)), .language("Go"), .raw("sort:updated-asc")]),
             BrowseQuery(tokens: [.milestone("3.2 beta"), .assignee("@me")], showOlder: true),
         ]
         for query in queries {
@@ -63,7 +63,7 @@ struct BrowseQueryTests {
             now: now
         )
         #expect(query.tokens == [
-            .type(.issues), .language("C#"), .raw("in:title"), .team("acme/docs-eng"), .text("retry"),
+            .type(.issues), .language("C#"), .raw("in:title"), .raw("team:acme/docs-eng"), .text("retry"),
         ])
         #expect(query.showOlder)
     }

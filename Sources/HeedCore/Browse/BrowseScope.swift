@@ -61,7 +61,7 @@ public enum BrowseScope: Hashable, Sendable, Codable, Identifiable {
 /// What an org with very many repos should be offered: browsing every repo is slow and mostly noise.
 public enum BrowseGuidance: Equatable, Sendable {
     case browse
-    /// Start from a saved scope (topic, team, language, archived) rather than the whole org.
+    /// Start from a saved scope (a language, archived or not) rather than the whole org.
     case createOrgView(repos: Int)
 
     public static let defaultThreshold = 200

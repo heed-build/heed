@@ -1333,7 +1333,7 @@ public enum ConfigLoader {
     # Browse searches GitHub for the issues and PRs of an org, a repo or a Project, and leaves out the ones not
     # updated within this many days ("Show older" lifts it for the view you are in). 0 shows everything.
     max_age_days = 90
-    # An org with more repos than this is offered a view of its own (a topic, a team, a language) before the whole
+    # An org with more repos than this is offered a view of its own (one language, without the archived repos) before the whole
     # org is browsed. 0 never asks.
     many_repos = 200
     # heed reads items with a cheap model call (class, size, how ready an agent is to take it, a TL;DR), kept on this Mac

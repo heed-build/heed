@@ -66,8 +66,8 @@ public struct BrowseFilter: Hashable, Sendable {
         case let .text(text):
             return text.split(separator: " ")
                 .allSatisfy { item.title.contains(String($0)) || item.place.localizedCaseInsensitiveContains($0) }
-        // What an item does not say (its repo's topic, team, language) is GitHub's to judge, as with `raw`.
-        case .raw, .topic, .team, .language, .archived: return true
+        // What an item does not say (its repo's language, whether it is archived) is GitHub's to judge, as with `raw`.
+        case .raw, .language, .archived: return true
         case let .heedClass(classes): return reads[item.id].map { classes.contains($0.kind) } ?? false
         case let .heedSize(sizes): return reads[item.id].map { sizes.contains($0.size) } ?? false
         case let .heedReady(least): return reads[item.id].map { $0.agentReady >= least } ?? false

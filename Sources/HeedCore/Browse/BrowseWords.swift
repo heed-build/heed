@@ -166,8 +166,6 @@ public enum BrowseWords {
         case .created: "age"
         case .activity: "activity"
         case .linkedPull: "linked PR"
-        case .topic: "topic"
-        case .team: "team"
         case .language: "language"
         case .archived: "archived"
         case .heedClass: "class"

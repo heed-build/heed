@@ -54,7 +54,7 @@ struct BrowseBuilderTests {
             .type(.pulls), .state(.merged), .label(.any, ["bug", "good first issue"]), .label(.none, ["wontfix"]),
             .repo("acme/docs"), .org("acme"), .assignee("@me"), .author("mara"), .milestone("3.2"), .project("acme/7"),
             .created(.newerThan(30)), .created(.olderThan(7)), .activity(.olderThan(30)), .activity(.newerThan(3)),
-            .linkedPull(true), .linkedPull(false), .topic("docs"), .team("acme/docs-eng"), .language("C#"),
+            .linkedPull(true), .linkedPull(false), .language("C#"),
             .archived(false), .archived(true), .text("anchors lost"),
         ]
         for token in tokens {

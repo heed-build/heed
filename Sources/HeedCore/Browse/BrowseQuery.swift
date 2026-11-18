@@ -29,11 +29,8 @@ public enum BrowseToken: Hashable, Sendable, Codable {
     case activity(BrowseSpan)
     /// Whether a pull request is linked to it (`linked:pr`).
     case linkedPull(Bool)
-    /// The repo-level filters of an org view (`BrowseOrgView`). `language:` and `archived:` are real qualifiers of
-    /// GitHub's issue search; `topic:` and `team:` are not (they exist for repository search and team mentions), so
-    /// an org view resolves them to a list of repos first and the search names those.
-    case topic(String)
-    case team(String)
+    /// The repo-level filters of an org view (`BrowseOrgView`): `language:` and `archived:` are qualifiers GitHub's
+    /// issue search evaluates itself on every fetch.
     case language(String)
     case archived(Bool)
     /// heed's own read of an item (`BrowseRead`), kept on this Mac: these never go to GitHub, they narrow what GitHub
@@ -44,7 +41,7 @@ public enum BrowseToken: Hashable, Sendable, Codable {
     case heedReady(Int)
     /// Words searched for in titles and bodies.
     case text(String)
-    /// A qualifier heed does not model (`topic:`, `language:`, `sort:`…), kept as written so nothing is lost.
+    /// A qualifier heed does not model (`sort:`, `no:assignee`…), kept as written so nothing is lost.
     case raw(String)
 }
 
@@ -82,6 +79,17 @@ public struct BrowseQuery: Hashable, Sendable, Codable {
         self.showOlder = showOlder
     }
 
+    /// Reads a query stored by an earlier build: a token that is no longer one of heed's (a topic or a team filter of
+    /// an old org view) is dropped and the rest kept.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        scope = try container.decodeIfPresent(BrowseScope.self, forKey: .scope)
+        tokens = try container.decodeIfPresent([LossyToken].self, forKey: .tokens)?.compactMap(\.token) ?? []
+        showOlder = try container.decodeIfPresent(Bool.self, forKey: .showOlder) ?? false
+    }
+
+    private enum CodingKeys: String, CodingKey { case scope, tokens, showOlder }
+
     /// The tokens GitHub is asked, and the ones heed applies to what it answered.
     public var githubTokens: [BrowseToken] { tokens.filter { !$0.isLocal } }
     public var localTokens: [BrowseToken] { tokens.filter(\.isLocal) }
@@ -106,24 +114,6 @@ public struct BrowseQuery: Hashable, Sendable, Codable {
             parts.append(cap)
         }
         return (parts + words).joined(separator: " ")
-    }
-
-    /// GitHub's search takes a query of at most 256 characters. A scope that names many repos (an org view) is split
-    /// into as many searches as it takes, each with the whole of the rest of the query; the answers are merged.
-    public static let searchLimit = 256
-
-    public func renderedSearches(maxAgeDays: Int, now: Date) -> [String] {
-        guard case let .view(view)? = scope, let repos = view.repos else {
-            return [rendered(maxAgeDays: maxAgeDays, now: now)]
-        }
-        // A view that kept no repo has nothing to search.
-        if repos.isEmpty { return [] }
-        var rest = self
-        rest.scope = nil
-        let tail = rest.rendered(maxAgeDays: maxAgeDays, now: now)
-        // Room for ` sort:updated-desc` too.
-        let room = max(Self.searchLimit - tail.count - " sort:updated-desc ".count, 20)
-        return view.repoChunks(room: room).map { ($0 + " " + tail).trimmingCharacters(in: .whitespaces) }
     }
 
     static func render(_ token: BrowseToken, now: Date) -> [String] {
@@ -152,8 +142,6 @@ public struct BrowseQuery: Hashable, Sendable, Codable {
         case let .created(value): return [span("created", value)]
         case let .activity(value): return [span("updated", value)]
         case let .linkedPull(linked): return [linked ? "linked:pr" : "-linked:pr"]
-        case let .topic(value): return ["topic:" + quote(value)]
-        case let .team(value): return ["team:" + quote(value)]
         case let .language(value): return ["language:" + quote(value)]
         case let .archived(value): return ["archived:\(value)"]
         case let .text(text): return [text]
@@ -214,8 +202,6 @@ public struct BrowseQuery: Hashable, Sendable, Codable {
             case ("org", false): tokens.append(.org(value))
             case ("assignee", false): tokens.append(.assignee(value))
             case ("author", false): tokens.append(.author(value))
-            case ("topic", false): tokens.append(.topic(value))
-            case ("team", false): tokens.append(.team(value))
             case ("language", false): tokens.append(.language(value))
             case ("archived", false)
                 where value == "true" || value == "false": tokens.append(.archived(value == "true"))

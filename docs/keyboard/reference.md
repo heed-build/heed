@@ -101,7 +101,7 @@ This page is generated from the code (`mise run shots`).
 | `view` `<sessions|attention|browse|inbox|issues|prs|watch|repos|insights|history|timeline|ledger|dashboard|mindmap|standup|goals|log>` |  | switch view |
 | `view.sessions` | `gs` | sessions |
 | `view.attention` `[filter]` | `gm`, `gi`, `gp` | attention: what wants you, with why, the thread beside it (a tab: foryou, reviews, mentions, mine, ...) |
-| `view.browse` | `gv` | browse: the issues and PRs of an org, a repo or a Project, searched on GitHub, the thread beside them |
+| `view.browse` | `gb` | browse: the issues and PRs of an org, a repo or a Project, searched on GitHub, the thread beside them |
 | `view.inbox` |  | Attention's Everything tab, where the inbox went |
 | `view.issues` |  | Attention's issues: assigned to you or mentioning you, where the Issues view went |
 | `view.prs` |  | pull requests |
@@ -422,7 +422,7 @@ This page is generated from the code (`mise run shots`).
 | `browse.query.delete` | `D` (browse), `D` (browsebulk) | Browse: remove the saved query you are on from the rail |
 | `browse.query.up` | `[Q` (browse), `[Q` (browsebulk) | Browse: move the saved query you are on one place up the rail |
 | `browse.query.down` | `]Q` (browse), `]Q` (browsebulk) | Browse: move the saved query you are on one place down the rail |
-| `browse.view.new` |  | Browse: make a view of the org you are in (topic, team, language) and pin it |
+| `browse.view.new` |  | Browse: make a view of the org you are in (a language, archived or not) and pin it |
 | `browse.read` | `U` (browse), `U` (browsebulk) | Browse: heed reads the items under the cursor or picked (class, size, how agent-ready, a TL;DR), again if stale |
 | `browse.fix` | `F` (browse), `F` (browsebulk) | Browse: work on the item with an agent: reproduce, fix, test, open a PR |
 | `browse.implement` | `I` (browse), `I` (browsebulk) | Browse: work on the item with an agent: build it with tests, open a PR |
@@ -486,7 +486,7 @@ This page is generated from the code (`mise run shots`).
 | `pilot.why` | `z?` | what heed will do for the PR, and what holds it back |
 | `pilot.watch` | `zw` | watch or stop watching the PR (or the picked PRs) |
 | `pilot.green` `[off|ask|auto]` | `zg` | cycle get it green for the PR: off, ask, auto (or set the one named) |
-| `pilot.run` | `gb` | show the session's running get it green / get it merged run |
+| `pilot.run` | `gv` | show the session's running get it green / get it merged run |
 | `pilot.run.stop` | `zx` | stop the session's running get it green / get it merged run |
 | `pilot.retry` | `zr` | one more round of get it green for a stalled PR (or the picked PRs) |
 | `pilot.copilot` | `C` (pr), `A` (watch), `A` (watchhelper) | ask GitHub's Copilot coding agent to resolve the PR's conflicts and address its comments |

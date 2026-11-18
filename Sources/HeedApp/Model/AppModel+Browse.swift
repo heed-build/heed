@@ -1,7 +1,7 @@
 import AppKit
 import HeedCore
 
-/// Browse (`gv`): the issues and PRs of an org, a repo or a Project, searched on GitHub, with the thread beside them.
+/// Browse (`gb`): the issues and PRs of an org, a repo or a Project, searched on GitHub, with the thread beside them.
 /// The list is `browse.rows`; the cursor and the picks are `itemCursor` and `picked` as in Attention.
 extension AppModel {
     /// Whether this is the fake world: no IO, and its own Mac.
@@ -320,11 +320,10 @@ extension AppModel {
         switch action {
         case .none, .changed: break
         case .close: browse.orgBuilder = nil
-        case let .loadTeam(team): browse.loadTeam(team, of: builder.owner)
         case let .create(view):
             browse.create(view)
             browseQueryChanged()
-            say("kept “\(view.name)” as a scope: \(view.repos?.count ?? 0) repos")
+            say("kept “\(view.name)” as a scope: \(view.qualifier)")
         }
     }
 }

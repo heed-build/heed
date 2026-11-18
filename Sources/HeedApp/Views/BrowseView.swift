@@ -1,7 +1,7 @@
 import HeedCore
 import SwiftUI
 
-/// `gv`: the issues and PRs of an org, a repo or a Project. The rail on the left keeps saved queries and scopes with
+/// `gb`: the issues and PRs of an org, a repo or a Project. The rail on the left keeps saved queries and scopes with
 /// their counts; the list in the middle is the query's items, cached first and fresh as GitHub answers; the reader
 /// on the right is the thread under the cursor, as Attention reads one. Wide windows show all three; narrower ones
 /// give the rail its icons only and drop the reader.
@@ -488,8 +488,6 @@ struct BrowseHeader: View {
         case let .created(span): ("Opened", spanText(span))
         case let .activity(span): ("Activity", spanText(span))
         case let .linkedPull(linked): ("Linked PR", linked ? "yes" : "no")
-        case let .topic(value): ("Topic", value)
-        case let .team(value): ("Team", value)
         case let .language(value): ("Language", value)
         case let .archived(value): ("Archived", value ? "only" : "hidden")
         case let .text(text): ("Text", text)
@@ -823,11 +821,11 @@ struct BrowsePaletteView: View {
             )
             .font(Theme.ui(14, weight: .semibold))
             Text(
-                "Browsing every repo is slow and mostly noise. Pick what matters; heed keeps it as a scope in the rail and you can still search the whole org."
+                "Browsing every repo is slow and mostly noise. Narrow by language or leave out archived repos; heed keeps the filters as a scope in the rail, GitHub applies them on every search, and you can still search the whole org."
             )
             .font(Theme.ui(13)).foregroundStyle(Theme.fg2).fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
-                ForEach(["Topic", "Team", "Language", "Archived"], id: \.self) { name in
+                ForEach(["Language", "Archived"], id: \.self) { name in
                     Text(name).font(Theme.ui(13)).foregroundStyle(Theme.fg2).padding(.horizontal, 10).padding(
                         .vertical,
                         4

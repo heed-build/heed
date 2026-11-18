@@ -43,31 +43,80 @@ public enum BrowseFetch {
         query.rendered(maxAgeDays: maxAgeDays, now: now) + " sort:updated-desc"
     }
 
-    /// Runs the search, following cursors until there are no more or `cap` items are in.
+    /// Runs the search, following cursors until there are no more or `cap` items are in. A scope over many repos
+    /// (an org view) is several searches (`BrowseQuery.renderedSearches`), whose answers are merged newest first.
     public static func search(
         _ query: BrowseQuery, maxAgeDays: Int, cap: Int = defaultCap, now: Date = Date()
     ) async throws -> Result {
-        let text = searchText(query, maxAgeDays: maxAgeDays, now: now)
         var result = Result(fetchedAt: now)
-        var cursor: String?
-        repeat {
-            var variables = ["q": text]
-            if let cursor { variables["after"] = cursor }
-            let data = try await GitHub.graphql(
-                self.query,
-                operation: "browse search",
-                variables: variables,
-                caller: caller
-            )
-            let page = parse(data)
-            result.items += page.items
-            result.hidden += page.hidden
-            result.total = page.total ?? result.total
-            cursor = page.next
-        } while cursor != nil && result.items.count < cap
-        result.capped = cursor != nil || result.items.count > cap
+        for base in query.renderedSearches(maxAgeDays: maxAgeDays, now: now) {
+            let text = base + " sort:updated-desc"
+            var cursor: String?
+            var fetched = 0
+            repeat {
+                var variables = ["q": text]
+                if let cursor { variables["after"] = cursor }
+                let data = try await GitHub.graphql(
+                    self.query, operation: "browse search", variables: variables, caller: caller
+                )
+                let page = parse(data)
+                result.items += page.items
+                fetched += page.items.count
+                result.hidden += page.hidden
+                result.total += page.total ?? 0
+                cursor = page.next
+            } while cursor != nil && fetched < cap
+            result.capped = result.capped || cursor != nil || fetched > cap
+        }
+        result.items.sort { ($0.updatedAt, $1.id) > ($1.updatedAt, $0.id) }
+        result.capped = result.capped || result.items.count > cap
         result.items = Array(result.items.prefix(cap))
         return result
+    }
+
+    static let countQuery = """
+    query($q: String!) { search(query: $q, type: ISSUE, first: 1) { issueCount } }
+    """
+
+    /// How many items the query holds on GitHub, without bringing them: one small call per search.
+    public static func count(_ query: BrowseQuery, maxAgeDays: Int, now: Date = Date()) async throws -> Int {
+        var total = 0
+        for text in query.renderedSearches(maxAgeDays: maxAgeDays, now: now) {
+            let data = try await GitHub.graphql(
+                countQuery, operation: "browse count", variables: ["q": text], caller: "browse.count"
+            )
+            total += parse(data).total ?? 0
+        }
+        return total
+    }
+
+    // MARK: Org views
+
+    /// The repos of an org with what the view's filters need (`gh repo list`); nil when gh cannot say.
+    public static func orgRepos(owner: String) async -> [BrowseRepoInfo]? {
+        guard let result = try? await GitHub.gh(
+            BrowseRepoInfo.listArguments(owner: owner), operation: "repo list (org view)", timeout: .seconds(60),
+            caller: "browse.orgview", items: { BrowseRepoInfo.parse(Data($0.utf8))?.count }
+        ), result.succeeded else { return nil }
+        return BrowseRepoInfo.parse(Data(result.stdout.utf8))
+    }
+
+    /// The org's team slugs (`gh api orgs/<org>/teams`); empty when you may not see them.
+    public static func orgTeams(owner: String) async -> [String] {
+        guard let result = try? await GitHub.gh(
+            ["api", "orgs/\(owner)/teams", "--paginate", "--jq", ".[].slug"], operation: "org teams",
+            timeout: .seconds(30), caller: "browse.orgview"
+        ), result.succeeded else { return [] }
+        return result.stdout.split(separator: "\n").map(String.init)
+    }
+
+    /// The repos a team has (`gh api orgs/<org>/teams/<team>/repos`), lowercased slugs; nil when gh cannot say.
+    public static func teamRepos(owner: String, team: String) async -> Set<String>? {
+        guard let result = try? await GitHub.gh(
+            ["api", "orgs/\(owner)/teams/\(team)/repos", "--paginate", "--jq", ".[].full_name"],
+            operation: "team repos", timeout: .seconds(30), caller: "browse.orgview"
+        ), result.succeeded else { return nil }
+        return BrowseRepoInfo.teamRepos(result.stdout)
     }
 
     struct Page {

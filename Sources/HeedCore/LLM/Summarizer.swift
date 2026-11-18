@@ -38,6 +38,8 @@ public enum SummaryKind: String, Sendable, CaseIterable {
     case standup
     /// A session's title and kind for the sidebar (`SessionNaming`).
     case sessionName
+    /// A sentence typed into Browse turned into filter tokens, as JSON (`BrowseWords`).
+    case browseWords
 }
 
 /// What a summary is written from: git, the PR, heed's own timeline and the agent's last message. Each part is cut to
@@ -236,6 +238,22 @@ public struct Summarizer: Sendable {
             what is plainly out of scope (none: leave it empty); "## Done when" then "- [ ] " lines, each a checkable \
             result; "## Open questions" then "- " lines; "## Decisions" left empty. Only what the input supports; no \
             preamble.
+            """
+        case .browseWords:
+            """
+            You turn one sentence a developer typed into filters for a list of GitHub issues and pull requests. The \
+            input is "Work:" and their sentence. Reply with only JSON: {"filters":[…],"text":"…"}. Each filter is \
+            one of {"field":"type","value":"issues"|"pulls"}, {"field":"state","value":"open"|"closed"|"merged"}, \
+            {"field":"label","mode":"any"|"all"|"none","values":["…"]}, {"field":"repo","value":"org/name"}, \
+            {"field":"assignee","value":"login or @me"}, {"field":"author","value":"login or @me"}, \
+            {"field":"milestone","value":"…"}, {"field":"project","value":"…"}, \
+            {"field":"created","op":"newer"|"older","days":N} (when it was opened), \
+            {"field":"updated","op":"newer"|"older","days":N} (when it last changed; "no reply in 30 days" is older \
+            30), {"field":"linked_pr","value":true|false}, and the fields of heed's own read of an item: \
+            {"field":"class","value":"bug"|"feature"|"docs"|"question"|"chore"}, \
+            {"field":"size","value":"S"|"M"|"L"}, {"field":"agent_ready","min":0-100}. "text" holds the words that \
+            are left to search for in titles and bodies, only plain words (no qualifiers), or an empty string. Use \
+            only these fields; never add a field of your own. Words the sentence does not support are left out.
             """
         case .goalPersonas:
             """

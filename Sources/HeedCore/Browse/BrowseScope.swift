@@ -5,12 +5,15 @@ public enum BrowseScope: Hashable, Sendable, Codable, Identifiable {
     case org(String)
     case repo(Repo)
     case project(owner: String, number: Int, title: String)
+    /// A saved slice of an org with very many repos (`BrowseOrgView`).
+    case view(BrowseOrgView)
 
     public var id: String {
         switch self {
         case let .org(org): "org:\(org.lowercased())"
         case let .repo(repo): "repo:\(repo.slug.lowercased())"
         case let .project(owner, number, _): "project:\(owner.lowercased())/\(number)"
+        case let .view(view): "view:\(view.owner.lowercased())/\(view.name.lowercased())"
         }
     }
 
@@ -20,6 +23,7 @@ public enum BrowseScope: Hashable, Sendable, Codable, Identifiable {
         case let .org(org): org
         case let .repo(repo): repo.name
         case let .project(_, _, title): title
+        case let .view(view): view.name
         }
     }
 
@@ -29,6 +33,7 @@ public enum BrowseScope: Hashable, Sendable, Codable, Identifiable {
         case let .org(org): org
         case let .repo(repo): repo.org
         case let .project(owner, _, _): owner
+        case let .view(view): view.owner
         }
     }
 
@@ -38,6 +43,7 @@ public enum BrowseScope: Hashable, Sendable, Codable, Identifiable {
         case let .org(org): "org:\(org)"
         case let .repo(repo): "repo:\(repo.slug)"
         case let .project(owner, number, _): "project:\(owner)/\(number)"
+        case let .view(view): view.qualifier
         }
     }
 
@@ -47,6 +53,7 @@ public enum BrowseScope: Hashable, Sendable, Codable, Identifiable {
         case let .org(org): item.repo.org.caseInsensitiveCompare(org) == .orderedSame
         case let .repo(repo): item.repo.slug.caseInsensitiveCompare(repo.slug) == .orderedSame
         case let .project(_, _, title): item.projects.contains { $0.caseInsensitiveCompare(title) == .orderedSame }
+        case let .view(view): view.contains(item.repo)
         }
     }
 }

@@ -130,4 +130,41 @@ struct BrowseFetchTests {
     @Test func theStartersCarryTheirGlyphs() {
         #expect(SavedQuery.starters.map(\.glyph) == [.person, .bug, .sprout, .clock])
     }
+
+    @Test func savedQueriesCanBeRenamedReorderedAndDeleted() async throws {
+        let db = try BrowseStore(path: Scratch.folder("browse").appendingPathComponent("browse.sqlite").path)
+        for id in ["a", "b", "c"] {
+            try await db.save(SavedQuery(
+                id: id,
+                name: id.uppercased(),
+                glyph: .tag,
+                query: BrowseQuery(tokens: [.state(.open)])
+            ))
+        }
+        var renamed = try await db.savedQueries()[1]
+        renamed.name = "Bee"
+        renamed.glyph = .star
+        renamed.tint = .teal
+        try await db.save(renamed)
+        var kept = try await db.savedQueries()
+        #expect(kept.map(\.name) == ["A", "Bee", "C"] && kept[1].glyph == .star && kept[1].tint == .teal)
+        try await db.reorderQueries(SavedQuery.moved(kept, id: "c", by: -2).map(\.id))
+        kept = try await db.savedQueries()
+        #expect(kept.map(\.id) == ["c", "a", "b"])
+        try await db.removeQuery(id: "a")
+        #expect(try await db.savedQueries().map(\.id) == ["c", "b"])
+    }
+
+    @Test func anOrgViewIsPinnedLikeAnyScope() async throws {
+        let db = try BrowseStore(path: Scratch.folder("browse").appendingPathComponent("browse.sqlite").path)
+        let view = BrowseScope.view(BrowseOrgView(
+            owner: "globex",
+            name: "docs",
+            filters: [.topic("docs")],
+            repos: ["globex/a"]
+        ))
+        try await db.pin(view)
+        try await db.pin(view)
+        #expect(try await db.scopes() == [view])
+    }
 }

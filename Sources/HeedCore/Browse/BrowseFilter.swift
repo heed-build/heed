@@ -63,7 +63,8 @@ public struct BrowseFilter: Hashable, Sendable {
         case let .text(text):
             return text.split(separator: " ")
                 .allSatisfy { item.title.contains(String($0)) || item.place.localizedCaseInsensitiveContains($0) }
-        case .raw: return true
+        // What an item does not say (its repo's topic, team, language) is GitHub's to judge, as with `raw`.
+        case .raw, .topic, .team, .language, .archived: return true
         }
     }
 

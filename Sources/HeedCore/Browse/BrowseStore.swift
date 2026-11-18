@@ -124,6 +124,15 @@ public actor BrowseStore {
         }
     }
 
+    /// Puts the saved queries in the order of `ids`, which names each of them.
+    public func reorderQueries(_ ids: [String]) throws {
+        try database.transaction {
+            for (position, id) in ids.enumerated() {
+                try database.run("UPDATE saved SET position = ? WHERE id = ?", [.integer(Int64(position)), .text(id)])
+            }
+        }
+    }
+
     public func removeQuery(id: String) throws {
         try database.run("DELETE FROM saved WHERE id = ?", [.text(id)])
     }

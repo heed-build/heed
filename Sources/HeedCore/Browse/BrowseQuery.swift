@@ -29,6 +29,13 @@ public enum BrowseToken: Hashable, Sendable, Codable {
     case activity(BrowseSpan)
     /// Whether a pull request is linked to it (`linked:pr`).
     case linkedPull(Bool)
+    /// The repo-level filters of an org view (`BrowseOrgView`). `language:` and `archived:` are real qualifiers of
+    /// GitHub's issue search; `topic:` and `team:` are not (they exist for repository search and team mentions), so
+    /// an org view resolves them to a list of repos first and the search names those.
+    case topic(String)
+    case team(String)
+    case language(String)
+    case archived(Bool)
     /// Words searched for in titles and bodies.
     case text(String)
     /// A qualifier heed does not model (`topic:`, `language:`, `sort:`…), kept as written so nothing is lost.
@@ -71,6 +78,24 @@ public struct BrowseQuery: Hashable, Sendable, Codable {
         return (parts + words).joined(separator: " ")
     }
 
+    /// GitHub's search takes a query of at most 256 characters. A scope that names many repos (an org view) is split
+    /// into as many searches as it takes, each with the whole of the rest of the query; the answers are merged.
+    public static let searchLimit = 256
+
+    public func renderedSearches(maxAgeDays: Int, now: Date) -> [String] {
+        guard case let .view(view)? = scope, let repos = view.repos else {
+            return [rendered(maxAgeDays: maxAgeDays, now: now)]
+        }
+        // A view that kept no repo has nothing to search.
+        if repos.isEmpty { return [] }
+        var rest = self
+        rest.scope = nil
+        let tail = rest.rendered(maxAgeDays: maxAgeDays, now: now)
+        // Room for ` sort:updated-desc` too.
+        let room = max(Self.searchLimit - tail.count - " sort:updated-desc ".count, 20)
+        return view.repoChunks(room: room).map { ($0 + " " + tail).trimmingCharacters(in: .whitespaces) }
+    }
+
     static func render(_ token: BrowseToken, now: Date) -> [String] {
         func day(_ days: Int) -> String { AttentionAge.day(now.addingTimeInterval(-TimeInterval(days) * 86400)) }
         func span(_ key: String, _ span: BrowseSpan) -> String {
@@ -97,6 +122,10 @@ public struct BrowseQuery: Hashable, Sendable, Codable {
         case let .created(value): return [span("created", value)]
         case let .activity(value): return [span("updated", value)]
         case let .linkedPull(linked): return [linked ? "linked:pr" : "-linked:pr"]
+        case let .topic(value): return ["topic:" + quote(value)]
+        case let .team(value): return ["team:" + quote(value)]
+        case let .language(value): return ["language:" + quote(value)]
+        case let .archived(value): return ["archived:\(value)"]
         case let .text(text): return [text]
         case let .raw(text): return [text]
         }
@@ -154,6 +183,11 @@ public struct BrowseQuery: Hashable, Sendable, Codable {
             case ("org", false): tokens.append(.org(value))
             case ("assignee", false): tokens.append(.assignee(value))
             case ("author", false): tokens.append(.author(value))
+            case ("topic", false): tokens.append(.topic(value))
+            case ("team", false): tokens.append(.team(value))
+            case ("language", false): tokens.append(.language(value))
+            case ("archived", false)
+                where value == "true" || value == "false": tokens.append(.archived(value == "true"))
             case ("milestone", false): tokens.append(.milestone(value))
             case ("project", false): tokens.append(.project(value))
             case ("linked", _) where value == "pr": tokens.append(.linkedPull(!negated))

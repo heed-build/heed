@@ -119,6 +119,13 @@ struct BrowseBulkPanel: View {
                     command: "browse.bulk.session"
                 )
             }
+            if group == nil {
+                card(
+                    "arrow.triangle.branch", "One session for all \(items.count)",
+                    "One session with all of them in the prompt. heed says they may be unrelated; the agent decides how to split them.",
+                    key: model.keyText(for: "browse.bulk.session", in: "browsebulk"), command: "browse.bulk.session"
+                )
+            }
             card(
                 "scope", "A goal from all \(items.count)",
                 "heed plans it with you first, and each item goes on the goal.",

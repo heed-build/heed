@@ -5297,7 +5297,10 @@ final class AppModel {
             )
         case .browse:
             let items = browse.rows.filter { ids.contains($0.id) }
-            return BrowseWorkPrompts.together(items, instructions: startInstructions(items.map(\.repo)))
+            return BrowseWorkPrompts.together(
+                items, related: BrowseGrouping.suggest(items, reads: browse.reads) != nil,
+                instructions: startInstructions(items.map(\.repo))
+            )
         default: return ""
         }
     }

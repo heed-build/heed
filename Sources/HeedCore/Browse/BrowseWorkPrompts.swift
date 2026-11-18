@@ -56,7 +56,9 @@ public enum BrowseWorkPrompts {
     /// One prompt for several picked items (`s` on a selection): the issues one pull request should close, each with
     /// its `Closes` line, in the order picked. Titles stay fenced. `instructions` are the repos' own
     /// `start_instructions`, after the list and before the `Closes` lines, as Attention's prompt puts them.
-    public static func together(_ items: [BrowseItem], instructions: String = "") -> Prompt {
+    /// `related`: heed found the items hang together (`BrowseGrouping`). When it did not, the prompt says so, asks
+    /// for a pull request per issue, and does not promise one pull request, which across repos is not possible.
+    public static func together(_ items: [BrowseItem], related: Bool = true, instructions: String = "") -> Prompt {
         guard !items.isEmpty else { return "" }
         let extra: [Prompt] = instructions.isEmpty ? [] : ["", .owner(instructions)]
         let issues = items.filter { $0.kind == .issue }
@@ -64,6 +66,19 @@ public enum BrowseWorkPrompts {
             var lines: [Prompt] = [headline(item) + readFirst(item)]
             lines += extra
             if item.kind == .issue { lines += ["", "Closes \(name: item.repo.slug)#\(item.number)"] }
+            return lines.joined(separator: "\n")
+        }
+        guard related else {
+            var lines: [Prompt] = [
+                "Look into these in one session. heed found nothing that ties them together, so they may be unrelated: "
+                    + "say so if they are, and give each issue its own pull request that closes it.",
+            ]
+            lines += items.map { item in
+                let kind: Prompt = item.kind == .pull ? "pull request" : "issue"
+                return "- \(kind) \(name: item.repo.slug)#\(item.number) \(item.title)\n  \(name: item.url)"
+            }
+            lines.append("Read each one and its comments first (`gh issue view <number> --repo <repo> --comments`).")
+            lines += extra
             return lines.joined(separator: "\n")
         }
         let head: Prompt = issues.count == items.count

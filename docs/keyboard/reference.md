@@ -98,9 +98,10 @@ This page is generated from the code (`mise run shots`).
 
 | Command | Keys | Does |
 |---|---|---|
-| `view` `<sessions|attention|inbox|issues|prs|watch|repos|insights|history|timeline|ledger|dashboard|mindmap|standup|goals|log>` |  | switch view |
+| `view` `<sessions|attention|browse|inbox|issues|prs|watch|repos|insights|history|timeline|ledger|dashboard|mindmap|standup|goals|log>` |  | switch view |
 | `view.sessions` | `gs` | sessions |
 | `view.attention` `[filter]` | `gm`, `gi`, `gp` | attention: what wants you, with why, the thread beside it (a tab: foryou, reviews, mentions, mine, ...) |
+| `view.browse` | `gv` | browse: the issues and PRs of an org, a repo or a Project, searched on GitHub, the thread beside them |
 | `view.inbox` |  | Attention's Everything tab, where the inbox went |
 | `view.issues` |  | Attention's issues: assigned to you or mentioning you, where the Issues view went |
 | `view.prs` |  | pull requests |
@@ -238,7 +239,7 @@ This page is generated from the code (`mise run shots`).
 | `approvals.deny.all` | `N` (approvals) | approvals: deny every request heed can answer |
 | `approvals.allow.read` | `r` (approvals) | approvals: allow every read-only request inside its worktree |
 | `approvals.session` | `gS` (approvals) | approvals: go to the selected request's session |
-| `select.toggle` | `<Space>` (VISUAL), `<Space>` (attention), `<Space>` (attentionhelper), `<Space>` (attentionother), `<Space>` (prs), `<Space>` (swarmask), `<Space>` (watch), `<Space>` (watchhelper) | toggle row |
+| `select.toggle` | `<Space>` (VISUAL), `<Space>` (attention), `<Space>` (attentionhelper), `<Space>` (attentionother), `<Space>` (browse), `<Space>` (prs), `<Space>` (swarmask), `<Space>` (watch), `<Space>` (watchhelper) | toggle row |
 | `history.reopen` | `R` (dashboard), `R` (history), `<CR>` (history), `R` (ledger), `<CR>` (ledger) | reopen: resume, recreating the worktree if needed |
 | `history.again` | `O` (history) | start a new session from this prompt |
 | `history.outcome` `[outcome]` | `t` (history) | History: the next outcome filter, or one by name (all, merged, …) |
@@ -405,6 +406,16 @@ This page is generated from the code (`mise run shots`).
 | `attention.snooze` `[duration]` | `Z` (attention), `Z` (attentionhelper), `Z` (attentionother), `Z` (swarmask) | snooze: out of the feed until later (3h, or 30m, 2d, tomorrow) |
 | `attention.mute` | `M` (attention), `M` (attentionhelper), `M` (attentionother), `M` (swarmask) | mute the thread on GitHub (no more notifications about it); listed under Muted |
 | `attention.reply` | `R` (attention), `R` (attentionhelper), `R` (attentionother), `R` (swarmask) | draft a reply with the model; you read it before anything is posted |
+| `browse.open` | `<CR>` (browse) | Browse: load the item under the cursor into the reader now |
+| `browse.scope` | `<D-k>` (browse) | Browse: jump to an org, a repo or a Project (type to find it) |
+| `browse.scope.next` | `]o` (browse) | Browse: the next scope in the rail |
+| `browse.scope.prev` | `[o` (browse) | Browse: the previous scope in the rail |
+| `browse.query.next` | `]q` (browse) | Browse: the next saved query |
+| `browse.query.prev` | `[q` (browse) | Browse: the previous saved query |
+| `browse.query.save` | `S` (browse) | Browse: keep the query you are on in the rail |
+| `browse.older` | `e` (browse) | Browse: show items older than the cap, or go back to it |
+| `browse.refresh` | `r` (browse) | Browse: ask GitHub again |
+| `browse.sort` | `T` (browse) | Browse: next sort (updated, created, comments, oldest) |
 | `attention.session` | `gS` (attention), `gS` (attentionhelper), `gS` (attentionother), `gS` (swarmask) | go to the item's session |
 | `attention.filter` `[filter]` | `t` (attention), `t` (attentionhelper), `t` (attentionother), `t` (swarmask) | next Attention tab (Muted after Everything), or the one named |
 | `attention.done.new` | `X` (attention), `X` (attentionother), `X` (swarmask) | done with everything in For you's New since |

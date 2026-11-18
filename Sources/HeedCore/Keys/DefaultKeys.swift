@@ -40,7 +40,7 @@ public enum DefaultKeys {
         ("g>", "tab.move.right"), ("g<lt>", "tab.move.left"),
         // A helper on the session's PR: watch it in a split, or take it over (the band over its panes says so).
         ("gW", "helper.watch"), ("gO", "helper.takeover"),
-        ("gs", "view.sessions"), ("gm", "view.attention"), ("gi", "view.attention issues"),
+        ("gs", "view.sessions"), ("gm", "view.attention"), ("gi", "view.attention issues"), ("gv", "view.browse"),
         ("gp", "view.attention mine"),
         ("gl", "links.pick"), ("gI", "issue.add"), ("go", "overlay.item"), ("]p", "pr.next"), ("[p", "pr.prev"), (
             "gd",
@@ -283,6 +283,7 @@ public enum DefaultKeys {
             ("a", "log.agent"), ("y", "log.copy"),
         ],
         "attention": attention,
+        "browse": browse,
         // A helper's split, open under Attention's reader, under a session's panes (gW) or under Now's tiles: i tells
         // it
         // something, p pauses it, zx stops it, zo zooms it, ⎋ closes the split; y Y n answer what it asks; once done,
@@ -389,6 +390,14 @@ public enum DefaultKeys {
 
     /// Attention's own keys. heed's goal asks have one key each; on other items m pins as before. D does heed's next
     /// step for the item, Y does it and turns it on for the repo from now on, . proposes the next other step.
+    /// Browse: the rail is ⌘K and `]o` `[o` (scopes) and `]q` `[q` (queries); the list is the usual j k, space, ↩ and
+    /// /.
+    static let browse: [(String, String)] = [
+        ("<Space>", "select.toggle"), ("<CR>", "browse.open"), ("<D-k>", "browse.scope"), ("]o", "browse.scope.next"),
+        ("[o", "browse.scope.prev"), ("]q", "browse.query.next"), ("[q", "browse.query.prev"),
+        ("S", "browse.query.save"), ("e", "browse.older"), ("r", "browse.refresh"), ("T", "browse.sort"),
+    ]
+
     static let attention: [(String, String)] = [
         ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("x", "attention.done"),
         ("Z", "attention.snooze"), ("M", "attention.mute"), ("R", "attention.reply"), ("gS", "attention.session"),

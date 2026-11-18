@@ -1,0 +1,298 @@
+import Foundation
+import HeedCore
+import Observation
+
+/// Browse's state: the cached items, the saved queries and the scopes in the rail, the query you are on, and the
+/// fetch that fills it. The list is a function of these: `rows` is the cache narrowed by the query (`BrowseFilter`),
+/// so a cached answer draws at once and a fresh one replaces it as it arrives. GitHub is asked only on demand: when
+/// you enter Browse, change scope or query, show older, or refresh. Never on the sync's poll.
+@MainActor @Observable
+final class BrowseModel {
+    enum Load: Equatable {
+        case idle
+        case loading
+        case failed(String)
+    }
+
+    /// What the last fetch said about its search.
+    struct Meta: Equatable {
+        var total: Int
+        var capped: Bool
+        var hidden: Int
+        var fetchedAt: Date
+    }
+
+    private(set) var store: BrowseStore?
+    private(set) var items: [BrowseItem] = []
+    /// The items the query keeps, in the sort order: what the list draws.
+    private(set) var rows: [BrowseItem] = []
+    private(set) var queries: [SavedQuery] = []
+    private(set) var scopes: [BrowseScope] = []
+    private(set) var query = BrowseQuery(tokens: [.state(.open)])
+    /// The saved query `query` is, until you change it.
+    private(set) var activeQuery: String?
+    private(set) var sort = BrowseSort.updated
+    private(set) var search = ""
+    private(set) var load = Load.idle
+    private(set) var meta: Meta?
+    /// What GitHub counted for a scope or a saved query, by id: the rail's numbers (the cache's own count until then).
+    private(set) var scopeTotals: [String: Int] = [:]
+    private(set) var queryTotals: [String: Int] = [:]
+    /// Saved queries with something new since you looked: the blue dot.
+    private(set) var newQueries: Set<String> = []
+    /// How many repos an org has, as GitHub said.
+    private(set) var repoCounts: [String: Int] = [:]
+    var palette: BrowsePalette?
+    private(set) var settings = BrowseSettings()
+    private(set) var viewer: String?
+    let fixture: Bool
+    @ObservationIgnored private var fetchTask: Task<Void, Never>?
+    @ObservationIgnored private var started = false
+
+    init(fixture: Bool) { self.fixture = fixture }
+
+    var scope: BrowseScope? { query.scope }
+
+    var activeSaved: SavedQuery? { queries.first { $0.id == activeQuery } }
+
+    // MARK: Opening
+
+    /// Opens `browse.sqlite` beside the domain file, then draws what it kept: queries, scopes, items, and where you
+    /// were.
+    func open(beside file: URL) async {
+        store = await BrowseStore.open(at: file.deletingLastPathComponent().appendingPathComponent("browse.sqlite"))
+        guard let store else { return }
+        do {
+            if try await !store.flag("starters") {
+                for starter in SavedQuery.starters {
+                    try await store.save(starter)
+                }
+                try await store.setFlag("starters")
+            }
+            queries = try await store.savedQueries()
+            scopes = try await store.scopes()
+            items = try await store.items()
+            if let last = try await store.last() {
+                query = last.query
+                query.scope = last.scope
+            }
+            try await store.prune(now: Date())
+        } catch {
+            NSLog("heed: could not read Browse's cache: \(error)")
+        }
+        started = true
+        refilter()
+    }
+
+    /// The fake world's: no store, what the fixtures say.
+    func adoptFixtures() {
+        let data = Fixtures.Browse.self
+        items = data.items
+        queries = data.queries
+        scopes = data.scopes
+        scopeTotals = data.scopeTotals
+        queryTotals = data.queryTotals
+        newQueries = data.newQueries
+        query = data.last.query
+        meta = Meta(total: data.total, capped: true, hidden: 0, fetchedAt: Clock.now)
+        started = true
+        refilter()
+    }
+
+    func configure(_ settings: BrowseSettings, viewer: String?) {
+        let moved = settings.maxAgeDays != self.settings.maxAgeDays
+        self.settings = settings
+        self.viewer = viewer
+        if moved { refilter() }
+    }
+
+    // MARK: What the list shows
+
+    func refilter(now: Date = Clock.now) {
+        var kept = BrowseFilter(query: query, viewer: viewer, maxAgeDays: settings.maxAgeDays)
+            .apply(to: items, sort: sort, now: now)
+        let words = search.trimmingCharacters(in: .whitespaces)
+        if !words.isEmpty {
+            let parts = words.split(separator: " ").map(String.init)
+            kept = kept.filter { item in
+                parts.allSatisfy { part in
+                    item.title.contains(part) || item.place.localizedCaseInsensitiveContains(part)
+                        || item.labels.contains { $0.localizedCaseInsensitiveContains(part) }
+                }
+            }
+        }
+        rows = kept
+    }
+
+    func setSearch(_ text: String) {
+        search = text
+        refilter()
+    }
+
+    func cycleSort() {
+        let all = BrowseSort.allCases
+        sort = all[(all.firstIndex(of: sort)! + 1) % all.count]
+        refilter()
+    }
+
+    /// The count the rail shows for a scope: GitHub's when a fetch said, else the cache's.
+    func count(of scope: BrowseScope, now: Date = Clock.now) -> Int {
+        scopeTotals[scope.id] ?? BrowseFilter.count(
+            BrowseQuery(scope: scope, tokens: [.state(.open)]), in: items, viewer: viewer,
+            maxAgeDays: settings.maxAgeDays, now: now
+        )
+    }
+
+    func count(of saved: SavedQuery, now: Date = Clock.now) -> Int {
+        queryTotals[saved.id] ?? BrowseFilter.count(
+            saved.query, in: items, viewer: viewer, maxAgeDays: settings.maxAgeDays, now: now
+        )
+    }
+
+    var newCount: Int { newQueries.count }
+
+    /// `3 months` or `90 days`: the cap, as the header says it.
+    var cap: String {
+        let days = settings.maxAgeDays
+        return days % 30 == 0 && days >= 60 ? "\(days / 30) months" : "\(days) days"
+    }
+
+    // MARK: Going somewhere
+
+    /// Browses `scope`: opens its open items, keeps it in the rail, and asks GitHub.
+    func go(to scope: BrowseScope?) {
+        var next = BrowseQuery(scope: scope, tokens: [.state(.open)])
+        next.showOlder = false
+        query = next
+        activeQuery = nil
+        if let scope, !scopes.contains(scope) {
+            scopes.append(scope)
+            let store = store
+            Task { try? await store?.pin(scope) }
+        }
+        changed()
+    }
+
+    func unpin(_ scope: BrowseScope) {
+        scopes.removeAll { $0 == scope }
+        let store = store
+        Task { try? await store?.unpin(scope) }
+    }
+
+    /// Runs a saved query, within the scope you are in when it names none.
+    func run(_ saved: SavedQuery) {
+        var next = saved.query
+        if next.scope == nil { next.scope = scope }
+        query = next
+        activeQuery = saved.id
+        newQueries.remove(saved.id)
+        changed()
+    }
+
+    func nextScope(by step: Int) {
+        guard !scopes.isEmpty else { return }
+        let index = scope.flatMap { scopes.firstIndex(of: $0) }
+        go(to: scopes[((index ?? (step > 0 ? -1 : 0)) + step + scopes.count) % scopes.count])
+    }
+
+    func nextQuery(by step: Int) {
+        guard !queries.isEmpty else { return }
+        let index = queries.firstIndex { $0.id == activeQuery }
+        run(queries[((index ?? (step > 0 ? -1 : 0)) + step + queries.count) % queries.count])
+    }
+
+    /// "Show older" lifts the cap for this view; the same again puts it back.
+    func toggleOlder() {
+        query.showOlder.toggle()
+        changed()
+    }
+
+    /// Keeps the query you are on in the rail, with the glyph its filter picks.
+    func saveQuery(named name: String? = nil) {
+        var kept = query
+        kept.scope = nil
+        let id = "q\(Int(Date().timeIntervalSince1970))"
+        let saved = SavedQuery(id: id, name: name ?? Self.name(of: kept), query: kept)
+        queries.append(saved)
+        activeQuery = id
+        let store = store
+        Task { try? await store?.save(saved) }
+    }
+
+    static func name(of query: BrowseQuery) -> String {
+        for token in query.tokens {
+            switch token {
+            case let .label(mode, names) where mode != .none: return names.joined(separator: ", ")
+            case let .milestone(name): return name
+            case let .assignee(name): return name == "@me" ? "Assigned to me" : "Assigned to \(name)"
+            default: continue
+            }
+        }
+        return "Saved query"
+    }
+
+    private func changed() {
+        refilter()
+        remember()
+        fetch()
+    }
+
+    private func remember() {
+        guard let store else { return }
+        var last = query
+        last.scope = nil
+        let record = BrowseLast(scope: query.scope, query: last)
+        Task { try? await store.setLast(record) }
+    }
+
+    // MARK: Asking GitHub
+
+    /// Asks GitHub for the query, off the main actor. What the cache held stays on screen until the answer lands; a
+    /// failure leaves it and says why. Never in the fake world.
+    func fetch() {
+        guard !fixture, started, query.scope != nil || !query.tokens.isEmpty else { return }
+        fetchTask?.cancel()
+        let asked = query
+        let days = settings.maxAgeDays
+        load = .loading
+        fetchTask = Task { [weak self] in
+            do {
+                let result = try await BrowseFetch.search(asked, maxAgeDays: days)
+                guard !Task.isCancelled, let self else { return }
+                land(result, for: asked)
+            } catch is CancellationError {
+                return
+            } catch {
+                guard !Task.isCancelled, let self else { return }
+                load = .failed((error as? GitHub.Failure)?.description ?? error.localizedDescription)
+            }
+        }
+    }
+
+    private func land(_ result: BrowseFetch.Result, for asked: BrowseQuery) {
+        guard asked == query else { return }
+        var byID = Dictionary(items.map { ($0.id, $0) }) { _, last in last }
+        for item in result.items {
+            byID[item.id] = item
+        }
+        items = Array(byID.values)
+        meta = Meta(total: result.total, capped: result.capped, hidden: result.hidden, fetchedAt: result.fetchedAt)
+        if let scope = asked.scope, asked.tokens == [.state(.open)] { scopeTotals[scope.id] = result.total }
+        if let id = activeQuery { queryTotals[id] = result.total }
+        load = .idle
+        refilter()
+        let store = store
+        let kept = result.items
+        Task { try? await store?.record(kept, now: Date()) }
+    }
+
+    /// How many repos an org has, asked once for the guidance on big ones.
+    func learnRepoCount(of owner: String) {
+        guard !fixture, repoCounts[owner.lowercased()] == nil else { return }
+        Task { [weak self] in
+            guard let count = await BrowseFetch.repoCount(owner: owner) else { return }
+            self?.repoCounts[owner.lowercased()] = count
+            self?.palette?.setRepoCount(count, of: owner)
+        }
+    }
+}

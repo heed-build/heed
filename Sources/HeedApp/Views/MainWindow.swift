@@ -31,6 +31,8 @@ struct MainWindow: View {
                         }
                     case .attention:
                         AttentionView()
+                    case .browse:
+                        BrowseView()
                     case .prs:
                         PullRequestsView()
                     case .watch:
@@ -130,6 +132,7 @@ struct MainWindow: View {
         .overlay {
             if let state = model.pathImport { PathImportView(state: state) }
             if let form = model.addRepoDialog { AddRepoView(form: form) }
+            if let palette = model.browse.palette { BrowsePaletteView(palette: palette) }
         }
         .overlay {
             if let confirmation = model.confirmation { ConfirmationView(confirmation: confirmation) }
@@ -426,7 +429,7 @@ struct StatusBar: View {
 
     private var position: String {
         switch model.view {
-        case .attention, .prs, .watch:
+        case .attention, .browse, .prs, .watch:
             let count = model.itemIDs(model.view).count
             return "\(count == 0 ? 0 : model.cursor(in: model.view) + 1)/\(count)"
         case .repos where model.reposFocus == .repos:
@@ -596,6 +599,12 @@ struct StatusBar: View {
                 + "\(key("worktree.new", in: "repos")) start work here · \(key("select.open", in: "repos")) open / import · "
                 + "\(key("mode.visual", in: "repos")) select · \(key("select.remove", in: "repos")) remove · "
                 + "\(key("session.filter", in: "repos")) filter"
+        case .normal where model.browse.palette != nil:
+            "type to find · ⌃n ⌃p move · ↩ go · ⌃b browse a big org whole · ⎋ close"
+        case .normal where model.view == .browse:
+            "\(key("row.next", "row.prev", in: "browse")) move · space pick · ↩ open · "
+                + "\(key("browse.scope", in: "browse")) scope · \(key("browse.query.next", in: "browse")) query · "
+                + "\(key("browse.older", in: "browse")) older · \(key("session.filter", in: "browse")) filter"
         case .normal where model.view == .history:
             "\(key("row.next", "row.prev", in: "history")) move · "
                 + [

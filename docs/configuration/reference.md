@@ -265,6 +265,14 @@ summaries = "ahead"
 # asked of GitHub either. 0 shows everything. Sessions' PRs and issues, goals' and the ones the pilot watches stay.
 max_age_days = 60
 
+[browse]
+# Browse searches GitHub for the issues and PRs of an org, a repo or a Project, and leaves out the ones not
+# updated within this many days ("Show older" lifts it for the view you are in). 0 shows everything.
+max_age_days = 90
+# An org with more repos than this is offered a view of its own (a topic, a team, a language) before the whole
+# org is browsed. 0 never asks.
+many_repos = 200
+
 [summary]
 # While you were away: what still waits on you, then what merged, how background runs ended, which agents
 # finished, the reviews that arrived and the sessions that closed, by day. It opens on its own when you come back

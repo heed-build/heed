@@ -110,6 +110,7 @@ public enum MenuBar {
         "goal.promote.skip": "the Make it a goal popover's own keys (gP) while it waits for a handoff, and its button",
         "goal.promote.dismiss": "the Make it a goal popover's own keys (gP), and the line's ✕",
         "row.halfpage.down": "moving the cursor: the mouse clicks rows and scrolls",
+        "browse.open": "↩ on a row: the row's own key, which the mouse does by clicking it",
         "attention.reader.down": "scrolling Attention's reader: the mouse scrolls it",
         "attention.reader.up": "scrolling Attention's reader: the mouse scrolls it",
         "view.inbox": "the Inbox is Attention's Everything tab: View › Attention, then the tab",
@@ -388,6 +389,7 @@ public enum MenuBar {
             return Menu("View", [
                 view("Sessions", "view.sessions", "sessions"),
                 view("Attention", "view.attention", "attention"),
+                view("Browse", "view.browse", "browse"),
                 view("Pull requests", "view.prs", "prs"),
                 view("Autopilot", "view.autopilot", "autopilot"),
                 view("Where", "autopilot.where", "where"),
@@ -425,6 +427,12 @@ public enum MenuBar {
                     ("Done with everything new", "attention.done.new"), ("Fold Mentioned before", "attention.fold"),
                     ("Rewrite the summary", "attention.summarize"), ("Coverage", "attention.coverage"),
                 ], in: ["attention"]),
+                scoped("In Browse", [
+                    ("Jump to an org or repo…", "browse.scope"), ("Next scope", "browse.scope.next"),
+                    ("Previous scope", "browse.scope.prev"), ("Next saved query", "browse.query.next"),
+                    ("Previous saved query", "browse.query.prev"), ("Keep this query", "browse.query.save"),
+                    ("Show older", "browse.older"), ("Ask GitHub again", "browse.refresh"), ("Sort", "browse.sort"),
+                ], in: ["browse"]),
                 scoped("In Attention and the issue reader", [
                     ("Start a session from it", "items.start"), ("Add it to this session", "items.add"),
                 ], in: ["attention", "issue"]),

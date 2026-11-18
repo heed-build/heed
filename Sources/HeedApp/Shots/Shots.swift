@@ -8,7 +8,7 @@ enum Shots {
     static let all: [Shot] = landing + home + gettingStarted + concepts + sessions + chats + startWork + agents +
         pilot +
         hosts +
-        github +
+        github + browse +
         worktrees
         + diff + history + goals + log + keyboard + outside + configuration + personaShots + settingsCrops +
         modelCards +
@@ -816,6 +816,12 @@ enum Shots {
     private static let withGreenInstructions: @MainActor (AppModel) -> Void = { model in
         model.applyConfig(source: "[pilot]\ngreen_instructions = \"Resolve the threads you addressed.\"\n")
     }
+
+    /// Browse (`gv`): an org's open items with the thread beside them, and the quick jump with a big org's warning.
+    static let browse: [Shot] = [
+        Shot(id: "github/browse", keys: "gv"),
+        Shot(id: "github/browse-scope", keys: "gv<D-k>gl"),
+    ]
 
     static let worktrees: [Shot] = [
         // A repo picked in the column (h, then j): its card, then its worktrees.

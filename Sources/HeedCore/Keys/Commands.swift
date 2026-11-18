@@ -145,13 +145,18 @@ public enum Commands {
             "view",
             "switch view",
             .views,
-            arguments: "<sessions|attention|inbox|issues|prs|watch|repos|insights|history|timeline|ledger|dashboard|mindmap|standup|goals|log>"
+            arguments: "<sessions|attention|browse|inbox|issues|prs|watch|repos|insights|history|timeline|ledger|dashboard|mindmap|standup|goals|log>"
         ),
         .init("view.sessions", "sessions", .views),
         .init(
             "view.attention",
             "attention: what wants you, with why, the thread beside it (a tab: foryou, reviews, mentions, mine, ...)",
             .views, arguments: "[filter]"
+        ),
+        .init(
+            "view.browse",
+            "browse: the issues and PRs of an org, a repo or a Project, searched on GitHub, the thread beside them",
+            .views
         ),
         .init("view.inbox", "Attention's Everything tab, where the inbox went", .views),
         .init(
@@ -935,6 +940,16 @@ public enum Commands {
         .init(
             "attention.reply", "draft a reply with the model; you read it before anything is posted", .selection
         ),
+        .init("browse.open", "Browse: load the item under the cursor into the reader now", .selection),
+        .init("browse.scope", "Browse: jump to an org, a repo or a Project (type to find it)", .selection),
+        .init("browse.scope.next", "Browse: the next scope in the rail", .selection),
+        .init("browse.scope.prev", "Browse: the previous scope in the rail", .selection),
+        .init("browse.query.next", "Browse: the next saved query", .selection),
+        .init("browse.query.prev", "Browse: the previous saved query", .selection),
+        .init("browse.query.save", "Browse: keep the query you are on in the rail", .selection),
+        .init("browse.older", "Browse: show items older than the cap, or go back to it", .selection),
+        .init("browse.refresh", "Browse: ask GitHub again", .selection),
+        .init("browse.sort", "Browse: next sort (updated, created, comments, oldest)", .selection),
         .init("attention.session", "go to the item's session", .selection),
         .init(
             "attention.filter", "next Attention tab (Muted after Everything), or the one named", .selection,

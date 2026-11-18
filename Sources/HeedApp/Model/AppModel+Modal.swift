@@ -87,7 +87,12 @@ extension AppModel {
                     startWorkSession?.form = newValue
                 }
             } else {
+                let closing = startWorkSession != nil
                 startWorkSession = nil
+                // A "session for each" in Browse: the next form opens as this one closes.
+                if closing, !browse.eachQueue.isEmpty {
+                    Task { @MainActor [weak self] in self?.browseEachNext() }
+                }
             }
             adviseStartWork()
             sizeStartWork()

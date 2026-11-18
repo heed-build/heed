@@ -9,6 +9,7 @@ extension AppModel {
 
     /// A click on a rail row: the list starts again at the top.
     func browseOpenedQuery() {
+        browse.reading = false
         itemCursor[.browse] = 0
         browseSelectionChanged()
     }
@@ -58,6 +59,8 @@ extension AppModel {
         case "view.browse": view = .browse
         case "browse.open":
             guard let item = browseSelected else { return }
+            // Half and third widths: the reader is pushed over the list, and esc goes back.
+            if !browse.layout.showsReaderBeside { browse.reading = true }
             // On an item with a run, ↩ is the card's first button (clone) or the steer line.
             if let run = browse.runs.current(for: item.id) {
                 return run.phase == .needsClone ? browseCloneGo() : browseRunSteer()
@@ -106,7 +109,7 @@ extension AppModel {
         case "browse.chat": browseVerb(.chat)
         case "browse.review": browseVerb(.review)
         case "browse.tell": browseTellRun()
-        case "browse.run.close": closeBrowseRun()
+        case "browse.run.close": browseEscape()
         case "browse.run.keep": keepBrowseRun()
         case "browse.run.steer": browseRunSteer()
         case "browse.run.review.post": postBrowseReview()
@@ -119,11 +122,23 @@ extension AppModel {
             browse.cycleSort()
             itemCursor[.browse] = 0
             say("sorted by \(browse.sort.rawValue)")
-        default: break
+        default: performBrowseBulk(command)
         }
     }
 
+    /// ⎋ in Browse, from the inside out: a bulk step, the picks, the jump sheet, a run's reader, a pushed reader.
+    private func browseEscape() {
+        if browse.bulk != nil { return browse.bulk = nil }
+        if !pickedIDs(.browse).isEmpty { return clearPicks() }
+        if browse.jumpSheet { return browse.jumpSheet = false }
+        if let item = browseSelected, browse.runs.current(for: item.id) != nil
+            || browse.runs.runs.contains(where: { $0.itemID == item.id }) { return closeBrowseRun() }
+        if browse.reading, !browse.layout.showsReaderBeside { return browse.reading = false }
+        closeBrowseRun()
+    }
+
     private func browseQueryChanged() {
+        browse.reading = false
         itemCursor[.browse] = 0
         browseSelectionChanged()
         queueAheadBrowseReads()

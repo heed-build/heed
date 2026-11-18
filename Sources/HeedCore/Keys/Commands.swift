@@ -985,7 +985,7 @@ public enum Commands {
         .init("browse.tell", "Browse: tell an agent what to do with the item, in your own words", .selection),
         .init(
             "browse.run.close",
-            "Browse: close the agent run under the cursor and remove its temporary worktree (a branch it pushed stays)",
+            "Browse: close the agent run under the cursor and remove its temporary worktree (a branch it pushed stays); with items picked, clear the picks; on a pushed reader, go back to the list",
             .selection
         ),
         .init(
@@ -1004,6 +1004,27 @@ public enum Commands {
             .selection
         ),
         .init("browse.run.review.discard", "Browse: throw the drafted review away; nothing is posted", .selection),
+        .init("browse.select.all", "Browse: pick every item in the view (again: none)", .selection),
+        .init(
+            "browse.bulk.session",
+            "Browse, with items picked: one session for the related ones, its prompt listing each issue with a Closes line",
+            .selection
+        ),
+        .init("browse.bulk.goal", "Browse, with items picked: a goal from all of them, planned with you first", .selection),
+        .init(
+            "browse.bulk.each", "Browse, with items picked: one session for each (asks first above \(BrowseBulk.eachCap))",
+            .selection
+        ),
+        .init(
+            "browse.bulk.label", "Browse, with items picked: add labels to all on GitHub, after a confirm step",
+            .selection
+        ),
+        .init("browse.bulk.assign", "Browse, with items picked: assign all to you on GitHub, after a confirm step", .selection),
+        .init("browse.bulk.comment", "Browse, with items picked: comment on all on GitHub, after a confirm step", .selection),
+        .init(
+            "browse.bulk.close", "Browse, with items picked: close all on GitHub as completed or not planned, after a confirm step",
+            .selection
+        ),
         .init("browse.clone.go", "Browse: clone the repo, then start the agent run", .selection),
         .init("browse.clone.only", "Browse: clone the repo and stop there", .selection),
         .init("browse.clone.folder", "Browse: choose the folder the repo is cloned into", .selection),

@@ -284,6 +284,7 @@ public enum DefaultKeys {
         ],
         "attention": attention,
         "browse": browse,
+        "browsebulk": laid(browseBulk, over: browse),
         // A helper's split, open under Attention's reader, under a session's panes (gW) or under Now's tiles: i tells
         // it
         // something, p pauses it, zx stops it, zo zooms it, ⎋ closes the split; y Y n answer what it asks; once done,
@@ -407,6 +408,17 @@ public enum DefaultKeys {
         ("<Esc>", "browse.run.close"), ("s", "browse.run.keep"), ("i", "browse.run.steer"),
         ("P", "browse.run.review.post"), ("E", "browse.run.review.edit"), ("X", "browse.run.review.discard"),
         ("c", "browse.clone.only"), ("d", "browse.clone.folder"),
+        // Pick: space toggles, v a range (⎋ keeps it), a every item in the view, ⎋ clears.
+        ("a", "browse.select.all"),
+    ]
+
+    /// Browse with two items picked or more: the reader is the bulk panel. s is one session for the related ones, S a
+    /// session each, G a goal from all; 1 labels, A assigns to you, c comments and x closes on GitHub (each after a
+    /// confirm step). The agent verbs F I C R are for one item and say so. a is "all", so assigning is A.
+    static let browseBulk: [(String, String)] = [
+        ("s", "browse.bulk.session"), ("S", "browse.bulk.each"), ("G", "browse.bulk.goal"),
+        ("1", "browse.bulk.label"), ("A", "browse.bulk.assign"), ("c", "browse.bulk.comment"),
+        ("x", "browse.bulk.close"),
     ]
 
     static let attention: [(String, String)] = [

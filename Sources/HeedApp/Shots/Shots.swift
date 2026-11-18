@@ -841,6 +841,26 @@ enum Shots {
             model.browse.runs.runs = [browseRun(412, .review, phase: .done(.endTurn))]
         }),
         Shot(id: "github/browse-scope", keys: "gv<D-k>gl"),
+        // Four items picked: the reader is the bulk panel (design 4).
+        Shot(id: "github/browse-bulk", keys: "gv<Space>j<Space>jjj<Space>jjjj<Space>", highlight: [.browseBulk]),
+        // Half width (720): icon rail and list, the reader pushed over them (designs 11, 12).
+        Shot(id: "github/browse-half-list", size: CGSize(width: 720, height: 900), keys: "gv"),
+        Shot(id: "github/browse-half-detail", size: CGSize(width: 720, height: 900), keys: "gv", prepare: { model in
+            model.browse.reading = true
+        }),
+        // Third width (480): no rail, two-line rows, the reader pushed, the jump sheet, bulk as a bottom sheet
+        // (designs 13 to 16).
+        Shot(id: "github/browse-third-list", size: CGSize(width: 480, height: 900), keys: "gv"),
+        Shot(id: "github/browse-third-detail", size: CGSize(width: 480, height: 900), keys: "gv", prepare: { model in
+            model.browse.reading = true
+        }),
+        Shot(id: "github/browse-third-scope", size: CGSize(width: 480, height: 900), keys: "gv", prepare: { model in
+            model.browse.jumpSheet = true
+        }),
+        Shot(
+            id: "github/browse-third-bulk", size: CGSize(width: 480, height: 900),
+            keys: "gv<Space>j<Space>jjj<Space>"
+        ),
         // `/`: words, read into tokens (the fixture's answer, no model); the fields below them.
         Shot(id: "github/browse-build-type", keys: "gv/agent ready bugs nobody touched<CR>"),
         // A field's value picker: two labels ticked, any / all / none, the live count, the raw query.

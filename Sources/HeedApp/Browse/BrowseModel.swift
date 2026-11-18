@@ -54,6 +54,16 @@ final class BrowseModel {
     /// The add-filter popover (`/`), and the org view builder ("Create <org> view").
     var builder: BrowseBuilder?
     var orgBuilder: BrowseOrgBuilder?
+    /// A GitHub bulk action on the picked items, on its step (typing, confirm, report).
+    var bulk: BrowseBulkForm?
+    /// The Start work prompts a "session for each" has left to open, one as each form closes.
+    var eachQueue: [String] = []
+    /// The layout Browse is drawn in, set by its view from the width it has, so commands can follow it.
+    var layout = BrowseLayout.wide
+    /// Half and third widths: the reader is pushed over the list (↩), and esc goes back to the list.
+    var reading = false
+    /// Third width: the scope chip's jump sheet (queries and scopes).
+    var jumpSheet = false
     /// When each saved query's count was last asked of GitHub, so the rail's refresh is slow.
     @ObservationIgnored var countedAt: [String: Date] = [:]
     @ObservationIgnored var countsTask: Task<Void, Never>?
@@ -166,6 +176,16 @@ final class BrowseModel {
         refilter()
         let store = store
         Task { try? await store?.save(read) }
+    }
+
+    /// Items changed on GitHub by a bulk action: replaced in the cache and the list, and kept on disk.
+    func apply(_ changed: [BrowseItem]) {
+        guard !changed.isEmpty else { return }
+        let byID = Dictionary(changed.map { ($0.id, $0) }) { _, last in last }
+        items = items.map { byID[$0.id] ?? $0 }
+        refilter()
+        let store = store
+        Task { try? await store?.record(changed, now: Date()) }
     }
 
     func setSearch(_ text: String) {

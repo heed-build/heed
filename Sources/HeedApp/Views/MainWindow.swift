@@ -196,7 +196,7 @@ struct TitleBar: View {
                     HStack(spacing: 0) {
                         // Room for the window's own traffic lights.
                         Color.clear.frame(width: 60, height: 1)
-                        views(compact: compact)
+                        if width < BrowseLayout.halfMinimum { narrowTabs } else { views(compact: compact) }
                     }
                     .fixedSize()
                     .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { leftWidth = $0 }
@@ -301,6 +301,38 @@ struct TitleBar: View {
         let advance = ("0" as NSString).size(withAttributes: [.font: font]).width
         return max(advance, 6)
     }()
+
+    /// Under 640 points the tabs cannot all fit: the view you are on is a menu of the others, and Attention's count
+    /// stays beside it (`Browse ⌄  Attention 16`).
+    private var narrowTabs: some View {
+        HStack(spacing: 14) {
+            Menu {
+                ForEach(AppView.tabs, id: \.self) { view in
+                    Button(view.tabTitle) { model.perform(CommandInvocation(name: view.tabCommand)) }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(model.view.tab.tabTitle).font(Theme.ui(14, weight: .semibold)).foregroundStyle(Theme.fg)
+                    Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.fg3)
+                }
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .background(RoundedRectangle(cornerRadius: 7).fill(Theme.bg3))
+            }
+            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            .axID("view-tab-menu")
+            if model.view.tab != .attention {
+                HStack(spacing: 6) {
+                    Text("Attention")
+                    if badge(.attention) > 0 {
+                        Text("\(badge(.attention))").font(Theme.ui(12, weight: .semibold)).foregroundStyle(Theme.block)
+                    }
+                }
+                .contentShape(Rectangle())
+                .tap { model.perform(CommandInvocation(name: AppView.attention.tabCommand)) }
+            }
+        }
+        .shotRegion(.viewTabs)
+    }
 
     /// The views as names with their key (`Attention 7 gm`); narrow windows drop the keys, never the names.
     private func views(compact: Bool) -> some View {

@@ -382,7 +382,10 @@ final class AppModel {
         }
     }
 
-    private(set) var picked: [AppView: Set<String>] = [:]
+    private(set) var picked: [AppView: Set<String>] = [:] {
+        // Two picks or more in Browse make the reader a bulk panel, with keys of its own (`browsebulk`).
+        didSet { if view == .browse { updateScope() } }
+    }
 
     // The resume banner (ResumeBanner): which panes have an agent running, whether each session's agent still has
     // its conversation (checked off the main actor), and the sessions whose banner you dismissed until heed restarts.
@@ -533,6 +536,7 @@ final class AppModel {
             : (overlay == .pr || reader != nil) ? "pr" : view == .goals ? goals.scope
             : view == .attention && attentionQuestion != nil ? "swarmask"
             : view == .sessions && goalPromotion != nil ? "sessionspromote"
+            : view == .browse && pickedIDs(.browse).count >= 2 ? "browsebulk"
             : panelPopoverScope ?? helperScope ?? panelOfferScope ?? view.rawValue
         if engine.scope == "goals", goals.focus == .goals, pageShows { engine.scope = "goalpage" }
     }
@@ -2398,6 +2402,7 @@ final class AppModel {
             || hostRootsChooser != nil || awaySummary != nil || runReader != nil || pilotExplain != nil
             || overlay != nil || filtering || tutor != nil || repoSetup != nil || nudge != nil || addRepoDialog != nil
             || browse.palette != nil || browse.builder != nil || browse.orgBuilder != nil || browse.runs.input != nil
+            || browse.bulk != nil
     }
 
     /// After you added or checked a host: asks where its projects are, once, when config does not say. While you are
@@ -2834,6 +2839,10 @@ final class AppModel {
             answerBrowseOrgBuilder(stroke)
             return true
         }
+        if browse.bulk != nil {
+            answerBrowseBulk(stroke)
+            return true
+        }
         if firstRun != nil {
             if stroke == KeyStroke("CR") || stroke == KeyStroke("CR", .command) || stroke == .escape {
                 firstRun = nil
@@ -2921,6 +2930,14 @@ final class AppModel {
         }
         if previous == .hint { hintText = "" }
         if previous == .visual {
+            // Browse keeps the range as picks, so the bulk keys have something to act on once VISUAL is left.
+            if view == .browse, let anchor = visualAnchor {
+                let ids = itemIDs(.browse)
+                let current = cursor(in: .browse)
+                for index in min(anchor, current) ... max(anchor, current) where ids.indices.contains(index) {
+                    picked[.browse, default: []].insert(ids[index])
+                }
+            }
             toggledRows = []
             visualAnchor = nil
             diffCursor.clearSelection()
@@ -2929,7 +2946,7 @@ final class AppModel {
         if mode == .visual {
             visualAnchor = switch view {
             case .repos: repoCursor
-            case .attention, .prs, .watch: itemCursor[view] ?? 0
+            case .attention, .browse, .prs, .watch: itemCursor[view] ?? 0
             default: nil
             }
         }
@@ -3310,7 +3327,9 @@ final class AppModel {
              "browse.query.up", "browse.query.down", "browse.view.new", "browse.read", "browse.fix", "browse.implement",
              "browse.chat", "browse.review", "browse.tell", "browse.run.close", "browse.run.keep", "browse.run.steer",
              "browse.run.review.post", "browse.run.review.edit", "browse.run.review.discard", "browse.clone.go",
-             "browse.clone.only", "browse.clone.folder":
+             "browse.clone.only", "browse.clone.folder", "browse.select.all", "browse.bulk.session",
+             "browse.bulk.goal", "browse.bulk.each", "browse.bulk.label", "browse.bulk.assign", "browse.bulk.comment",
+             "browse.bulk.close":
             performBrowse(command)
         case "view.autopilot", "view.watch", "autopilot.cando", "autopilot.where", "autopilot.now", "autopilot.done",
              "autopilot.move", "autopilot.on", "autopilot.ask", "autopilot.off", "autopilot.everywhere",
@@ -5276,9 +5295,15 @@ final class AppModel {
             return AttentionText.workPrompt(
                 items, issues: github.issues, instructions: startInstructions(items.compactMap(\.repo))
             )
+        case .browse:
+            let items = browse.rows.filter { ids.contains($0.id) }
+            return BrowseWorkPrompts.together(items, instructions: startInstructions(items.map(\.repo)))
         default: return ""
         }
     }
+
+    /// Picks `ids` in a list (Browse's `a`).
+    func pick(_ ids: Set<String>, in view: AppView) { picked[view] = ids }
 
     /// The `start_instructions` of the repos work starts from, each once.
     func startInstructions(_ repos: [Repo]) -> String {

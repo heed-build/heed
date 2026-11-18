@@ -318,6 +318,8 @@ struct BrowseReadCard: View {
 struct BrowseWorkSection: View {
     @Environment(AppModel.self) private var model
     let item: BrowseItem
+    /// Third width: the four verbs in a 2x2 grid.
+    var compact = false
 
     var body: some View {
         let verbs = model.browseVerbs(item)
@@ -329,8 +331,17 @@ struct BrowseWorkSection: View {
                 Text(verbs.headline).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2).lineLimit(2)
                     .multilineTextAlignment(.trailing)
             }
-            HStack(alignment: .top, spacing: 10) {
-                ForEach(verbs.ordered, id: \.verb) { advice in card(advice) }
+            if compact {
+                let ordered = verbs.ordered
+                VStack(spacing: 10) {
+                    ForEach([Array(ordered.prefix(2)), Array(ordered.dropFirst(2))], id: \.first?.verb) { pair in
+                        HStack(alignment: .top, spacing: 10) { ForEach(pair, id: \.verb) { advice in card(advice) } }
+                    }
+                }
+            } else {
+                HStack(alignment: .top, spacing: 10) {
+                    ForEach(verbs.ordered, id: \.verb) { advice in card(advice) }
+                }
             }
             HStack {
                 Text("or tell it what to do…").font(Theme.ui(13)).foregroundStyle(Theme.fg3)
@@ -345,7 +356,7 @@ struct BrowseWorkSection: View {
             .clickRuns(CommandInvocation(name: "browse.tell"))
             Text(footer).font(Theme.ui(12)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, 28).padding(.vertical, 16)
+        .padding(.horizontal, compact ? 16 : 28).padding(.vertical, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(alignment: .top) { Theme.line.frame(height: 1) }
         .shotRegion(.browseWork)
@@ -381,7 +392,7 @@ struct BrowseWorkSection: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(10)
-        .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: compact ? 84 : 104, alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: 8).fill(recommended ? verb.tint.opacity(0.07) : .clear))
         .overlay(
             RoundedRectangle(cornerRadius: 8).strokeBorder(

@@ -177,7 +177,7 @@ extension AppModel {
     func browseVerb(_ verb: BrowseVerb) {
         let ids = actionIDs(.browse)
         guard ids.count <= 1, let item = browseSelected else {
-            return say("\(verb.title) works on one item at a time: clear the picks first")
+            return say("Agent actions work on one item at a time. Select one to use them.")
         }
         let advice = browseVerbs(item)[verb]
         guard advice.availability != .unavailable else { return say("\(verb.title): \(advice.reason)") }

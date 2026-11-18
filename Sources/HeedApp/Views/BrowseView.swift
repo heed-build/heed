@@ -9,38 +9,46 @@ struct BrowseView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        GeometryReader { geometry in
+            let layout = BrowseLayout.mode(width: geometry.size.width)
+            content(layout: layout, width: geometry.size.width)
+                .onAppear { model.browse.layout = layout }
+                .onChange(of: layout) { _, new in model.browse.layout = new }
+        }
+    }
+
+    @ViewBuilder private func content(layout: BrowseLayout, width: CGFloat) -> some View {
         let browse = model.browse
         let rows = browse.rows
         let cursor = model.cursor(in: .browse)
-        GeometryReader { geometry in
-            let wide = geometry.size.width >= 1100
-            let railWidth: CGFloat = geometry.size.width >= 640 ? (wide ? 224 : 52) : 0
-            HStack(alignment: .top, spacing: 0) {
-                if railWidth > 0 {
-                    BrowseRail(compact: !wide).frame(width: railWidth).shotRegion(.browseRail)
-                    Theme.line.frame(width: 1)
-                }
+        let picked = model.pickedIDs(.browse)
+        let item = rows.indices.contains(cursor) ? rows[cursor] : nil
+        let railWidth = CGFloat(layout == .wide ? BrowseLayout.fullRail : layout == .half ? BrowseLayout.iconRail : 0)
+        let pushed = layout != .wide && browse.reading && item != nil && picked.count < 2
+        HStack(alignment: .top, spacing: 0) {
+            if layout.hasRail {
+                BrowseRail(compact: layout != .wide).frame(width: railWidth).shotRegion(.browseRail)
+                Theme.line.frame(width: 1)
+            }
+            if pushed, let item {
                 VStack(spacing: 0) {
-                    BrowseHeader()
-                    BrowseCount()
-                    ListBody(
-                        count: rows.count, cursor: cursor, ids: rows.map(\.id), empty: emptyText, hintView: .browse
-                    ) { index in
-                        BrowseRow(
-                            item: rows[index], index: index, cursor: cursor,
-                            isPicked: model.pickedIDs(.browse).contains(rows[index].id)
-                        )
-                    }
+                    BrowseReaderBar(layout: layout, index: cursor, count: rows.count)
+                    BrowseReader(item: item, compact: layout == .third).id(item.id)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .background(Theme.bg2)
+                        .shotRegion(.browseDetail)
                 }
-                .frame(
-                    width: wide ? ((geometry.size.width - railWidth) * 0.56).rounded() : nil
-                )
-                .frame(maxWidth: wide ? nil : .infinity)
-                .shotRegion(.browseList)
-                if wide {
+            } else {
+                listColumn(layout: layout, rows: rows, cursor: cursor, picked: picked)
+                    .frame(width: layout == .wide ? ((width - railWidth) * 0.56).rounded() : nil)
+                    .frame(maxWidth: layout == .wide ? nil : .infinity)
+                    .shotRegion(.browseList)
+                if layout == .wide {
                     Theme.line.frame(width: 1)
                     Group {
-                        if let item = rows.indices.contains(cursor) ? rows[cursor] : nil {
+                        if picked.count >= 2 {
+                            BrowseBulkPanel()
+                        } else if let item {
                             BrowseReader(item: item).id(item.id)
                         } else {
                             Text("").frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -51,6 +59,25 @@ struct BrowseView: View {
                     .shotRegion(.browseDetail)
                 }
             }
+        }
+        .overlay { if layout == .third, browse.jumpSheet { BrowseJumpSheet() } }
+    }
+
+    private func listColumn(layout: BrowseLayout, rows: [BrowseItem], cursor: Int, picked: Set<String>) -> some View {
+        VStack(spacing: 0) {
+            if layout == .third { BrowseCompactHeader() } else { BrowseHeader() }
+            BrowseCount()
+            ListBody(count: rows.count, cursor: cursor, ids: rows.map(\.id), empty: emptyText, hintView: .browse) { index in
+                if layout == .third {
+                    BrowseCompactRow(item: rows[index], index: index, cursor: cursor, picked: picked)
+                } else {
+                    BrowseRow(
+                        item: rows[index], index: index, cursor: cursor, isPicked: picked.contains(rows[index].id),
+                        anyPicked: !picked.isEmpty, narrow: layout == .half
+                    )
+                }
+            }
+            if layout != .wide, picked.count >= 2 { BrowseBulkPanel(sheet: true) }
         }
     }
 
@@ -116,7 +143,7 @@ func labelColor(_ name: String) -> Color {
 }
 
 /// `3d`, `2w`, `5mo`: how long ago, as the list's right column says it.
-private func shortAge(_ date: Date, now: Date = Clock.now) -> String {
+func shortAge(_ date: Date, now: Date = Clock.now) -> String {
     let days = Int(max(now.timeIntervalSince(date), 0) / 86400)
     if days < 1 { return Ages.short(date, now: now) }
     if days < 14 { return "\(days)d" }
@@ -125,7 +152,7 @@ private func shortAge(_ date: Date, now: Date = Clock.now) -> String {
 }
 
 /// A two-letter mark for what an item is: `IS` or `PR`.
-private struct TypeTag: View {
+struct TypeTag: View {
     let item: BrowseItem
 
     var body: some View {
@@ -137,7 +164,7 @@ private struct TypeTag: View {
     }
 }
 
-private struct LabelPill: View {
+struct LabelPill: View {
     let name: String
 
     var body: some View {
@@ -154,7 +181,7 @@ private struct LabelPill: View {
 // MARK: Rail
 
 /// A scroll view that shots draw unscrolled (an offscreen render does not lay out a ScrollView's content).
-private struct Scrolling<Content: View>: View {
+struct Scrolling<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -166,7 +193,7 @@ private struct Scrolling<Content: View>: View {
     }
 }
 
-private struct BrowseRail: View {
+struct BrowseRail: View {
     @Environment(AppModel.self) private var model
     let compact: Bool
 
@@ -202,6 +229,14 @@ private struct BrowseRail: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Theme.bg)
+        .overlay(alignment: .bottom) {
+            // The icon rail has no ⌘K row: the search at its foot opens the jump.
+            if compact {
+                Image(systemName: "magnifyingglass").font(.system(size: 14)).foregroundStyle(Theme.fg2)
+                    .frame(width: 52, height: 44).contentShape(Rectangle())
+                    .clickRuns(CommandInvocation(name: "browse.scope"))
+            }
+        }
     }
 
     @ViewBuilder private func header(_ title: String, @ViewBuilder trailing: () -> some View) -> some View {
@@ -224,6 +259,11 @@ private struct BrowseRail: View {
         return HStack(spacing: 10) {
             Image(systemName: saved.glyph.symbol).font(.system(size: 13)).foregroundStyle(saved.tint.color)
                 .frame(width: 20)
+                .overlay(alignment: .topTrailing) {
+                    if compact, browse.newQueries.contains(saved.id) {
+                        Circle().fill(Theme.busy).frame(width: 6, height: 6).offset(x: 5, y: -3)
+                    }
+                }
             if !compact {
                 Text(saved.name).font(Theme.ui(13)).foregroundStyle(Theme.fg).lineLimit(1)
                 if browse.newQueries.contains(saved.id) {
@@ -337,7 +377,7 @@ private struct BrowseRail: View {
 // MARK: Header
 
 /// The query as chips: the scope, then each filter, and the way to add one.
-private struct BrowseHeader: View {
+struct BrowseHeader: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
@@ -461,7 +501,7 @@ private struct BrowseHeader: View {
 }
 
 /// `47 open · last 3 months  Show older ▸` over the list.
-private struct BrowseCount: View {
+struct BrowseCount: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
@@ -492,18 +532,26 @@ private struct BrowseCount: View {
 
 // MARK: Rows
 
-private struct BrowseRow: View {
+struct BrowseRow: View {
     @Environment(AppModel.self) private var model
     let item: BrowseItem
     let index: Int
     let cursor: Int
     let isPicked: Bool
+    /// Some row is picked: the number gives way to a checkbox on every row.
+    var anyPicked = false
+    /// Half width: the read is a ring beside the verb, not the three columns.
+    var narrow = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            Text(verbatim: "\(index + 1)").font(Theme.mono(11, weight: index == cursor ? .bold : .regular))
-                .foregroundStyle(index == cursor ? Theme.fg : Theme.fg3).frame(width: 24, alignment: .trailing)
-                .padding(.top, 2)
+            if anyPicked {
+                PickBox(on: isPicked).frame(width: 24, alignment: .trailing).padding(.top, 1)
+            } else {
+                Text(verbatim: "\(index + 1)").font(Theme.mono(11, weight: index == cursor ? .bold : .regular))
+                    .foregroundStyle(index == cursor ? Theme.fg : Theme.fg3).frame(width: 24, alignment: .trailing)
+                    .padding(.top, 2)
+            }
             TypeTag(item: item)
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
@@ -532,14 +580,21 @@ private struct BrowseRow: View {
                     if item.kind == .pull, item.isDraft { ReasonTag(text: "draft", tint: Theme.fg3) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .overlay(alignment: .trailing) { BrowseVerbHint(item: item) }
+                .overlay(alignment: .trailing) { if !narrow { BrowseVerbHint(item: item) } }
             }
-            BrowseReadColumns(item: item).padding(.top, 1)
-            VStack(alignment: .trailing, spacing: 3) {
+            if narrow {
+                BrowseVerbHint(item: item).padding(.top, 1)
+                BrowseReadRing(item: item).frame(width: 22).padding(.top, 1)
                 Text(shortAge(item.updatedAt)).font(Theme.mono(11.5)).foregroundStyle(Theme.fg3)
-                Text("\(item.comments)").font(Theme.mono(11)).foregroundStyle(Theme.fg3.opacity(0.8))
+                    .frame(width: 34, alignment: .trailing).padding(.top, 1)
+            } else {
+                BrowseReadColumns(item: item).padding(.top, 1)
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text(shortAge(item.updatedAt)).font(Theme.mono(11.5)).foregroundStyle(Theme.fg3)
+                    Text("\(item.comments)").font(Theme.mono(11)).foregroundStyle(Theme.fg3.opacity(0.8))
+                }
+                .frame(width: 34, alignment: .trailing)
             }
-            .frame(width: 34, alignment: .trailing)
         }
         .padding(.leading, 8).padding(.trailing, 16).padding(.vertical, 9)
         .overlay(alignment: .leading) { if index == cursor { Theme.busy.frame(width: 2) } }
@@ -552,9 +607,11 @@ private struct BrowseRow: View {
 
 /// The thread under the cursor: its header (where it is, its title, its state and labels), then the conversation as
 /// GitHub renders it, loaded once the cursor rests on the row.
-private struct BrowseReader: View {
+struct BrowseReader: View {
     @Environment(AppModel.self) private var model
     let item: BrowseItem
+    /// Third width: the verbs in a 2x2 grid, and the extra actions behind a menu.
+    var compact = false
 
     var body: some View {
         let run = model.browse.runs.current(for: item.id)
@@ -568,7 +625,7 @@ private struct BrowseReader: View {
             }
         } else {
             let work = if let run { AnyView(BrowseCloneCard(run: run).frame(maxWidth: 900)) } else {
-                AnyView(BrowseWorkSection(item: item).frame(maxWidth: 900))
+                AnyView(BrowseWorkSection(item: item, compact: compact).frame(maxWidth: 900))
             }
             if ShotMode.active {
                 // An offscreen render lays the thread out at its whole height: the buttons sit over its bottom instead.
@@ -607,6 +664,7 @@ private struct BrowseReader: View {
                     openedAt: conversation?.createdAt ?? item.createdAt, chips: chips
                 )
                 BrowseReadCard(item: item)
+                if model.browse.layout != .wide { BrowseItemActions(item: item, compact: compact) }
                 if let conversation {
                     ThreadConversationView(conversation: conversation, seenAt: nil)
                 } else if let error = model.threads[key]?.error {
@@ -615,7 +673,7 @@ private struct BrowseReader: View {
                     Text("Loading the thread…").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                 }
             }
-            .padding(.horizontal, 28).padding(.vertical, 22)
+            .padding(.horizontal, compact ? 16 : 28).padding(.vertical, 22)
             .frame(maxWidth: 900, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }

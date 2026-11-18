@@ -52,4 +52,34 @@ public enum BrowseWorkPrompts {
             ? head + readFirst(item) + " Then: "
             : head + "\(owner: words.trimmingCharacters(in: .whitespacesAndNewlines))"
     }
+
+    /// One prompt for several picked items (`s` on a selection): the issues one pull request should close, each with
+    /// its `Closes` line, in the order picked. Titles stay fenced. `instructions` are the repos' own
+    /// `start_instructions`, after the list and before the `Closes` lines, as Attention's prompt puts them.
+    public static func together(_ items: [BrowseItem], instructions: String = "") -> Prompt {
+        guard !items.isEmpty else { return "" }
+        let extra: [Prompt] = instructions.isEmpty ? [] : ["", .owner(instructions)]
+        let issues = items.filter { $0.kind == .issue }
+        if items.count == 1, let item = items.first {
+            var lines: [Prompt] = [headline(item) + readFirst(item)]
+            lines += extra
+            if item.kind == .issue { lines += ["", "Closes \(name: item.repo.slug)#\(item.number)"] }
+            return lines.joined(separator: "\n")
+        }
+        let head: Prompt = issues.count == items.count
+            ? "Work on these together. They look related; open one pull request that addresses all of them."
+            : "Look into these together. One pull request should close the issues; the pull requests are context."
+        var lines: [Prompt] = [head]
+        lines += items.map { item in
+            let kind: Prompt = item.kind == .pull ? "pull request" : "issue"
+            return "- \(kind) \(name: item.repo.slug)#\(item.number) \(item.title)\n  \(name: item.url)"
+        }
+        lines.append("Read each one and its comments first (`gh issue view <number> --repo <repo> --comments`).")
+        lines += extra
+        if !issues.isEmpty {
+            lines.append("")
+            lines += issues.map { "Closes \(name: $0.repo.slug)#\($0.number)" }
+        }
+        return lines.joined(separator: "\n")
+    }
 }

@@ -357,7 +357,7 @@ struct BrowseWorkSection: View {
             HStack(spacing: 6) {
                 Image(systemName: verb.symbol).font(.system(size: 12))
                     .foregroundStyle(off ? Theme.fg3 : verb.tint)
-                Text(verb.title).font(Theme.ui(13.5, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
+                Text(verb.title).font(Theme.ui(13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.6)
                 Spacer(minLength: 2)
                 Text(verb.key).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
                     .padding(.horizontal, 5).padding(.vertical, 1)

@@ -560,8 +560,10 @@ private struct BrowseReader: View {
         let work = BrowseWorkSection(item: item).frame(maxWidth: 900)
         if ShotMode.active {
             // An offscreen render lays the thread out at its whole height: the buttons sit over its bottom instead.
-            thread.frame(maxHeight: .infinity, alignment: .top).clipped()
-                .overlay(alignment: .bottom) { work.background(Theme.bg2) }
+            GeometryReader { geometry in
+                thread.frame(height: geometry.size.height, alignment: .top).clipped()
+                    .overlay(alignment: .bottom) { work.background(Theme.bg2) }
+            }
         } else {
             VStack(spacing: 0) {
                 thread.frame(maxHeight: .infinity)

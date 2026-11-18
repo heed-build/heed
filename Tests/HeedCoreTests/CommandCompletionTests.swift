@@ -112,7 +112,7 @@ struct CommandCompletionTests {
     @Test func theNewKeysRunTheirCommands() throws {
         let normal = try #require(built.keymaps[.normal])
         let expected = [
-            "gb": "pilot.run", "gl": "links.pick", "gI": "issue.add", "z?": "pilot.why", "zv": "pilot.reviewers",
+            "gv": "pilot.run", "gl": "links.pick", "gI": "issue.add", "z?": "pilot.why", "zv": "pilot.reviewers",
             "<C-w>c": "tab.close", "zx": "pilot.run.stop",
         ]
         for (notation, command) in expected {

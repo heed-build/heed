@@ -66,7 +66,7 @@ A session's issues come from three places:
 ![The inspector's Issues section: docs-website#88, Old links to moved pages](../images/shots/sessions/inspector-issues.png)
 
 A PR with a [run](../autopilot/green-and-merged.md#runs) working on it says so on its card: the agent and model, the round, how long,
-and the key to its tab (`gb`), with the last line of the run's screen under it. Click the box to go to the tab.
+and the key to its tab (`gv`), with the last line of the run's screen under it. Click the box to go to the tab.
 
 ![A PR card with a get it green run working on it](../images/shots/sessions/run-card.png)
 

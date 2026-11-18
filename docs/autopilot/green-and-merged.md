@@ -286,7 +286,7 @@ from, amber when it is not the default. Below the rows, **what holds it back** l
 | `z?` | What heed will do for the PR, and what holds it back |
 | `zv` | Ask the PR's reviewers now |
 | `zT` `zD` | In Now: trust the bot heed suggests for `trusted_reviewers`, or stop suggesting it |
-| `gb` | Go to the session's running run |
+| `gv` | Go to the session's running run |
 | `zx` | Stop the session's running run |
 | `v` | Select several, then `zp` pauses or resumes them all |
 | `r` | Sync now |
@@ -322,7 +322,7 @@ helpers, for an agent that heed has no ACP adapter for. Each round is a **run** 
 - **What it's told:** to fix what is listed, commit, and push to the PR with `git push origin
   HEAD:<branch>`.
 - **The tab:** heed appends the tab next to the session's own and names it **get it green** (or **get it merged**). The tab never takes your
-  focus. Its glyph in the tab strip is the run's state, and `gb` (`:pilot.run`) goes to the tab. `zx` (`:pilot.run.stop`)
+  focus. Its glyph in the tab strip is the run's state, and `gv` (`:pilot.run`) goes to the tab. `zx` (`:pilot.run.stop`)
   stops the run, as closing its tab does.
 
 While the run works, it shows in three places: a row under its session in the sidebar (the goal and PR, how long, its agent

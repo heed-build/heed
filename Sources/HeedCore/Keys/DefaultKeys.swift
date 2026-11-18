@@ -40,7 +40,7 @@ public enum DefaultKeys {
         ("g>", "tab.move.right"), ("g<lt>", "tab.move.left"),
         // A helper on the session's PR: watch it in a split, or take it over (the band over its panes says so).
         ("gW", "helper.watch"), ("gO", "helper.takeover"),
-        ("gs", "view.sessions"), ("gm", "view.attention"), ("gi", "view.attention issues"), ("gv", "view.browse"),
+        ("gs", "view.sessions"), ("gm", "view.attention"), ("gi", "view.attention issues"), ("gb", "view.browse"),
         ("gp", "view.attention mine"),
         ("gl", "links.pick"), ("gI", "issue.add"), ("go", "overlay.item"), ("]p", "pr.next"), ("[p", "pr.prev"), (
             "gd",
@@ -53,7 +53,7 @@ public enum DefaultKeys {
         ("gy", "approvals.open"),
         ("zi", "inspector.toggle"), ("zs", "sidebar.toggle"), ("zt", "sidebar.titles"),
         // The pilot, the same keys everywhere: the PR under the cursor, the open PR, or the session's PRs.
-        ("z?", "pilot.why"), ("zv", "pilot.reviewers"), ("gb", "pilot.run"), ("zx", "pilot.run.stop"),
+        ("z?", "pilot.why"), ("zv", "pilot.reviewers"), ("gv", "pilot.run"), ("zx", "pilot.run.stop"),
         ("zw", "pilot.watch"), ("zg", "pilot.green"), ("zm", "pilot.merge"), ("zM", "pilot.merge.now"), (
             "zp",
             "pilot.pause"

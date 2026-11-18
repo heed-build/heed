@@ -374,8 +374,8 @@ extension SettingsCatalog {
         ) { .bool($0.startWork.smartGuesses) },
         global(
             "start_work.size_check", .worktrees, "Start work", "Size the task",
-            "A longer prompt is sized as you type; one bigger than one session offers a goal (⌘↩), a session (⌥↩) or "
-                + "a chat (⌃↩). Small tasks start as before.",
+            "A longer prompt is sized as you type; one bigger than one session shows a line offering a goal (⌘G), "
+                + "and ⌘↩ still starts what the fields show.",
             since: "0.42.0"
         ) { .bool($0.startWork.sizeCheck) },
         global(

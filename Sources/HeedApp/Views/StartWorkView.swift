@@ -48,15 +48,6 @@ struct StartWorkView: View {
                 Text(form.promotion != nil ? "Promote chat" : form.chat == nil ? "Start work" : "New chat")
                     .font(Theme.ui(15, weight: .semibold))
                 Spacer()
-                if form.showsSizeCard {
-                    // What Just a session would start, since its fields wait behind the card.
-                    HStack(spacing: 5) {
-                        Image(systemName: "folder").font(.system(size: 10))
-                        Text(([form.selectedRepos.first.map { $0.split(separator: "/").last.map(String.init) ?? $0 }]
-                                + [form.agent?.name, "new worktree"]).compactMap(\.self).joined(separator: " · "))
-                    }
-                    .font(Theme.mono(11.5)).foregroundStyle(Theme.fg3).lineLimit(1).padding(.trailing, 8)
-                }
                 KeyCap(text: "⎋")
                 Text(form.editing ? "normal" : "cancel").foregroundStyle(Theme.fg2)
             }
@@ -66,12 +57,11 @@ struct StartWorkView: View {
             if let promotion = form.promotion { promotionNote(promotion, form).padding(.horizontal, 20) }
             promptBox(form, cap: promptCap).padding(.horizontal, 20).padding(.bottom, 16)
                 .shotRegion(.startWorkPrompt)
-            if form.showsSizeCard, let sizing = form.sizing {
-                // Bigger than one session: three ways on in place of the fields (j or ⇥ brings them back).
-                SizeCard(form: form, sizing: sizing)
-            } else {
-                VStack(spacing: 0) { fields(form) }.shotRegion(.startWorkChips)
+            if form.showsSizeHint, let sizing = form.sizing {
+                // Bigger than one session: a quiet line offering a goal; the fields stay and ⌘↩ starts what they show.
+                SizeHint(sizing: sizing)
             }
+            VStack(spacing: 0) { fields(form) }.shotRegion(.startWorkChips)
             footer(form)
         }
         .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
@@ -561,7 +551,7 @@ struct StartWorkView: View {
             .opacity(model.startingWork ? 0.5 : 1)
             .disabled(model.startingWork)
             HStack(spacing: 6) {
-                Text(model.startingWork ? "Starting…" : form.waitingForSize ? "Sizing…" : label).fontWeight(.semibold)
+                Text(model.startingWork ? "Starting…" : label).fontWeight(.semibold)
                 KeyCap(text: "⌘↩")
             }
             .foregroundStyle(Theme.ink)
@@ -588,10 +578,7 @@ struct StartWorkView: View {
                 .padding(.horizontal, 12)
                 .frame(maxHeight: .infinity)
                 .background(form.editing ? Theme.done : Theme.inverse)
-            Text(form.showsSizeCard
-                ? "⌘↩ goal · ⌥↩ session · ⌃↩ chat · " +
-                (form.editing ? "⎋ then j the fields" : "j the fields · ⎋ cancel")
-                : form.editing
+            Text(form.editing
                 ? "⇥ next field · ⌃n ⌃p cycle guess · ⌘V paste · ⎋ then j k h l"
                 : "j k field · h l choose · space toggle · i edit · ⌘↩ start · ⎋ cancel")
                 .foregroundStyle(Theme.fg3)

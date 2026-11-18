@@ -162,7 +162,7 @@ struct TaskSizerTests {
     }
 }
 
-struct StartWorkSizeCardTests {
+struct StartWorkSizeHintTests {
     @Test func aSmallTaskStartsAsBeforeWithNoQuestion() {
         var form = sizingForm("fix the flaky link checker in docs-toolkit")
         #expect(form.sizeQuestion == nil)
@@ -184,43 +184,29 @@ struct StartWorkSizeCardTests {
         #expect(chat.sizeQuestion == nil)
     }
 
-    @Test func commandReturnOnAnUnsizedPromptSizesFirstThenStartsWhenItIsNoGoal() {
+    @Test func commandReturnStartsWhatTheFieldsShowWithoutWaitingForASizing() {
         var form = sizingForm()
-        #expect(form.handle(KeyStroke("CR", .command)) == .sizeFirst)
-        #expect(form.waitingForSize)
-        let key = TaskSizer.key(big)
-        guard case .start = form.sized(TaskSizing(prompt: key, kind: .session), for: key) else {
-            Testing.Issue.record("expected start once sized")
-            return
-        }
-        // Sized now: ⌘↩ starts at once.
         guard case .start = form.handle(KeyStroke("CR", .command)) else {
             Testing.Issue.record("expected start")
             return
         }
     }
 
-    @Test func aSecondCommandReturnDoesNotWaitAndAFailedSizingStarts() {
+    @Test func aGoalShowsTheHintAndTheFieldsStayWithCommandReturnStillStarting() {
         var form = sizingForm()
-        #expect(form.handle(KeyStroke("CR", .command)) == .sizeFirst)
-        guard case .start = form.handle(KeyStroke("CR", .command)) else {
-            Testing.Issue.record("expected start without waiting")
+        form.sized(goalSizing(), for: TaskSizer.key(big))
+        #expect(form.showsSizeHint)
+        guard case let .start(plan) = form.handle(KeyStroke("CR", .command)) else {
+            Testing.Issue.record("expected a session")
             return
         }
-        var failed = sizingForm()
-        _ = failed.handle(KeyStroke("CR", .command))
-        guard case .start = failed.sized(nil, for: TaskSizer.key(big)) else {
-            Testing.Issue.record("expected start after a failed sizing")
-            return
-        }
+        #expect(plan.chat == nil)
     }
 
-    @Test func aGoalShowsTheCardAndCommandReturnMakesTheGoal() {
+    @Test func commandGMakesTheGoalFromThePrompt() {
         var form = sizingForm()
-        #expect(form.handle(KeyStroke("CR", .command)) == .sizeFirst)
-        #expect(form.sized(goalSizing(), for: TaskSizer.key(big)) == .handled)
-        #expect(form.showsSizeCard)
-        guard case let .goal(goal) = form.handle(KeyStroke("CR", .command)) else {
+        form.sized(goalSizing(), for: TaskSizer.key(big))
+        guard case let .goal(goal) = form.handle(KeyStroke("g", .command)) else {
             Testing.Issue.record("expected a goal")
             return
         }
@@ -229,50 +215,28 @@ struct StartWorkSizeCardTests {
         #expect(goal.repos == form.selectedRepos)
     }
 
-    @Test func optionReturnStartsASessionAndControlReturnAChat() {
+    @Test func withoutTheHintCommandGDoesNothingAndOptionReturnTypesANewline() {
         var form = sizingForm()
-        _ = form.sized(goalSizing(), for: TaskSizer.key(big))
-        guard case let .start(plan) = form.handle(KeyStroke("CR", .option)) else {
-            Testing.Issue.record("expected a session")
-            return
-        }
-        #expect(plan.chat == nil)
-        #expect(!form.showsSizeCard)
-        var chat = sizingForm()
-        _ = chat.sized(goalSizing(), for: TaskSizer.key(big))
-        guard case let .start(plan) = chat.handle(KeyStroke("CR", .control)) else {
-            Testing.Issue.record("expected a chat")
-            return
-        }
-        #expect(plan.chat != nil)
-    }
-
-    @Test func withoutTheCardOptionReturnStillTypesANewline() {
-        var form = sizingForm()
+        #expect(form.handle(KeyStroke("g", .command)) != .goal(form.startGoal))
         _ = form.handle(KeyStroke("CR", .option))
         #expect(form.prompt.hasSuffix("\n"))
     }
 
-    @Test func movingToTheFieldsPutsTheCardAwayForThatPrompt() {
+    @Test func puttingTheHintAwayKeepsItAwayForThatPrompt() {
         var form = sizingForm()
-        _ = form.sized(goalSizing(), for: TaskSizer.key(big))
-        _ = form.handle(.escape)
-        #expect(form.handle(KeyStroke("j")) == .handled)
-        #expect(!form.showsSizeCard)
-        #expect(form.field != .prompt)
-        // ⌘↩ now starts the work it shows.
-        guard case .start = form.handle(KeyStroke("CR", .command)) else {
-            Testing.Issue.record("expected start")
-            return
-        }
+        form.sized(goalSizing(), for: TaskSizer.key(big))
+        form.setSizingAside()
+        #expect(!form.showsSizeHint)
+        form.sized(goalSizing(), for: TaskSizer.key(big))
+        #expect(!form.showsSizeHint)
     }
 
     @Test func anAnswerForAPromptNoLongerTypedIsDropped() {
         var form = sizingForm()
-        #expect(form.sized(
+        form.sized(
             goalSizing("something else entirely that is long enough to be sized at all ok"),
             for: "something else entirely"
-        ) == .handled)
+        )
         #expect(form.sizing == nil)
         #expect(StartGoal.title(from: "make anchors survive page moves everywhere and then some more: rest")
             == "Make anchors survive page moves everywhere and then")

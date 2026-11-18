@@ -67,7 +67,13 @@ struct BrowseView: View {
         VStack(spacing: 0) {
             if layout == .third { BrowseCompactHeader() } else { BrowseHeader() }
             BrowseCount()
-            ListBody(count: rows.count, cursor: cursor, ids: rows.map(\.id), empty: emptyText, hintView: .browse) { index in
+            ListBody(
+                count: rows.count,
+                cursor: cursor,
+                ids: rows.map(\.id),
+                empty: emptyText,
+                hintView: .browse
+            ) { index in
                 if layout == .third {
                     BrowseCompactRow(item: rows[index], index: index, cursor: cursor, picked: picked)
                 } else {

@@ -156,10 +156,20 @@ struct BrowseBulkTests {
     @Test func theGhArgumentsAreOneFieldPerValue() {
         let a = issue(7, "A"), pull = issue(8, "B", kind: .pull)
         #expect(BrowseBulk.arguments(.label(["bug", "needs triage"]), item: a)
-            == ["api", "-X", "POST", "repos/acme/docs-toolkit/issues/7/labels", "-f", "labels[]=bug", "-f", "labels[]=needs triage"])
+            == [
+                "api",
+                "-X",
+                "POST",
+                "repos/acme/docs-toolkit/issues/7/labels",
+                "-f",
+                "labels[]=bug",
+                "-f",
+                "labels[]=needs triage",
+            ])
         #expect(BrowseBulk.arguments(.assignMe("me"), item: a)?.last == "assignees[]=me")
         #expect(BrowseBulk.arguments(.close(.notPlanned), item: a)?.suffix(2) == ["-f", "state_reason=not_planned"])
-        #expect(BrowseBulk.arguments(.close(.completed), item: pull)?.contains { $0.hasPrefix("state_reason") } == false)
+        #expect(BrowseBulk.arguments(.close(.completed), item: pull)?
+            .contains { $0.hasPrefix("state_reason") } == false)
         #expect(BrowseBulk.arguments(.comment("x"), item: a) == nil)
     }
 
@@ -174,7 +184,12 @@ struct BrowseBulkTests {
         let report = await BrowseBulk.run(plan, items: items) { _, item in
             if item.number == 2 { throw Boom() }
         }
-        #expect(report.entries.map(\.outcome) == [.skipped("already has bug"), .failed("403 forbidden"), .skipped("already has bug"), .done])
+        #expect(report.entries.map(\.outcome) == [
+            .skipped("already has bug"),
+            .failed("403 forbidden"),
+            .skipped("already has bug"),
+            .done,
+        ])
         #expect(report.summary == "Labelled 1 of 4 items. 2 left alone. 1 failed.")
         #expect(!report.clean && report.failed.count == 1)
         #expect(report.lines[1] == "acme/docs-toolkit#2  failed: 403 forbidden")

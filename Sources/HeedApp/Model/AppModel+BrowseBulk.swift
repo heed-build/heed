@@ -136,7 +136,7 @@ extension AppModel {
         switch action {
         case .none, .changed: break
         case .close:
-            let wasReport: Bool = if case .report = form.stage { true } else { false }
+            let wasReport = if case .report = form.stage { true } else { false }
             browse.bulk = nil
             if wasReport { clearPicks() }
         case .startEach:

@@ -118,13 +118,24 @@ public enum BrowseGrouping {
         if labels.isEmpty {
             // Labels any two share, as a softer answer.
             var counted: [String: Int] = [:]
-            for entry in best { for label in entry.labels where BrowseClass(word: label) != first.kind { counted[label, default: 0] += 1 } }
+            for entry in best {
+                for label in entry.labels where BrowseClass(word: label) != first.kind {
+                    counted[
+                        label,
+                        default: 0
+                    ] += 1
+                }
+            }
             labels = Set(counted.filter { $0.value >= 2 }.keys)
         }
         var shared = best.dropFirst().reduce(first.words) { $0.intersection($1.words) }
         if shared.isEmpty {
             var counted: [String: Int] = [:]
-            for entry in best { for word in entry.words { counted[word, default: 0] += 1 } }
+            for entry in best {
+                for word in entry.words {
+                    counted[word, default: 0] += 1
+                }
+            }
             shared = Set(counted.filter { $0.value >= 2 }.keys)
         }
         let ids = best.map(\.item.id)
@@ -188,9 +199,11 @@ public enum BrowseGrouping {
             parts.append("size " + (low == high ? low.rawValue : "\(low.rawValue)-\(high.rawValue)"))
             let ready = read.map(\.agentReady)
             let span = ready.min() == ready.max() ? "\(ready[0])%" : "\(ready.min()!)-\(ready.max()!)%"
-            let good = read.filter { $0.agentReady >= BrowseRead.readyLine }.count
+            let good = read.count(where: { $0.agentReady >= BrowseRead.readyLine })
             parts.append(
-                (good == items.count ? "all agent-ready" : good == 0 ? "none agent-ready" : "\(good) of \(items.count) agent-ready")
+                (good == items
+                    .count ? "all agent-ready" : good == 0 ? "none agent-ready" :
+                    "\(good) of \(items.count) agent-ready")
                     + " (\(span))"
             )
         }

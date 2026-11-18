@@ -306,7 +306,7 @@ struct TitleBar: View {
     /// stays beside it (`Browse ⌄  Attention 16`).
     private var narrowTabs: some View {
         HStack(spacing: 14) {
-            Menu {
+            ShotSafeMenu {
                 ForEach(AppView.tabs, id: \.self) { view in
                     Button(view.tabTitle) { model.perform(CommandInvocation(name: view.tabCommand)) }
                 }
@@ -318,7 +318,6 @@ struct TitleBar: View {
                 .padding(.horizontal, 10).padding(.vertical, 5)
                 .background(RoundedRectangle(cornerRadius: 7).fill(Theme.bg3))
             }
-            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
             .axID("view-tab-menu")
             if model.view.tab != .attention {
                 HStack(spacing: 6) {

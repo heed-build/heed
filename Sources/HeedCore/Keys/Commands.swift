@@ -1010,19 +1010,33 @@ public enum Commands {
             "Browse, with items picked: one session for the related ones, its prompt listing each issue with a Closes line",
             .selection
         ),
-        .init("browse.bulk.goal", "Browse, with items picked: a goal from all of them, planned with you first", .selection),
         .init(
-            "browse.bulk.each", "Browse, with items picked: one session for each (asks first above \(BrowseBulk.eachCap))",
+            "browse.bulk.goal",
+            "Browse, with items picked: a goal from all of them, planned with you first",
+            .selection
+        ),
+        .init(
+            "browse.bulk.each",
+            "Browse, with items picked: one session for each (asks first above \(BrowseBulk.eachCap))",
             .selection
         ),
         .init(
             "browse.bulk.label", "Browse, with items picked: add labels to all on GitHub, after a confirm step",
             .selection
         ),
-        .init("browse.bulk.assign", "Browse, with items picked: assign all to you on GitHub, after a confirm step", .selection),
-        .init("browse.bulk.comment", "Browse, with items picked: comment on all on GitHub, after a confirm step", .selection),
         .init(
-            "browse.bulk.close", "Browse, with items picked: close all on GitHub as completed or not planned, after a confirm step",
+            "browse.bulk.assign",
+            "Browse, with items picked: assign all to you on GitHub, after a confirm step",
+            .selection
+        ),
+        .init(
+            "browse.bulk.comment",
+            "Browse, with items picked: comment on all on GitHub, after a confirm step",
+            .selection
+        ),
+        .init(
+            "browse.bulk.close",
+            "Browse, with items picked: close all on GitHub as completed or not planned, after a confirm step",
             .selection
         ),
         .init("browse.clone.go", "Browse: clone the repo, then start the agent run", .selection),

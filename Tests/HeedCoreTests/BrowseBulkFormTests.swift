@@ -11,7 +11,9 @@ struct BrowseBulkFormTests {
     }
 
     private func type(_ form: inout BrowseBulkForm, _ text: String) {
-        for character in text { _ = form.handle(KeyStroke(character == " " ? "Space" : String(character))) }
+        for character in text {
+            _ = form.handle(KeyStroke(character == " " ? "Space" : String(character)))
+        }
     }
 
     @Test func aLabelIsTypedThenConfirmedThenRunOnlyOnEnter() {

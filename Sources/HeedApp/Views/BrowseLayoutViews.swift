@@ -66,18 +66,19 @@ struct BrowseCompactHeader: View {
 
     var body: some View {
         let query = model.browse.query
-        let filters = query.tokens.filter { token in
+        let filters = query.tokens.count(where: { token in
             switch token {
             case .type, .state(.open): false
             default: true
             }
-        }.count + 2
+        }) + 2
         HStack(spacing: 10) {
             HStack(spacing: 8) {
                 if let scope = query.scope {
                     Text(String(scope.title.prefix(1)).uppercased()).font(.system(size: 11, weight: .bold))
                         .foregroundStyle(Theme.ink).frame(width: 20, height: 20)
-                        .background(RoundedRectangle(cornerRadius: 5).fill(Repo(org: scope.owner, name: "").color.foreground))
+                        .background(RoundedRectangle(cornerRadius: 5)
+                            .fill(Repo(org: scope.owner, name: "").color.foreground))
                     Text(scope.title).font(Theme.ui(14.5, weight: .semibold)).lineLimit(1)
                 } else {
                     Text("Pick a scope").font(Theme.ui(14.5, weight: .semibold))
@@ -261,7 +262,7 @@ struct BrowseItemActions: View {
             button("Goal", "browse.bulk.goal")
             button("Comment", "browse.bulk.comment")
             if compact {
-                Menu {
+                ShotSafeMenu {
                     Button("Label…") { act("browse.bulk.label") }
                     Button("Assign to me") { act("browse.bulk.assign") }
                     Button("Close as…") { act("browse.bulk.close") }
@@ -270,7 +271,6 @@ struct BrowseItemActions: View {
                     Text("···").font(Theme.ui(15, weight: .semibold)).frame(width: 40, height: 34)
                         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.keyCapBorder))
                 }
-                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
             } else {
                 button("Label", "browse.bulk.label")
                 button("Close", "browse.bulk.close")
@@ -287,5 +287,20 @@ struct BrowseItemActions: View {
             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.keyCapBorder))
             .contentShape(Rectangle())
             .tap { act(command) }
+    }
+}
+
+/// A menu that offscreen renders (shots) draw as its label: AppKit's menu button does not render there.
+struct ShotSafeMenu<Label: View, Content: View>: View {
+    @ViewBuilder let content: Content
+    @ViewBuilder let label: Label
+
+    var body: some View {
+        if ShotMode.active {
+            label
+        } else {
+            Menu { content } label: { label }
+                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+        }
     }
 }

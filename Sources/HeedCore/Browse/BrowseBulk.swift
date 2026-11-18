@@ -92,13 +92,13 @@ public struct BrowseReport: Equatable, Sendable {
     public var action: BrowseBulkAction
     public var entries: [Entry]
 
-    public var done: Int { entries.filter { $0.outcome == .done }.count }
+    public var done: Int { entries.count(where: { $0.outcome == .done }) }
     public var failed: [Entry] { entries.filter { if case .failed = $0.outcome { true } else { false } } }
-    public var skipped: Int { entries.filter { if case .skipped = $0.outcome { true } else { false } }.count }
+    public var skipped: Int { entries.count(where: { if case .skipped = $0.outcome { true } else { false } }) }
 
     /// `Labelled 3 of 4 items. 1 failed.`
     public var summary: String {
-        let verb: String = switch action {
+        let verb = switch action {
         case .label: "Labelled"
         case .assignMe: "Assigned"
         case .comment: "Commented on"
@@ -138,7 +138,8 @@ public enum BrowseBulk {
             var step = BrowseStep(itemID: item.id, place: item.place, isPull: item.kind == .pull)
             switch action {
             case let .label(names):
-                let missing = names.filter { name in !item.labels.contains { $0.caseInsensitiveCompare(name) == .orderedSame } }
+                let missing = names
+                    .filter { name in !item.labels.contains { $0.caseInsensitiveCompare(name) == .orderedSame } }
                 if missing.isEmpty { step.skipped = "already has \(names.joined(separator: ", "))" } else {
                     step.change = "adds \(missing.joined(separator: ", "))"
                 }
@@ -217,9 +218,15 @@ public enum BrowseBulk {
     /// The real write: gh, `write: true`, caller `browse.bulk`.
     public static func write(_ action: BrowseBulkAction, item: BrowseItem) async throws {
         if case let .comment(body) = action {
-            return try await GitHub.comment(repo: item.repo, number: item.number, body: body, caller: BrowseBulkAction.caller)
+            return try await GitHub.comment(
+                repo: item.repo,
+                number: item.number,
+                body: body,
+                caller: BrowseBulkAction.caller
+            )
         }
-        guard let arguments = arguments(action, item: item) else { throw GitHub.Failure(description: "nothing to write") }
+        guard let arguments = arguments(action, item: item)
+        else { throw GitHub.Failure(description: "nothing to write") }
         let result = try await GitHub.gh(
             arguments, operation: "\(arguments[2]) issues", write: true, shown: arguments,
             timeout: .seconds(30), caller: BrowseBulkAction.caller
@@ -241,10 +248,10 @@ public enum BrowseBulk {
     }
 }
 
-extension BrowseBulk {
+public extension BrowseBulk {
     /// The item as it stands after `action` was written to it: labels added, you assigned, closed. The list shows it
     /// at once; the next fetch confirms it.
-    public static func updated(_ item: BrowseItem, by action: BrowseBulkAction) -> BrowseItem {
+    static func updated(_ item: BrowseItem, by action: BrowseBulkAction) -> BrowseItem {
         var item = item
         switch action {
         case let .label(names):

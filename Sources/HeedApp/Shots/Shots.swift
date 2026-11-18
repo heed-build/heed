@@ -842,7 +842,7 @@ enum Shots {
         }),
         Shot(id: "github/browse-scope", keys: "gv<D-k>gl"),
         // Four items picked: the reader is the bulk panel (design 4).
-        Shot(id: "github/browse-bulk", keys: "gv<Space>j<Space>jjj<Space>jjjj<Space>", highlight: [.browseBulk]),
+        Shot(id: "github/browse-bulk", keys: "gv<Space>j<Space>jjj<Space>jjjj<Space>"),
         // Half width (720): icon rail and list, the reader pushed over them (designs 11, 12).
         Shot(id: "github/browse-half-list", size: CGSize(width: 720, height: 900), keys: "gv"),
         Shot(id: "github/browse-half-detail", size: CGSize(width: 720, height: 900), keys: "gv", prepare: { model in

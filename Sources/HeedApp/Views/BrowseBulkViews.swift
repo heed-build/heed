@@ -99,7 +99,8 @@ struct BrowseBulkPanel: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "sparkle").font(.system(size: 13)).foregroundStyle(Theme.busy).padding(.top, 2)
             Text(group.map { BrowseGrouping.note($0, items: items) }
-                ?? "heed found no set among these that one session fits: they are in different repos or are different kinds of work.")
+                ??
+                "heed found no set among these that one session fits: they are in different repos or are different kinds of work.")
                 .font(Theme.ui(13.5)).fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)
@@ -148,13 +149,16 @@ struct BrowseBulkPanel: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 8).fill(primary ? Theme.busy.opacity(0.07) : .clear))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(primary ? Theme.busy : Theme.line, lineWidth: primary ? 1.5 : 1))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(
+            primary ? Theme.busy : Theme.line,
+            lineWidth: primary ? 1.5 : 1
+        ))
         .contentShape(Rectangle())
         .clickRuns(CommandInvocation(name: command))
     }
 
     private func onGitHub(_ items: [BrowseItem], reads: BrowseReads) -> some View {
-        let unread = items.filter { reads[$0.id] == nil }.count
+        let unread = items.count(where: { reads[$0.id] == nil })
         return VStack(alignment: .leading, spacing: 8) {
             sectionTitle("On GitHub")
             FlowLayout(spacing: 8) {
@@ -162,7 +166,11 @@ struct BrowseBulkPanel: View {
                 chip("Assign to me", "browse.bulk.assign")
                 chip("Comment on all", "browse.bulk.comment")
                 chip("Close as…", "browse.bulk.close")
-                if unread > 0 { chip("Read the \(unread) unread", "browse.read", key: model.keyText(for: "browse.read", in: "browse")) }
+                if unread > 0 { chip(
+                    "Read the \(unread) unread",
+                    "browse.read",
+                    key: model.keyText(for: "browse.read", in: "browse")
+                ) }
             }
             Text("Each asks first and lists exactly what it will change.").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
         }
@@ -186,7 +194,7 @@ struct BrowseBulkPanel: View {
     // MARK: Sheet (half and third widths)
 
     private func compact(_ items: [BrowseItem], reads: BrowseReads, group: BrowseGroup?) -> some View {
-        let unread = items.filter { reads[$0.id] == nil }.count
+        let unread = items.count(where: { reads[$0.id] == nil })
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text("\(items.count) selected").font(Theme.ui(17, weight: .semibold)).fixedSize()
@@ -210,19 +218,19 @@ struct BrowseBulkPanel: View {
                 HStack(spacing: 10) {
                     button("Goal", "browse.bulk.goal")
                     button("Each", "browse.bulk.each")
-                    Menu {
+                    ShotSafeMenu {
                         Button("Label…") { model.perform(CommandInvocation(name: "browse.bulk.label")) }
                         Button("Assign to me") { model.perform(CommandInvocation(name: "browse.bulk.assign")) }
                         Button("Comment on all…") { model.perform(CommandInvocation(name: "browse.bulk.comment")) }
                         Button("Close as…") { model.perform(CommandInvocation(name: "browse.bulk.close")) }
                         if unread > 0 {
-                            Button("Read the \(unread) unread") { model.perform(CommandInvocation(name: "browse.read")) }
+                            Button("Read the \(unread) unread") { model.perform(CommandInvocation(name: "browse.read"))
+                            }
                         }
                     } label: {
                         Text("···").font(Theme.ui(15, weight: .semibold)).frame(width: 44, height: 40)
                             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.keyCapBorder))
                     }
-                    .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
                 }
             }
         }
@@ -285,7 +293,9 @@ struct BrowseBulkStep: View {
                 HStack(spacing: 14) {
                     HStack(spacing: 6) { KeyCap(text: "↩"); Text("write it").font(Theme.ui(13, weight: .semibold)) }
                         .clickRuns(nil)
-                    HStack(spacing: 6) { KeyCap(text: "esc"); Text("cancel").font(Theme.ui(13)).foregroundStyle(Theme.fg2) }
+                    HStack(spacing: 6) {
+                        KeyCap(text: "esc"); Text("cancel").font(Theme.ui(13)).foregroundStyle(Theme.fg2)
+                    }
                 }
             case .confirmEach:
                 title("Start \(form.items.count) sessions?")
@@ -293,7 +303,9 @@ struct BrowseBulkStep: View {
                     .font(Theme.ui(13)).foregroundStyle(Theme.fg2)
                 HStack(spacing: 14) {
                     HStack(spacing: 6) { KeyCap(text: "↩"); Text("start them").font(Theme.ui(13, weight: .semibold)) }
-                    HStack(spacing: 6) { KeyCap(text: "esc"); Text("cancel").font(Theme.ui(13)).foregroundStyle(Theme.fg2) }
+                    HStack(spacing: 6) {
+                        KeyCap(text: "esc"); Text("cancel").font(Theme.ui(13)).foregroundStyle(Theme.fg2)
+                    }
                 }
             case .running:
                 HStack(spacing: 8) {

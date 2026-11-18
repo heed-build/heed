@@ -3303,7 +3303,8 @@ final class AppModel {
         case "view.browse", "browse.open", "browse.scope", "browse.scope.next", "browse.scope.prev",
              "browse.query.next", "browse.query.prev", "browse.query.save", "browse.older", "browse.refresh",
              "browse.sort", "browse.filter.add", "browse.filter.remove", "browse.query.rename", "browse.query.delete",
-             "browse.query.up", "browse.query.down", "browse.view.new":
+             "browse.query.up", "browse.query.down", "browse.view.new", "browse.read", "browse.fix", "browse.implement",
+             "browse.chat", "browse.review", "browse.tell":
             performBrowse(command)
         case "view.autopilot", "view.watch", "autopilot.cando", "autopilot.where", "autopilot.now", "autopilot.done",
              "autopilot.move", "autopilot.on", "autopilot.ask", "autopilot.off", "autopilot.everywhere",
@@ -3701,7 +3702,7 @@ final class AppModel {
             return
         }
         if view == .watch { mergeQueueShown = nil }
-        if [.attention, .prs, .watch].contains(view) {
+        if [.attention, .browse, .prs, .watch].contains(view) {
             let count = itemIDs(view).count
             guard count > 0 else { return }
             itemCursor[view] = min(max(index, 0), count - 1)
@@ -4517,7 +4518,7 @@ final class AppModel {
     // MARK: Repos view
 
     private func toggleRow() {
-        if [.attention, .prs, .watch].contains(view) {
+        if [.attention, .browse, .prs, .watch].contains(view) {
             let ids = itemIDs(view)
             let index = itemCursor[view] ?? 0
             guard ids.indices.contains(index) else { return }

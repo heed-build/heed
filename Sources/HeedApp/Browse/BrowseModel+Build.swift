@@ -10,7 +10,8 @@ extension BrowseModel {
     func builderContext(wordsOff: String?, now: Date = Clock.now) -> BrowseBuilder.Context {
         BrowseBuilder.Context(
             items: items, viewer: viewer, maxAgeDays: settings.maxAgeDays, now: now,
-            projects: scopes.filter { if case .project = $0 { true } else { false } }, wordsOff: wordsOff
+            projects: scopes.filter { if case .project = $0 { true } else { false } }, wordsOff: wordsOff,
+            reads: reads
         )
     }
 
@@ -132,7 +133,9 @@ extension BrowseModel {
                 try? await Task.sleep(for: .seconds(pause))
                 guard let self, front() else { break }
                 let now = Date()
-                let due = queries.filter { now.timeIntervalSince(countedAt[$0.id] ?? .distantPast) > stale }
+                // GitHub cannot count heed's own filters: those queries count what is cached and read.
+                let due = queries.filter { $0.query.localTokens.isEmpty }
+                    .filter { now.timeIntervalSince(countedAt[$0.id] ?? .distantPast) > stale }
                     .min { (countedAt[$0.id] ?? .distantPast) < (countedAt[$1.id] ?? .distantPast) }
                 guard let saved = due else { continue }
                 countedAt[saved.id] = now

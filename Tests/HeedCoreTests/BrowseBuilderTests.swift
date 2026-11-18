@@ -155,11 +155,14 @@ struct BrowseBuilderTests {
         #expect(picked.handle(.escape) == .close)
     }
 
-    @Test func theHeedFieldsAreListedButOpenNothing() {
+    @Test func theHeedFieldsOpenAPickerLikeTheOthers() {
         var picked = builder()
-        #expect(BrowseField.allCases.filter { $0.disabledReason != nil } == [.heedClass, .heedSize, .heedReady])
+        #expect(BrowseField.allCases.filter { $0.disabledReason != nil }.isEmpty)
         picked.open(.heedClass)
-        #expect(picked.stage == .fields)
+        #expect(picked.stage == .values(.heedClass))
+        #expect(picked.picker?.options.map(\.value) == ["bug", "feature", "docs", "question", "chore"])
+        picked.open(.heedSize)
+        #expect(picked.picker?.options.map(\.value) == ["S", "M", "L"])
     }
 
     @Test func copyGivesTheRawQuery() {

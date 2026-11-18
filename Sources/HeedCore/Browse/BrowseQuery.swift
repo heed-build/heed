@@ -36,10 +36,36 @@ public enum BrowseToken: Hashable, Sendable, Codable {
     case team(String)
     case language(String)
     case archived(Bool)
+    /// heed's own read of an item (`BrowseRead`), kept on this Mac: these never go to GitHub, they narrow what GitHub
+    /// answered. An item heed has not read yet matches none of them.
+    case heedClass([BrowseClass])
+    case heedSize([BrowseSize])
+    /// Agent-ready at least this much (0 to 100).
+    case heedReady(Int)
     /// Words searched for in titles and bodies.
     case text(String)
     /// A qualifier heed does not model (`topic:`, `language:`, `sort:`…), kept as written so nothing is lost.
     case raw(String)
+}
+
+public extension BrowseToken {
+    /// A chip's name and value for heed's own filters: `heed: class` `bug, feature`; nil for the rest.
+    var heedChip: (String, String)? {
+        switch self {
+        case let .heedClass(classes): ("heed: class", classes.map(\.rawValue).joined(separator: ", "))
+        case let .heedSize(sizes): ("heed: size", sizes.map(\.rawValue).joined(separator: ", "))
+        case let .heedReady(least): ("heed: agent-ready", "≥ \(least)%")
+        default: nil
+        }
+    }
+
+    /// Whether it narrows by heed's read, which GitHub knows nothing of.
+    var isLocal: Bool {
+        switch self {
+        case .heedClass, .heedSize, .heedReady: true
+        default: false
+        }
+    }
 }
 
 /// A Browse query: a scope and a list of tokens. `rendered` turns it into the GitHub search string, `parse` reads one
@@ -55,6 +81,10 @@ public struct BrowseQuery: Hashable, Sendable, Codable {
         self.tokens = tokens
         self.showOlder = showOlder
     }
+
+    /// The tokens GitHub is asked, and the ones heed applies to what it answered.
+    public var githubTokens: [BrowseToken] { tokens.filter { !$0.isLocal } }
+    public var localTokens: [BrowseToken] { tokens.filter(\.isLocal) }
 
     /// Whether the query carries its own `updated:` token, so the cap does not apply.
     public var hasOwnActivity: Bool {
@@ -128,6 +158,7 @@ public struct BrowseQuery: Hashable, Sendable, Codable {
         case let .archived(value): return ["archived:\(value)"]
         case let .text(text): return [text]
         case let .raw(text): return [text]
+        case .heedClass, .heedSize, .heedReady: return []
         }
     }
 

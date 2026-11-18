@@ -1,7 +1,7 @@
 import Foundation
 
-/// A field the add-filter popover offers. The first ten are what GitHub's search knows; the heed fields wait for
-/// classification (they are listed so the list does not change when it lands); `githubQuery` is the raw search.
+/// A field the add-filter popover offers. The first eleven are what GitHub's search knows; the heed fields filter by
+/// heed's own read of items, on this Mac, and are never sent to GitHub; `githubQuery` is the raw search.
 public enum BrowseField: String, CaseIterable, Hashable, Sendable {
     case label, type, state, assignee, author, repo, age, activity, linkedPull, project, milestone
     case heedClass, heedSize, heedReady, githubQuery
@@ -65,22 +65,20 @@ public enum BrowseField: String, CaseIterable, Hashable, Sendable {
         }
     }
 
-    /// Why a field filters nothing yet.
-    public var disabledReason: String? {
-        switch self {
-        case .heedClass, .heedSize, .heedReady: "needs heed's read of items, which is not built yet"
-        default: nil
-        }
-    }
+    /// Why a field cannot be used now: never at present, every field works.
+    public var disabledReason: String? { nil }
 
-    public var isMultiple: Bool { self == .label }
+    /// Whether several values may be ticked, and whether any / all / none applies to them.
+    public var isMultiple: Bool { self == .label || self == .heedClass || self == .heedSize }
+    public var hasMode: Bool { self == .label }
 
     /// Whether a token is this field's.
     public func owns(_ token: BrowseToken) -> Bool {
         switch (self, token) {
         case (.label, .label), (.type, .type), (.state, .state), (.assignee, .assignee), (.author, .author),
              (.repo, .repo), (.age, .created), (.activity, .activity), (.linkedPull, .linkedPull),
-             (.project, .project), (.milestone, .milestone): true
+             (.project, .project), (.milestone, .milestone), (.heedClass, .heedClass), (.heedSize, .heedSize),
+             (.heedReady, .heedReady): true
         case let (.assignee, .raw(text)): text == "no:assignee"
         default: false
         }
@@ -146,11 +144,14 @@ public struct BrowseBuilder: Sendable {
         public var projects: [BrowseScope]
         /// Whether words can go to the model, or why not.
         public var wordsOff: String?
+        /// heed's reads by item id.
+        public var reads: BrowseReads
 
         public init(
             items: [BrowseItem], viewer: String? = nil, maxAgeDays: Int = 90, now: Date, projects: [BrowseScope] = [],
-            wordsOff: String? = nil
+            wordsOff: String? = nil, reads: BrowseReads = [:]
         ) {
+            self.reads = reads
             self.items = items
             self.viewer = viewer
             self.maxAgeDays = maxAgeDays
@@ -328,7 +329,8 @@ public struct BrowseBuilder: Sendable {
             in: context.items,
             viewer: context.viewer,
             maxAgeDays: context.maxAgeDays,
-            now: context.now
+            now: context.now,
+            reads: context.reads
         )
     }
 
@@ -337,8 +339,15 @@ public struct BrowseBuilder: Sendable {
         let field: BrowseField? = if case let .values(field) = stage { field } else { nil }
         let wide = field.map(without) ?? base
         let narrow = field.map(previewOf) ?? preview
-        let all = BrowseFilter(query: wide, viewer: context.viewer, maxAgeDays: context.maxAgeDays)
-        let kept = BrowseFilter(query: narrow, viewer: context.viewer, maxAgeDays: context.maxAgeDays)
+        let all = BrowseFilter(
+            query: wide,
+            viewer: context.viewer,
+            maxAgeDays: context.maxAgeDays,
+            reads: context.reads
+        )
+        let kept = BrowseFilter(
+            query: narrow, viewer: context.viewer, maxAgeDays: context.maxAgeDays, reads: context.reads
+        )
         let window = context.maxAgeDays > 0 ? context.maxAgeDays : 90
         return BrowseHistogram.of(
             context.items.filter { all.matches($0, now: context.now) },
@@ -362,9 +371,11 @@ public struct BrowseBuilder: Sendable {
     static let unassigned = "~unassigned"
 
     func options(for field: BrowseField) -> [BrowsePicker.Option] {
-        let scoped = BrowseFilter(query: without(field), viewer: context.viewer, maxAgeDays: context.maxAgeDays)
-            .apply(to: context.items, now: context.now)
-        let facets = BrowseFacets(of: scoped)
+        let scoped = BrowseFilter(
+            query: without(field), viewer: context.viewer, maxAgeDays: context.maxAgeDays, reads: context.reads
+        )
+        .apply(to: context.items, now: context.now)
+        let facets = BrowseFacets(of: scoped, reads: context.reads)
         func ranked(_ counts: [String: Int]) -> [BrowsePicker.Option] {
             BrowseFacets.ranked(counts).map { BrowsePicker.Option($0.name, count: $0.count) }
         }
@@ -402,9 +413,30 @@ public struct BrowseBuilder: Sendable {
         case .linkedPull: return counted([("yes", "has a linked PR"), ("no", "has none")])
         case .age: return counted(Self.agePresets)
         case .activity: return counted(Self.activityPresets)
-        case .heedClass, .heedSize, .heedReady, .githubQuery: return []
+        case .heedClass:
+            return BrowseClass.allCases.map {
+                BrowsePicker.Option($0.rawValue, label: $0.title, count: facets.classes[$0] ?? 0)
+            }
+        case .heedSize:
+            return BrowseSize.allCases.map {
+                BrowsePicker.Option(
+                    $0.rawValue, label: "\($0.rawValue) · \($0.title.lowercased())", count: facets.sizes[$0] ?? 0
+                )
+            }
+        case .heedReady:
+            return Self.readyPresets.map { value, label in
+                var query = without(field)
+                query.tokens += tokens(for: field, [value], mode: .any)
+                return BrowsePicker.Option(value, label: label, count: count(query))
+            }
+        case .githubQuery: return []
         }
     }
+
+    static let readyPresets: [(String, String)] = [
+        ("90", "at least 90% agent-ready"), ("70", "at least 70%: ready for an agent"), ("50", "at least 50%"),
+        ("0", "read by heed, any readiness"),
+    ]
 
     func tokens(for field: BrowseField, _ values: [String], mode: BrowseLabelMode) -> [BrowseToken] {
         func span(_ value: String) -> BrowseSpan? {
@@ -430,7 +462,10 @@ public struct BrowseBuilder: Sendable {
         case .linkedPull: return [.linkedPull(values[0] == "yes")]
         case .age: return span(values[0]).map { [.created($0)] } ?? []
         case .activity: return span(values[0]).map { [.activity($0)] } ?? []
-        case .heedClass, .heedSize, .heedReady, .githubQuery: return []
+        case .heedClass: return [.heedClass(values.compactMap { BrowseClass(rawValue: $0) })]
+        case .heedSize: return [.heedSize(values.compactMap { BrowseSize(rawValue: $0) })]
+        case .heedReady: return Int(values[0]).map { [.heedReady($0)] } ?? []
+        case .githubQuery: return []
         }
     }
 
@@ -454,6 +489,9 @@ public struct BrowseBuilder: Sendable {
             case let .type(type): values.append(type == .issues ? "issues" : "pulls")
             case let .state(state): values.append(state.rawValue)
             case let .linkedPull(linked): values.append(linked ? "yes" : "no")
+            case let .heedClass(classes): values += classes.map(\.rawValue)
+            case let .heedSize(sizes): values += sizes.map(\.rawValue)
+            case let .heedReady(least): values.append("\(least)")
             case let .created(span), let .activity(span):
                 switch span {
                 case let .newerThan(days): values.append("n\(days)")
@@ -618,10 +656,10 @@ public struct BrowseBuilder: Sendable {
             self.picker = picker
             startSaving()
             return .changed
-        case KeyStroke("Tab") where field.isMultiple:
+        case KeyStroke("Tab") where field.hasMode:
             cycleMode(by: 1)
             return .changed
-        case KeyStroke("Tab", .shift) where field.isMultiple:
+        case KeyStroke("Tab", .shift) where field.hasMode:
             cycleMode(by: -1)
             return .changed
         default: break
@@ -652,7 +690,10 @@ public struct BrowseBuilder: Sendable {
         case KeyStroke("c", .command): return .copy(input.text)
         case KeyStroke("CR"):
             let parsed = parsedRaw
-            var query = BrowseQuery(scope: base.scope, tokens: parsed.tokens, showOlder: parsed.showOlder)
+            // heed's own filters are not part of GitHub's query: they stay as they were.
+            var query = BrowseQuery(
+                scope: base.scope, tokens: parsed.tokens + base.localTokens, showOlder: parsed.showOlder
+            )
             if parsed.tokens
                 .contains(where: { if case .org = $0 { true } else if case .repo = $0 { true } else { false } })
             {

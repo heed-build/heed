@@ -11,11 +11,14 @@ public struct BrowseFilter: Hashable, Sendable {
     /// Your login, which `@me` stands for.
     public var viewer: String?
     public var maxAgeDays: Int
+    /// heed's reads by item id, for the filters on class, size and agent-ready.
+    public var reads: BrowseReads
 
-    public init(query: BrowseQuery, viewer: String? = nil, maxAgeDays: Int = 90) {
+    public init(query: BrowseQuery, viewer: String? = nil, maxAgeDays: Int = 90, reads: BrowseReads = [:]) {
         self.query = query
         self.viewer = viewer
         self.maxAgeDays = maxAgeDays
+        self.reads = reads
     }
 
     public func matches(_ item: BrowseItem, now: Date) -> Bool {
@@ -65,6 +68,9 @@ public struct BrowseFilter: Hashable, Sendable {
                 .allSatisfy { item.title.contains(String($0)) || item.place.localizedCaseInsensitiveContains($0) }
         // What an item does not say (its repo's topic, team, language) is GitHub's to judge, as with `raw`.
         case .raw, .topic, .team, .language, .archived: return true
+        case let .heedClass(classes): return reads[item.id].map { classes.contains($0.kind) } ?? false
+        case let .heedSize(sizes): return reads[item.id].map { sizes.contains($0.size) } ?? false
+        case let .heedReady(least): return reads[item.id].map { $0.agentReady >= least } ?? false
         }
     }
 
@@ -97,8 +103,13 @@ public struct BrowseFacets: Equatable, Sendable {
     public var projects: [String: Int] = [:]
     public var issues = 0
     public var pulls = 0
+    public var classes: [BrowseClass: Int] = [:]
+    public var sizes: [BrowseSize: Int] = [:]
+    /// Items heed has read, and those it has read as ready at `BrowseRead.readyLine` or more.
+    public var read = 0
+    public var ready = 0
 
-    public init(of items: [BrowseItem]) {
+    public init(of items: [BrowseItem], reads: BrowseReads = [:]) {
         for item in items {
             repos[item.repo.slug, default: 0] += 1
             orgs[item.repo.org, default: 0] += 1
@@ -114,6 +125,12 @@ public struct BrowseFacets: Equatable, Sendable {
                 projects[project, default: 0] += 1
             }
             if item.kind == .issue { issues += 1 } else { pulls += 1 }
+            if let read = reads[item.id] {
+                self.read += 1
+                classes[read.kind, default: 0] += 1
+                sizes[read.size, default: 0] += 1
+                if read.agentReady >= BrowseRead.readyLine { ready += 1 }
+            }
         }
     }
 
@@ -132,9 +149,10 @@ public extension BrowseFilter {
         in items: [BrowseItem],
         viewer: String?,
         maxAgeDays: Int,
-        now: Date
+        now: Date,
+        reads: BrowseReads = [:]
     ) -> Int {
-        let filter = BrowseFilter(query: query, viewer: viewer, maxAgeDays: maxAgeDays)
+        let filter = BrowseFilter(query: query, viewer: viewer, maxAgeDays: maxAgeDays, reads: reads)
         return items.count(where: { filter.matches($0, now: now) })
     }
 }

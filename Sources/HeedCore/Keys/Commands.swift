@@ -969,6 +969,20 @@ public enum Commands {
             "Browse: make a view of the org you are in (topic, team, language) and pin it",
             .selection
         ),
+        .init(
+            "browse.read",
+            "Browse: heed reads the items under the cursor or picked (class, size, how agent-ready, a TL;DR), again if stale",
+            .selection
+        ),
+        .init("browse.fix", "Browse: work on the item with an agent: reproduce, fix, test, open a PR", .selection),
+        .init("browse.implement", "Browse: work on the item with an agent: build it with tests, open a PR", .selection),
+        .init("browse.chat", "Browse: chat about the item with an agent, no edits", .selection),
+        .init(
+            "browse.review",
+            "Browse: review the pull request with an agent; nothing is posted without you",
+            .selection
+        ),
+        .init("browse.tell", "Browse: tell an agent what to do with the item, in your own words", .selection),
         .init("attention.session", "go to the item's session", .selection),
         .init(
             "attention.filter", "next Attention tab (Muted after Everything), or the one named", .selection,

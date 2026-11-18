@@ -42,6 +42,12 @@ final class BrowseModel {
     private(set) var newQueries: Set<String> = []
     /// How many repos an org has, as GitHub said.
     private(set) var repoCounts: [String: Int] = [:]
+    /// heed's reads of items, by item id: local to this Mac, never written to GitHub.
+    var reads: BrowseReads = [:]
+    /// Reads being written (or queued), and why one failed, by item id.
+    var readRuns: [String: SummaryRun] = [:]
+    var readFailures: [String: SummaryFailure] = [:]
+    var readProgress: SummaryProgress?
     var palette: BrowsePalette?
     /// The add-filter popover (`/`), and the org view builder ("Create <org> view").
     var builder: BrowseBuilder?
@@ -52,6 +58,8 @@ final class BrowseModel {
     private(set) var settings = BrowseSettings()
     private(set) var viewer: String?
     let fixture: Bool
+    /// What happens once a fetch landed: the ahead reads of the view.
+    @ObservationIgnored var landed: (() -> Void)?
     @ObservationIgnored private var fetchTask: Task<Void, Never>?
     @ObservationIgnored private var started = false
 
@@ -70,14 +78,21 @@ final class BrowseModel {
         guard let store else { return }
         do {
             if try await !store.flag("starters") {
-                for starter in SavedQuery.starters {
+                // Agent-ready leads; the others follow.
+                for starter in [SavedQuery.agentReady] + SavedQuery.starters {
                     try await store.save(starter)
                 }
                 try await store.setFlag("starters")
+                try await store.setFlag("starter-agent-ready")
+            } else if try await !store.flag("starter-agent-ready") {
+                // Added with heed's read: once for those who had the first four, at the end.
+                try await store.save(SavedQuery.agentReady)
+                try await store.setFlag("starter-agent-ready")
             }
             queries = try await store.savedQueries()
             scopes = try await store.scopes()
             items = try await store.items()
+            reads = try await store.reads()
             if let last = try await store.last() {
                 query = last.query
                 query.scope = last.scope
@@ -93,7 +108,8 @@ final class BrowseModel {
     /// The fake world's: no store, what the fixtures say.
     func adoptFixtures() {
         let data = Fixtures.Browse.self
-        items = data.items
+        items = data.cached
+        reads = data.reads
         queries = data.queries
         scopes = data.scopes
         scopeTotals = data.scopeTotals
@@ -114,8 +130,11 @@ final class BrowseModel {
 
     // MARK: What the list shows
 
-    func refilter(now: Date = Clock.now) {
-        var kept = BrowseFilter(query: query, viewer: viewer, maxAgeDays: settings.maxAgeDays)
+    func refilter(now: Date = Clock.now) { rows = narrowed(query, now: now) }
+
+    /// The items `query` keeps, in the sort order, and the search words (`/` in the list) over them.
+    private func narrowed(_ query: BrowseQuery, now: Date) -> [BrowseItem] {
+        var kept = BrowseFilter(query: query, viewer: viewer, maxAgeDays: settings.maxAgeDays, reads: reads)
             .apply(to: items, sort: sort, now: now)
         let words = search.trimmingCharacters(in: .whitespaces)
         if !words.isEmpty {
@@ -127,7 +146,24 @@ final class BrowseModel {
                 }
             }
         }
-        rows = kept
+        return kept
+    }
+
+    /// The rows heed may read: the view without heed's own filters (they need a read to match, so a view narrowed by
+    /// them would never show what is still unread).
+    func readCandidates(now: Date = Clock.now) -> [BrowseItem] {
+        var open = query
+        open.tokens = query.githubTokens
+        return narrowed(open, now: now)
+    }
+
+    /// Keeps heed's read of an item: in memory, on this Mac's disk, and in the list (a filter on it may now match).
+    func keepRead(_ read: BrowseRead) {
+        reads[read.itemID] = read
+        readFailures[read.itemID] = nil
+        refilter()
+        let store = store
+        Task { try? await store?.save(read) }
     }
 
     func setSearch(_ text: String) {
@@ -145,13 +181,14 @@ final class BrowseModel {
     func count(of scope: BrowseScope, now: Date = Clock.now) -> Int {
         scopeTotals[scope.id] ?? BrowseFilter.count(
             BrowseQuery(scope: scope, tokens: [.state(.open)]), in: items, viewer: viewer,
-            maxAgeDays: settings.maxAgeDays, now: now
+            maxAgeDays: settings.maxAgeDays, now: now, reads: reads
         )
     }
 
     func count(of saved: SavedQuery, now: Date = Clock.now) -> Int {
-        queryTotals[saved.id] ?? BrowseFilter.count(
-            saved.query, in: items, viewer: viewer, maxAgeDays: settings.maxAgeDays, now: now
+        // A query with heed's own filters has more than GitHub's total: the cache's count, narrowed by the reads.
+        (saved.query.localTokens.isEmpty || fixture ? queryTotals[saved.id] : nil) ?? BrowseFilter.count(
+            saved.query, in: items, viewer: viewer, maxAgeDays: settings.maxAgeDays, now: now, reads: reads
         )
     }
 
@@ -260,12 +297,13 @@ final class BrowseModel {
         items = Array(byID.values)
         meta = Meta(total: result.total, capped: result.capped, hidden: result.hidden, fetchedAt: result.fetchedAt)
         if let scope = asked.scope, asked.tokens == [.state(.open)] { scopeTotals[scope.id] = result.total }
-        if let id = activeQuery {
+        if let id = activeQuery, asked.localTokens.isEmpty {
             queryTotals[id] = result.total
             countedAt[id] = Date()
         }
         load = .idle
         refilter()
+        landed?()
         let store = store
         let kept = result.items
         Task { try? await store?.record(kept, now: Date()) }

@@ -820,6 +820,12 @@ enum Shots {
     /// Browse (`gv`): an org's open items with the thread beside them, and the quick jump with a big org's warning.
     static let browse: [Shot] = [
         Shot(id: "github/browse", keys: "gv"),
+        // heed's read of the item under the cursor, and the four verbs with the suggested one outlined (design 8).
+        Shot(id: "github/browse-read", keys: "gv", highlight: [.browseRead, .browseWork]),
+        // An item under 50% agent-ready: Chat leads, Fix is on offer with a caveat (design 9).
+        Shot(id: "github/browse-chat", keys: "gvjjj", highlight: [.browseWork]),
+        // A pull request awaiting your review: Review leads (design 10).
+        Shot(id: "github/browse-review", keys: "gvjjjjjj", highlight: [.browseWork]),
         Shot(id: "github/browse-scope", keys: "gv<D-k>gl"),
         // `/`: words, read into tokens (the fixture's answer, no model); the fields below them.
         Shot(id: "github/browse-build-type", keys: "gv/agent ready bugs nobody touched<CR>"),

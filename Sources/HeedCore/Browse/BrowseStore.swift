@@ -18,6 +18,8 @@ public actor BrowseStore {
     private let database: SQLiteDatabase
 
     public static let retention: TimeInterval = 30 * 24 * 60 * 60
+    /// Reads stay longer than the items: a read cost a model call.
+    public static let readRetention: TimeInterval = 90 * 24 * 60 * 60
 
     /// `~/Library/Application Support/Heed/browse.sqlite`.
     public static func defaultFile() -> URL {
@@ -70,6 +72,16 @@ public actor BrowseStore {
             value TEXT NOT NULL
         );
         """),
+        // heed's reads of items: local to this Mac, one per item, the `updatedAt` it was read at inside.
+        SQLiteMigration(sql: """
+        CREATE TABLE reads (
+            id TEXT PRIMARY KEY,
+            read_at REAL NOT NULL,
+            item_updated_at REAL NOT NULL,
+            read TEXT NOT NULL
+        );
+        CREATE INDEX reads_read_at ON reads (read_at);
+        """),
     ]
 
     // MARK: Items
@@ -98,6 +110,30 @@ public actor BrowseStore {
             try? JSONDecoder.heed.decode(BrowseItem.self, from: row[0].data ?? Data())
         }
         .compactMap { $0 }
+    }
+
+    // MARK: heed's reads
+
+    /// Keeps a read, replacing the item's earlier one.
+    public func save(_ read: BrowseRead) throws {
+        try database.run(
+            """
+            INSERT INTO reads (id, read_at, item_updated_at, read) VALUES (?1, ?2, ?3, ?4)
+            ON CONFLICT (id) DO UPDATE SET read_at = ?2, item_updated_at = ?3, read = ?4
+            """,
+            [.text(read.itemID), SQLiteValue(read.readAt), SQLiteValue(read.itemUpdatedAt), .text(Self.json(read))]
+        )
+    }
+
+    /// The reads kept, by item id. One that no longer decodes is skipped.
+    public func reads(now: Date = Date()) throws -> BrowseReads {
+        let rows = try database.query(
+            "SELECT read FROM reads WHERE read_at >= ?",
+            [SQLiteValue(now.addingTimeInterval(-Self.readRetention))]
+        ) { row -> BrowseRead? in
+            try? JSONDecoder.heed.decode(BrowseRead.self, from: row[0].data ?? Data())
+        }
+        return Dictionary(rows.compactMap { $0 }.map { ($0.itemID, $0) }) { _, last in last }
     }
 
     // MARK: Saved queries
@@ -184,10 +220,13 @@ public actor BrowseStore {
 
     // MARK: Retention
 
-    /// Drops items not fetched for 30 days.
+    /// Drops items not fetched for 30 days, and reads older than 90.
     public func prune(now: Date) throws {
         try database.run(
             "DELETE FROM items WHERE fetched_at < ?", [SQLiteValue(now.addingTimeInterval(-Self.retention))]
+        )
+        try database.run(
+            "DELETE FROM reads WHERE read_at < ?", [SQLiteValue(now.addingTimeInterval(-Self.readRetention))]
         )
     }
 

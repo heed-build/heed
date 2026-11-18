@@ -33,9 +33,11 @@ extension AppModel {
         browse.configure(config.browse, viewer: github.viewer)
         browse.refilter()
         if (itemCursor[.browse] ?? 0) >= browse.rows.count { itemCursor[.browse] = 0 }
+        browse.landed = { [weak self] in self?.queueAheadBrowseReads() }
         browse.fetch()
         browse.startCounts { [weak self] in self?.view == .browse }
         browseSelectionChanged()
+        queueAheadBrowseReads()
     }
 
     /// The row under the cursor changed: the thread loads once the cursor rests on it.
@@ -46,6 +48,7 @@ extension AppModel {
             try? await Task.sleep(for: .milliseconds(500))
             guard view == .browse, browseSelected?.id == item.id else { return }
             loadConversation(item.repo, item.number, updatedAt: item.updatedAt)
+            browseReadOnOpen(item)
         }
     }
 
@@ -93,6 +96,12 @@ extension AppModel {
             browseQueryChanged()
             say(browse.query.showOlder ? "showing older items" : "back to the last \(browse.cap)")
         case "browse.refresh": browse.fetch()
+        case "browse.read": browseReadNow()
+        case "browse.fix": browseVerb(.fix)
+        case "browse.implement": browseVerb(.implement)
+        case "browse.chat": browseVerb(.chat)
+        case "browse.review": browseVerb(.review)
+        case "browse.tell": browseTell()
         case "browse.sort":
             browse.cycleSort()
             itemCursor[.browse] = 0
@@ -104,6 +113,7 @@ extension AppModel {
     private func browseQueryChanged() {
         itemCursor[.browse] = 0
         browseSelectionChanged()
+        queueAheadBrowseReads()
     }
 
     // MARK: Quick jump (⌘K)

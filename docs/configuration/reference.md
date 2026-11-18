@@ -272,6 +272,12 @@ max_age_days = 90
 # An org with more repos than this is offered a view of its own (a topic, a team, a language) before the whole
 # org is browsed. 0 never asks.
 many_repos = 200
+# heed reads items with a cheap model call (class, size, how ready an agent is to take it, a TL;DR), kept on this Mac
+# and never written to GitHub. "ahead" reads the top rows of the view and the item under the cursor, "open" only the
+# item under the cursor, "off" only when you ask (U). Reads count against [llm]'s daily cap.
+reads = "ahead"
+# How many rows from the top of the view are read ahead of time. 0 reads none ahead.
+read_ahead = 20
 
 [summary]
 # While you were away: what still waits on you, then what merged, how background runs ended, which agents

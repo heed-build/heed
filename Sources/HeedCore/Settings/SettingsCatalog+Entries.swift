@@ -649,6 +649,19 @@ extension SettingsCatalog {
                 + "never asks.",
             level: .advanced, since: "0.47.0"
         ) { .integer($0.browse.manyRepos) },
+        global(
+            "browse.reads", .github, "Browse", "Browse: heed's read",
+            "heed reads items (class, size, how agent-ready, a TL;DR) with a cheap model call, kept on this Mac and "
+                + "never written to GitHub. Ahead: the top rows of the view and the item under the cursor; On open: "
+                + "only the item under the cursor; Off: only when you ask.",
+            since: "0.47.0"
+        ) { .text($0.browse.reads.rawValue) },
+        global(
+            "browse.read_ahead", .github, "Browse", "Browse: rows read ahead",
+            "How many rows from the top of the view heed reads ahead of time, within the daily cap of model calls. 0 "
+                + "reads none ahead.",
+            level: .advanced, since: "0.47.0"
+        ) { .integer($0.browse.readAhead) },
     ]
 
     static let attention: [SettingsEntry] = [

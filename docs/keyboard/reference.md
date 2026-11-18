@@ -418,11 +418,17 @@ This page is generated from the code (`mise run shots`).
 | `browse.sort` | `T` (browse) | Browse: next sort (updated, created, comments, oldest) |
 | `browse.filter.add` | `/` (browse) | Browse: add a filter: pick a field, type words, or paste a GitHub query |
 | `browse.filter.remove` | `x` (browse) | Browse: take the last filter off the query |
-| `browse.query.rename` | `R` (browse) | Browse: rename the saved query you are on, or change its glyph and tint |
+| `browse.query.rename` | `N` (browse) | Browse: rename the saved query you are on, or change its glyph and tint |
 | `browse.query.delete` | `D` (browse) | Browse: remove the saved query you are on from the rail |
 | `browse.query.up` | `[Q` (browse) | Browse: move the saved query you are on one place up the rail |
 | `browse.query.down` | `]Q` (browse) | Browse: move the saved query you are on one place down the rail |
 | `browse.view.new` |  | Browse: make a view of the org you are in (topic, team, language) and pin it |
+| `browse.read` | `U` (browse) | Browse: heed reads the items under the cursor or picked (class, size, how agent-ready, a TL;DR), again if stale |
+| `browse.fix` | `F` (browse) | Browse: work on the item with an agent: reproduce, fix, test, open a PR |
+| `browse.implement` | `I` (browse) | Browse: work on the item with an agent: build it with tests, open a PR |
+| `browse.chat` | `C` (browse) | Browse: chat about the item with an agent, no edits |
+| `browse.review` | `R` (browse) | Browse: review the pull request with an agent; nothing is posted without you |
+| `browse.tell` | `t` (browse) | Browse: tell an agent what to do with the item, in your own words |
 | `attention.session` | `gS` (attention), `gS` (attentionhelper), `gS` (attentionother), `gS` (swarmask) | go to the item's session |
 | `attention.filter` `[filter]` | `t` (attention), `t` (attentionhelper), `t` (attentionother), `t` (swarmask) | next Attention tab (Muted after Everything), or the one named |
 | `attention.done.new` | `X` (attention), `X` (attentionother), `X` (swarmask) | done with everything in For you's New since |

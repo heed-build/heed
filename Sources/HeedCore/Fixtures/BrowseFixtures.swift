@@ -88,7 +88,8 @@ public extension Fixtures {
                     author: .init(login: "dependabot[bot]", trust: .bot)
                 ),
                 author: "dependabot[bot]", authorIsBot: true, labels: ["chore"], comments: 1,
-                createdAt: ago(days: 25), updatedAt: ago(days: 21), hasLinkedPull: true, checks: .passing
+                createdAt: ago(days: 25), updatedAt: ago(days: 21), hasLinkedPull: true, checks: .passing,
+                requestedReviewers: ["you"]
             ),
             issue(acmeGuides, 77, "Archive the 7.x guides in Q1?", labels: ["question"], days: 28, comments: 21),
             issue(acmeDocs, 2802, "Changelog generator skips squashed merges", labels: ["bug"], days: 35, comments: 5),
@@ -101,6 +102,80 @@ public extension Fixtures {
                 comments: 0
             ),
         ]
+
+        /// An older item the first one may duplicate: closed, so the list (open items) does not show it, but the
+        /// cache holds it for the "possibly the same as" line.
+        static let closedAnchors = BrowseItem(
+            repo: acmeDocs, number: 2701,
+            title: ExternalText(
+                "Anchors dropped on rename",
+                source: .issueTitle,
+                author: .init(login: "jdoe", trust: .member)
+            ),
+            state: .closed, author: "jdoe", labels: ["bug"], comments: 3, createdAt: ago(days: 80),
+            updatedAt: ago(days: 60)
+        )
+
+        /// The cache: the ten the list shows, and the closed one a read points at.
+        public static let cached: [BrowseItem] = items + [closedAnchors]
+
+        /// heed's read of each of them but two (those say unread), with the numbers the design draws.
+        public static let reads: BrowseReads = {
+            func read(
+                _ item: BrowseItem, _ kind: BrowseClass, _ size: BrowseSize, _ ready: Int, _ tldr: String,
+                duplicates: [String] = []
+            ) -> BrowseRead {
+                BrowseRead(
+                    itemID: item.id, kind: kind, size: size, agentReady: ready, tldr: tldr, duplicates: duplicates,
+                    readAt: ago(days: 0.01), itemUpdatedAt: item.updatedAt, agent: "claude", model: "haiku"
+                )
+            }
+            let list = items
+            return Dictionary(uniqueKeysWithValues: [
+                read(
+                    list[0], .bug, .s, 82,
+                    "Moving a page drops the heading anchors from its redirects, so deep links 404 after a "
+                        + "restructure. Reproducible with a two-file move; the fix is in how the anchor table keys "
+                        + "on the old path.",
+                    duplicates: [closedAnchors.id]
+                ),
+                read(
+                    list[1], .bug, .m, 64,
+                    "Requests to /reference redirect to themselves when the trailing-slash rule runs before the "
+                        + "alias table. Reproducible, but the right order of the rules needs a look."
+                ),
+                read(
+                    list[2], .feature, .l, 31,
+                    "Snippets cannot include other snippets. Needs a decision on cycles and relative paths before "
+                        + "anyone builds it."
+                ),
+                read(
+                    list[3], .bug, .s, 48,
+                    "Bursts above ~5k events/s overflow the stage queue and events are dropped silently. Needs a "
+                        + "decision on blocking versus shedding first, so only half-ready for an agent."
+                ),
+                read(
+                    list[4], .bug, .s, 91,
+                    "Arrow heads detach from their lines below 50% zoom because the marker offset is in screen "
+                        + "pixels. A one-line scale fix with a clear repro."
+                ),
+                read(
+                    list[5], .feature, .s, 88,
+                    "Adds a dark theme to the code switcher from the existing theme tokens. Small and bounded, with "
+                        + "clear acceptance."
+                ),
+                read(
+                    list[6], .chore, .s, 90,
+                    "Updates the spec-test fixtures to 0.17. No source changes. One snapshot changed meaningfully: "
+                        + "the renamed anchor-fold case."
+                ),
+                read(
+                    list[9], .docs, .s, 90,
+                    "Document how the retry budget is counted and what happens when it runs out. A small writing "
+                        + "task with the source in one file."
+                ),
+            ].map { ($0.itemID, $0) })
+        }()
 
         /// What GitHub says the open search holds, of which `items` are the first ten.
         public static let total = 47
@@ -129,12 +204,7 @@ public extension Fixtures {
         ]
 
         public static let queries: [SavedQuery] = [
-            SavedQuery(
-                id: "assigned",
-                name: "Assigned to me",
-                glyph: .bolt,
-                query: BrowseQuery(tokens: [.state(.open), .assignee("@me")])
-            ),
+            SavedQuery.agentReady,
             SavedQuery(
                 id: "bugs-untouched",
                 name: "Bugs nobody touched",
@@ -164,11 +234,11 @@ public extension Fixtures {
         ]
 
         public static let queryTotals: [String: Int] = [
-            "assigned": 23, "bugs-untouched": 14, "good-first": 8, "stale": 41, "blockers": 5, "ideas": 17,
+            "agent-ready": 23, "bugs-untouched": 14, "good-first": 8, "stale": 41, "blockers": 5, "ideas": 17,
         ]
 
         /// Queries with something new since you looked: the blue dot.
-        public static let newQueries: Set<String> = ["assigned", "good-first"]
+        public static let newQueries: Set<String> = ["agent-ready", "good-first"]
 
         /// What Browse opens on.
         public static let last = BrowseLast(
@@ -188,11 +258,10 @@ public extension Fixtures {
 
         public static let openCounts: [String: Int] = ["globex/glossary": 12, "globex/glass-api": 31]
 
-        /// What the model's answer to "bugs nobody touched, agent ready" reads as: two tokens, and the one that waits
-        /// for heed's own read of items, reported rather than run.
+        /// What the model's answer to "bugs nobody touched, agent ready" reads as: three tokens, the last of them
+        /// heed's own read of items, applied on this Mac.
         public static let understood = BrowseUnderstanding(
-            tokens: [.label(.any, ["bug"]), .activity(.olderThan(30))],
-            dropped: ["agent_ready: heed's own read of items is not there yet"]
+            tokens: [.label(.any, ["bug"]), .activity(.olderThan(30)), .heedReady(BrowseRead.readyLine)]
         )
 
         /// The repos of the big org the palette warns about, for the org view builder.

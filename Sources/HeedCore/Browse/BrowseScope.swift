@@ -91,6 +91,7 @@ public enum BrowseGlyph: String, CaseIterable, Hashable, Sendable, Codable {
             case .activity(.olderThan), .created(.olderThan): return .clock
             case .milestone: return .flag
             case .assignee, .author: return .person
+            case .heedReady: return .bolt
             case .type(.pulls): return .pull
             case .label: return .tag
             default: continue
@@ -139,6 +140,12 @@ public struct SavedQuery: Identifiable, Hashable, Sendable, Codable {
 
 public extension SavedQuery {
     /// What the rail starts with, until you keep your own: each with the glyph its filter picks.
+    /// Open items heed read as ready for an agent: filtered on this Mac, over what GitHub answered.
+    static let agentReady = SavedQuery(
+        id: "agent-ready", name: "Agent-ready", glyph: .bolt,
+        query: BrowseQuery(tokens: [.state(.open), .heedReady(BrowseRead.readyLine)])
+    )
+
     static let starters: [SavedQuery] = [
         SavedQuery(
             id: "assigned", name: "Assigned to me", query: BrowseQuery(tokens: [.state(.open), .assignee("@me")])

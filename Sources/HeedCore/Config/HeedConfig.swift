@@ -798,6 +798,22 @@ public enum ConfigLoader {
                 ))
             }
         }
+        if let text = string(["browse", "reads"]) {
+            if let mode = AttentionSummaryMode(rawValue: text) {
+                config.browse.reads = mode
+            } else {
+                problems.append(ConfigProblem(path: "browse.reads", message: "expected \"ahead\", \"open\" or \"off\""))
+            }
+        }
+        if let value = root.value(at: ["browse", "read_ahead"]) {
+            if let count = value.integer, (0 ... 200).contains(count) {
+                config.browse.readAhead = count
+            } else {
+                problems.append(ConfigProblem(
+                    path: "browse.read_ahead", message: "expected a number of rows, 0 to 200 (0: none read ahead)"
+                ))
+            }
+        }
         // [summary]
         if let hours = integer(["summary", "away_hours"], range: 0 ... 720) { config.summaryAwayHours = hours }
         if let names = strings(["summary", "when"]) {
@@ -1308,6 +1324,12 @@ public enum ConfigLoader {
     # An org with more repos than this is offered a view of its own (a topic, a team, a language) before the whole
     # org is browsed. 0 never asks.
     many_repos = 200
+    # heed reads items with a cheap model call (class, size, how ready an agent is to take it, a TL;DR), kept on this Mac
+    # and never written to GitHub. "ahead" reads the top rows of the view and the item under the cursor, "open" only the
+    # item under the cursor, "off" only when you ask (U). Reads count against [llm]'s daily cap.
+    reads = "ahead"
+    # How many rows from the top of the view are read ahead of time. 0 reads none ahead.
+    read_ahead = 20
 
     [summary]
     # While you were away: what still waits on you, then what merged, how background runs ended, which agents

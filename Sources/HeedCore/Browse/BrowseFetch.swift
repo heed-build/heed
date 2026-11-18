@@ -33,6 +33,7 @@ public enum BrowseFetch {
       issueCount pageInfo { hasNextPage endCursor } nodes {
         ... on Issue { \(fields) closedByPullRequestsReferences(first: 1) { totalCount } }
         ... on PullRequest { \(fields) isDraft reviewDecision
+          reviewRequests(first: 10) { nodes { requestedReviewer { ... on User { login } } } }
           closingIssuesReferences(first: 1) { totalCount }
           commits(last: 1) { nodes { commit { statusCheckRollup { state } } } } }
     } } }
@@ -181,7 +182,11 @@ public enum BrowseFetch {
             comments: (node["comments"] as? [String: Any])?["totalCount"] as? Int ?? 0,
             createdAt: GitHub.date(node["createdAt"] as? String), updatedAt: GitHub.date(node["updatedAt"] as? String),
             hasLinkedPull: linked > 0, isDraft: node["isDraft"] as? Bool ?? false, checks: checks,
-            review: (node["reviewDecision"] as? String).flatMap(ReviewDecision.init(rawValue:))
+            review: (node["reviewDecision"] as? String).flatMap(ReviewDecision.init(rawValue:)),
+            requestedReviewers: pull ? ((node["reviewRequests"] as? [String: Any])?["nodes"] as? [Any] ?? [])
+                .compactMap {
+                    (($0 as? [String: Any])?["requestedReviewer"] as? [String: Any])?["login"] as? String
+                } : nil
         )
     }
 

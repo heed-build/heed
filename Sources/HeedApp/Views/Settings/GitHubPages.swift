@@ -22,6 +22,18 @@ struct GitHubPage: View {
                     range: 0 ... AttentionAge.maxDays, step: 30
                 )
             }
+            SettingRow("browse.reads") {
+                SegmentedChoice(
+                    path: ["browse", "reads"], value: model.config.browse.reads,
+                    options: [(.ahead, "Ahead"), (.open, "On open"), (.off, "Off")], name: \.rawValue
+                )
+            }
+            SettingRow("browse.read_ahead", unit: "rows") {
+                NumberField(
+                    path: ["browse", "read_ahead"], value: model.config.browse.readAhead, unit: "rows",
+                    range: 0 ... 200, step: 10
+                )
+            }
             SettingRow("browse.many_repos", unit: "repos") {
                 NumberField(
                     path: ["browse", "many_repos"], value: model.config.browse.manyRepos, unit: "repos",

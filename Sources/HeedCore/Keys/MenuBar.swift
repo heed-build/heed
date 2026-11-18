@@ -63,6 +63,12 @@ public enum MenuBar {
 
     /// Commands the menu bar leaves out, and why. Every other command is in some menu (a test holds it to that).
     public static let unlisted: [String: String] = [
+        "browse.read": "the card's read button in Browse's reader, and its key in Browse",
+        "browse.fix": "the Fix button in Browse's reader, and its key in Browse",
+        "browse.implement": "the Implement button in Browse's reader, and its key in Browse",
+        "browse.chat": "the Chat button in Browse's reader, and its key in Browse",
+        "browse.review": "the Review button in Browse's reader, and its key in Browse",
+        "browse.tell": "the line under the buttons in Browse's reader, and its key in Browse",
         "helper.do": "heed's next step is the proposal's button in Attention's reader",
         "helper.always": "the proposal's Always button in Attention's reader",
         "helper.other": "the proposal's Other button in Attention's reader",

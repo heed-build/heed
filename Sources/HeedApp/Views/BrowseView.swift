@@ -448,6 +448,7 @@ private struct BrowseHeader: View {
         case let .archived(value): ("Archived", value ? "only" : "hidden")
         case let .text(text): ("Text", text)
         case let .raw(text): ("", text)
+        case .heedClass, .heedSize, .heedReady: token.heedChip
         }
     }
 
@@ -467,7 +468,9 @@ private struct BrowseCount: View {
         let browse = model.browse
         let capped = browse.settings.maxAgeDays > 0 && !browse.query.showOlder && !browse.query.hasOwnActivity
         HStack(spacing: 8) {
-            Text("\(browse.meta?.total ?? browse.rows.count)").font(Theme.ui(12.5, weight: .semibold))
+            // GitHub's count says nothing of heed's own filters: with one, the count is what is here.
+            Text("\(browse.query.localTokens.isEmpty ? browse.meta?.total ?? browse.rows.count : browse.rows.count)")
+                .font(Theme.ui(12.5, weight: .semibold))
             Text(capped ? "open · last \(browse.cap)" : "open").font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
             if browse.settings.maxAgeDays > 0, !browse.query.hasOwnActivity {
                 Text(browse.query.showOlder ? "Back to \(browse.cap) ▸" : "Show older ▸")
@@ -528,7 +531,10 @@ private struct BrowseRow: View {
                     }
                     if item.kind == .pull, item.isDraft { ReasonTag(text: "draft", tint: Theme.fg3) }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .overlay(alignment: .trailing) { BrowseVerbHint(item: item) }
             }
+            BrowseReadColumns(item: item).padding(.top, 1)
             VStack(alignment: .trailing, spacing: 3) {
                 Text(shortAge(item.updatedAt)).font(Theme.mono(11.5)).foregroundStyle(Theme.fg3)
                 Text("\(item.comments)").font(Theme.mono(11)).foregroundStyle(Theme.fg3.opacity(0.8))
@@ -551,9 +557,23 @@ private struct BrowseReader: View {
     let item: BrowseItem
 
     var body: some View {
+        let work = BrowseWorkSection(item: item).frame(maxWidth: 900)
+        if ShotMode.active {
+            // An offscreen render lays the thread out at its whole height: the buttons sit over its bottom instead.
+            thread.frame(maxHeight: .infinity, alignment: .top).clipped()
+                .overlay(alignment: .bottom) { work.background(Theme.bg2) }
+        } else {
+            VStack(spacing: 0) {
+                thread.frame(maxHeight: .infinity)
+                work
+            }
+        }
+    }
+
+    private var thread: some View {
         let conversation = model.conversation(item.repo, item.number)
         let key = ThreadConversation.key(repo: item.repo, number: item.number)
-        Scrolling {
+        return Scrolling {
             VStack(alignment: .leading, spacing: 18) {
                 ThreadHeader(
                     repo: item.repo, kind: item.kind == .pull ? .pr : .issue, number: item.number,
@@ -561,6 +581,7 @@ private struct BrowseReader: View {
                     author: conversation?.author?.login ?? item.author,
                     openedAt: conversation?.createdAt ?? item.createdAt, chips: chips
                 )
+                BrowseReadCard(item: item)
                 if let conversation {
                     ThreadConversationView(conversation: conversation, seenAt: nil)
                 } else if let error = model.threads[key]?.error {

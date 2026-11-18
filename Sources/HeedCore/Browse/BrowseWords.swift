@@ -28,9 +28,6 @@ public enum BrowseWords {
         SummaryInputs(title: String(sentence.trimmingCharacters(in: .whitespacesAndNewlines).prefix(maxWords)))
     }
 
-    /// Local fields wait for classification (milestone 3): asked for, they are reported, not run.
-    static let local: Set<String> = ["class", "size", "agent_ready", "agent-ready"]
-
     public static func understand(_ answer: String, viewer: String? = nil) -> BrowseUnderstanding {
         guard let object = json(answer) else {
             return BrowseUnderstanding(dropped: ["the answer was not the JSON heed asked for"])
@@ -90,8 +87,23 @@ public enum BrowseWords {
             case "linked_pr", "linked":
                 guard let value = filter["value"] as? Bool else { drop("linked_pr: not true or false"); continue }
                 add(.linkedPull(value))
-            case _ where local.contains(field):
-                drop("\(field): heed's own read of items is not there yet")
+            case "class":
+                let words = (filter["values"] as? [Any] ?? [filter["value"] as Any]).compactMap { $0 as? String }
+                let classes = words.compactMap { BrowseClass(word: $0) }
+                if classes.isEmpty { drop("class: not bug, feature, docs, question or chore") } else {
+                    add(.heedClass(Array(Set(classes)).sorted { $0.rawValue < $1.rawValue }))
+                }
+            case "size":
+                let words = (filter["values"] as? [Any] ?? [filter["value"] as Any]).compactMap { $0 as? String }
+                let sizes = words.compactMap { BrowseSize(word: $0) }
+                if sizes.isEmpty { drop("size: not S, M or L") } else {
+                    add(.heedSize(Array(Set(sizes)).sorted { $0.rawValue < $1.rawValue }))
+                }
+            case "agent_ready", "agent-ready", "ready":
+                let value = (filter["min"] as? Int) ?? (filter["min"] as? Double).map { Int($0) }
+                guard let value,
+                      (0 ... 100).contains(value) else { drop("agent_ready: min must be 0 to 100"); continue }
+                add(.heedReady(value))
             default:
                 drop("\(field): not a filter heed knows")
             }
@@ -158,6 +170,9 @@ public enum BrowseWords {
         case .team: "team"
         case .language: "language"
         case .archived: "archived"
+        case .heedClass: "class"
+        case .heedSize: "size"
+        case .heedReady: "agent-ready"
         case .text: "text"
         case .raw: "raw"
         }

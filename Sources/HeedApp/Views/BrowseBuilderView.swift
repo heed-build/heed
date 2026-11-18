@@ -56,6 +56,7 @@ private func tokenText(_ token: BrowseToken) -> (String, String) {
     case let .archived(value): ("Archived", value ? "only" : "hidden")
     case let .text(text): ("Text", text)
     case let .raw(text): ("", text)
+    case .heedClass, .heedSize, .heedReady: token.heedChip ?? ("", "")
     }
 }
 
@@ -244,7 +245,7 @@ private struct ValuesCard: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 14) {
                 Text(field.title).font(Theme.ui(15, weight: .semibold))
-                if field.isMultiple { segment }
+                if field.hasMode { segment }
                 Spacer()
                 cap("esc")
             }

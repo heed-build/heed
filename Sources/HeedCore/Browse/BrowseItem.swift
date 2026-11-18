@@ -30,13 +30,15 @@ public struct BrowseItem: Identifiable, Hashable, Sendable, Codable {
     public var isDraft: Bool
     public var checks: Checks?
     public var review: ReviewDecision?
+    /// The logins whose review is requested on a pull request (nil: not known, as in items cached before this).
+    public var requestedReviewers: [String]?
 
     public init(
         repo: Repo, number: Int, kind: Kind = .issue, title: ExternalText, url: String? = nil, state: State = .open,
         author: String? = nil, authorIsBot: Bool = false, labels: [String] = [], assignees: [String] = [],
         milestone: String? = nil, projects: [String] = [], comments: Int = 0, createdAt: Date = .distantPast,
         updatedAt: Date = .distantPast, hasLinkedPull: Bool = false, isDraft: Bool = false, checks: Checks? = nil,
-        review: ReviewDecision? = nil
+        review: ReviewDecision? = nil, requestedReviewers: [String]? = nil
     ) {
         id = AttentionItem.threadID(repo, number)
         self.kind = kind
@@ -58,6 +60,7 @@ public struct BrowseItem: Identifiable, Hashable, Sendable, Codable {
         self.isDraft = isDraft
         self.checks = checks
         self.review = review
+        self.requestedReviewers = requestedReviewers
     }
 
     /// `acme/docs#12`.

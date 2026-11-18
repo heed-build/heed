@@ -29,11 +29,20 @@ struct BrowseWordsTests {
         #expect(result.dropped == ["sort: not a filter heed knows"])
     }
 
-    @Test func heedsOwnFieldsAreReportedNotRunBeforeClassificationExists() {
-        let result = BrowseWords
-            .understand(#"{"filters":[{"field":"agent_ready","min":70},{"field":"class","value":"bug"}]}"#)
+    @Test func heedsOwnFieldsBecomeLocalTokens() {
+        let result = BrowseWords.understand(
+            #"{"filters":[{"field":"agent_ready","min":70},{"field":"class","value":"bug"},{"field":"size","values":["S","small","M"]}]}"#
+        )
+        #expect(result.tokens == [.heedReady(70), .heedClass([.bug]), .heedSize([.m, .s])])
+        #expect(result.dropped.isEmpty)
+    }
+
+    @Test func heedsOwnFieldsOutOfRangeOrUnknownAreDropped() {
+        let result = BrowseWords.understand(
+            #"{"filters":[{"field":"agent_ready","min":140},{"field":"class","value":"epic"},{"field":"size","value":"XL"}]}"#
+        )
         #expect(result.tokens.isEmpty)
-        #expect(result.dropped.count == 2)
+        #expect(result.dropped.count == 3)
     }
 
     @Test func valuesOutOfRangeOrOfTheWrongShapeAreDropped() {

@@ -35,6 +35,9 @@ public enum RunCleanup {
             }
             let unpushed = if let pr = Runs.prBranch(of: branch) {
                 await Git.commitCount(record, from: "origin/\(pr)", to: branch)
+            } else if BrowseWorktree.isBranch(branch) {
+                // A Browse run's work is safe when it is on a remote; what it started from is not its own.
+                await Git.unpushedSinceCreation(record, branch: branch)
             } else {
                 0
             }

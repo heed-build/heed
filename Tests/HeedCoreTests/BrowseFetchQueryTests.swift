@@ -1,5 +1,5 @@
-import Testing
 @testable import HeedCore
+import Testing
 
 struct BrowseFetchQueryTests {
     /// Found by running the query against real GitHub: `projectItems` needs the `read:project` token scope, so asking

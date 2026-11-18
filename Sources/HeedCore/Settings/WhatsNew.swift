@@ -79,6 +79,13 @@ public struct WhatsNewContent: Sendable {
 public enum WhatsNew {
     /// Every feature entry, newest version first. Written in the docs' voice: what you can do now, in a line.
     public static let features: [WhatsNewFeature] = [
+        // 0.47: Browse.
+        WhatsNewFeature(
+            "0.47.0", "Browse",
+            "Search the issues and PRs of an org, a repo or a Project on GitHub, with heed's read of each (class, size, "
+                + "how agent-ready) and Fix, Implement, Chat and Review on one item or a group.",
+            showMe: .command("view.browse")
+        ),
         // 0.39: Attention catches you up on a thread.
         WhatsNewFeature(
             "0.39.0", "Catch up on a thread",

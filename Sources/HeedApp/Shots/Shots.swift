@@ -465,7 +465,7 @@ enum Shots {
 
     static let startWork: [Shot] = [
         Shot(id: "start-work/dialog", keys: "o" + prompt, crop: .dialog),
-        // A longer prompt sized as bigger than one session: the card in place of the fields.
+        // A longer prompt sized as bigger than one session: the hint under the prompt.
         Shot(id: "start-work/size-card", crop: .dialog, prepare: { model in
             model.openStartWork(prompt: bigPrompt)
             model.clickStartWork { form in

@@ -6,26 +6,18 @@ description: Start work sizes a longer prompt, and offers a goal when the task i
 # Bigger than one session
 
 Some prompts are more than one agent in one worktree should take on. While you type a longer prompt (twelve words or
-more), Start work sizes it once typing pauses, and again when you press `⌘↩` before it had the chance. When the task
-looks bigger than one session, a card takes the place of the fields:
-
-![Start work's card for a task bigger than one session: its rough size and three ways on](../images/shots/start-work/size-card.png)
-
-The icons give the rough size: how many parts it splits into, how many repos it touches, how many agents could work on
-it at once, and how long one agent would take for all of it. The corner says which model sized it, how long that took
-and what it cost.
+more), Start work sizes it once typing pauses. When the task looks bigger than one session, one line appears under the
+prompt: the rough size (parts and how long one agent would take), **Make it a goal** and a ✕. The fields stay where they
+are, and nothing starts by itself.
 
 | Key | |
 |---|---|
-| `⌘↩` | **Make it a goal**: the goal is made from the prompt and its wizard opens on the first step, the plan |
-| `⌥↩` | **Just a session**: the work starts as it would have, with the repo, agent and worktree the header names |
-| `⌃↩` | **It's a question**: a [chat](../sessions/chats.md), no worktree; promote it when it becomes work |
-| `j` (after `⎋`) or `⇥` | The fields instead of the card, for this prompt; `⌘↩` then starts the session |
+| `⌘G` | **Make it a goal**: the goal is made from the prompt and its wizard opens on the first step, the plan |
+| `⌘↩` | Starts what the fields show, as always: the repo, agent and worktree you filled in |
 
-The card's options take a click too. Without the card, `⌥↩` adds a line to the prompt as before.
+The ✕ puts the line away for this prompt; it comes back only for a different one. Ignoring it costs nothing.
 
-Small tasks never see any of this: a short prompt is not sized, and one that sizes as a session or a chat starts with
-`⌘↩` exactly as before. A chat, a promotion and the tutor are never sized.
+Small tasks never see any of this: a short prompt is not sized. A chat, a promotion and the tutor are never sized.
 
 ## How it sizes
 

@@ -10,6 +10,8 @@ more), Start work sizes it once typing pauses. When the task looks bigger than o
 prompt: the rough size (parts and how long one agent would take), **Make it a goal** and a ✕. The fields stay where they
 are, and nothing starts by itself.
 
+![Start work with a line under the prompt: bigger than one session, about 4 parts, Make it a goal (⌘G); the fields stay below](../images/shots/start-work/size-card.png)
+
 | Key | |
 |---|---|
 | `⌘G` | **Make it a goal**: the goal is made from the prompt and its wizard opens on the first step, the plan |

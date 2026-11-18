@@ -4,7 +4,7 @@ description: Start a session from a PR or an issue, or add one to a running sess
 
 # From GitHub
 
-A PR or an issue can start a session in four places. Each one fills Start work with a prompt, and you read the prompt
+A PR or an issue can start a session in five places. Each one fills Start work with a prompt, and you read the prompt
 before anything starts.
 
 ## In Attention
@@ -30,6 +30,13 @@ The prompt depends on what you picked:
 The repo's `start_instructions` setting adds its text to the prompt.
 
 ![Start work opened from them: the prompt written, the repo guessed from the issues](../images/shots/start-work/from-github-dialog.png)
+
+## In Browse
+
+[Browse](../github/browse.md) (`gb`) searches the issues and PRs of an org, a repo or a Project. Pick items with
+`space` and press `s` to start one session for the related ones, `S` for a session each, or `G` for a goal. On one
+item, `F` Fix, `I` Implement, `C` Chat and `R` Review run an agent in a temporary worktree without going through Start
+work, and `s` keeps the run as a session.
 
 ## In the readers
 

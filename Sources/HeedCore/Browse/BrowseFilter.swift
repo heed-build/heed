@@ -53,12 +53,16 @@ public struct BrowseFilter: Hashable, Sendable {
         case let .author(value): return item.author?.lowercased() == login(value)
         case let .milestone(value): return item.milestone?.lowercased() == value.lowercased()
         case let .project(value):
-            return item.projects.contains { value.lowercased().hasSuffix("/" + $0.lowercased()) || $0.lowercased() == value.lowercased() }
+            return item.projects
+                .contains {
+                    value.lowercased().hasSuffix("/" + $0.lowercased()) || $0.lowercased() == value.lowercased()
+                }
         case let .created(span): return within(item.createdAt, span)
         case let .activity(span): return within(item.updatedAt, span)
         case let .linkedPull(linked): return item.hasLinkedPull == linked
         case let .text(text):
-            return text.split(separator: " ").allSatisfy { item.title.contains(String($0)) || item.place.localizedCaseInsensitiveContains($0) }
+            return text.split(separator: " ")
+                .allSatisfy { item.title.contains(String($0)) || item.place.localizedCaseInsensitiveContains($0) }
         case .raw: return true
         }
     }
@@ -97,11 +101,17 @@ public struct BrowseFacets: Equatable, Sendable {
         for item in items {
             repos[item.repo.slug, default: 0] += 1
             orgs[item.repo.org, default: 0] += 1
-            for label in item.labels { labels[label, default: 0] += 1 }
+            for label in item.labels {
+                labels[label, default: 0] += 1
+            }
             if let author = item.author { authors[author, default: 0] += 1 }
-            for assignee in item.assignees { assignees[assignee, default: 0] += 1 }
+            for assignee in item.assignees {
+                assignees[assignee, default: 0] += 1
+            }
             if let milestone = item.milestone { milestones[milestone, default: 0] += 1 }
-            for project in item.projects { projects[project, default: 0] += 1 }
+            for project in item.projects {
+                projects[project, default: 0] += 1
+            }
             if item.kind == .issue { issues += 1 } else { pulls += 1 }
         }
     }
@@ -116,8 +126,14 @@ public struct BrowseFacets: Equatable, Sendable {
 
 public extension BrowseFilter {
     /// How many items a scope or a saved query holds in `items`, for the rail's counts.
-    static func count(_ query: BrowseQuery, in items: [BrowseItem], viewer: String?, maxAgeDays: Int, now: Date) -> Int {
+    static func count(
+        _ query: BrowseQuery,
+        in items: [BrowseItem],
+        viewer: String?,
+        maxAgeDays: Int,
+        now: Date
+    ) -> Int {
         let filter = BrowseFilter(query: query, viewer: viewer, maxAgeDays: maxAgeDays)
-        return items.filter { filter.matches($0, now: now) }.count
+        return items.count(where: { filter.matches($0, now: now) })
     }
 }

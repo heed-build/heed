@@ -1,6 +1,6 @@
 import Foundation
-import Testing
 @testable import HeedCore
+import Testing
 
 struct BrowseFilterTests {
     private let now = Date(timeIntervalSince1970: 2_000_000_000)
@@ -23,7 +23,15 @@ struct BrowseFilterTests {
 
     private var items: [BrowseItem] {
         [
-            item(docs, 1, "Anchors lost when a page is moved", labels: ["bug"], assignees: ["jdoe"], days: 3, comments: 4),
+            item(
+                docs,
+                1,
+                "Anchors lost when a page is moved",
+                labels: ["bug"],
+                assignees: ["jdoe"],
+                days: 3,
+                comments: 4
+            ),
             item(docs, 2, "Redirect loop", labels: ["bug", "redirects"], days: 2, comments: 6, linked: true),
             item(ingest, 3, "Backpressure drops events", labels: ["perf"], author: "jdoe", days: 7, comments: 9),
             item(docs, 4, "Bump spec tests", kind: .pull, labels: ["chore"], days: 20),
@@ -102,7 +110,9 @@ struct BrowsePaletteTests {
     }
 
     private func type(_ text: String, into palette: inout BrowsePalette) {
-        for character in text { _ = palette.handle(KeyStroke(String(character))) }
+        for character in text {
+            _ = palette.handle(KeyStroke(String(character)))
+        }
     }
 
     @Test func typingFindsOrgsAndTheReposMatching() {

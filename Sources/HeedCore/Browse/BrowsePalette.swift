@@ -86,6 +86,13 @@ public struct BrowsePalette: Sendable {
         return org.repoCount.map { BrowseGuidance.advice(repoCount: $0, threshold: threshold) }
     }
 
+    /// Learns how many repos an org has, once GitHub says.
+    public mutating func setRepoCount(_ count: Int, of owner: String) {
+        for index in orgs.indices where orgs[index].name.lowercased() == owner.lowercased() {
+            orgs[index].repoCount = count
+        }
+    }
+
     public mutating func handle(_ stroke: KeyStroke) -> Action {
         let count = rows.count
         switch stroke {

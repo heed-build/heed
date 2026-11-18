@@ -1,6 +1,6 @@
 import Foundation
-import Testing
 @testable import HeedCore
+import Testing
 
 struct BrowseQueryTests {
     /// 2033-05-18T03:33:20Z.
@@ -57,7 +57,11 @@ struct BrowseQueryTests {
     }
 
     @Test func aPastedStringKeepsWhatHeedDoesNotModel() {
-        let query = BrowseQuery.parse("is:issue language:C# in:title team:acme/docs-eng retry", maxAgeDays: 90, now: now)
+        let query = BrowseQuery.parse(
+            "is:issue language:C# in:title team:acme/docs-eng retry",
+            maxAgeDays: 90,
+            now: now
+        )
         #expect(query.tokens == [
             .type(.issues), .raw("language:C#"), .raw("in:title"), .raw("team:acme/docs-eng"), .text("retry"),
         ])

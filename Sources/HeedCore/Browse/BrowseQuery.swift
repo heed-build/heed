@@ -213,7 +213,8 @@ public struct BrowseQuery: Hashable, Sendable, Codable {
         var quoted = false
         for character in text {
             if character == "\"" { quoted.toggle() }
-            if character == ",", !quoted { items.append(unquote(current)); current = "" } else { current.append(character) }
+            if character == ",",
+               !quoted { items.append(unquote(current)); current = "" } else { current.append(character) }
         }
         items.append(unquote(current))
         return items.filter { !$0.isEmpty }

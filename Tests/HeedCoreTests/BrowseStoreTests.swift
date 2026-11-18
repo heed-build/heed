@@ -1,6 +1,6 @@
 import Foundation
-import Testing
 @testable import HeedCore
+import Testing
 
 @Suite(.scratch) struct BrowseStoreTests {
     private let now = Date(timeIntervalSince1970: 2_000_000_000)
@@ -8,7 +8,7 @@ import Testing
 
     private func store() throws -> (BrowseStore, URL) {
         let file = try Scratch.folder("browse").appendingPathComponent("browse.sqlite")
-        return (try BrowseStore(path: file.path), file)
+        return try (BrowseStore(path: file.path), file)
     }
 
     private func item(_ number: Int, updated: Double = 0) -> BrowseItem {

@@ -53,7 +53,12 @@ public enum BrowseFetch {
         repeat {
             var variables = ["q": text]
             if let cursor { variables["after"] = cursor }
-            let data = try await GitHub.graphql(self.query, operation: "browse search", variables: variables, caller: caller)
+            let data = try await GitHub.graphql(
+                self.query,
+                operation: "browse search",
+                variables: variables,
+                caller: caller
+            )
             let page = parse(data)
             result.items += page.items
             result.hidden += page.hidden
@@ -94,7 +99,8 @@ public enum BrowseFetch {
         let author = node["author"] as? [String: Any]
         let who = ExternalText.Author.github(author, association: node["authorAssociation"] as? String)
         func names(_ key: String, _ field: String) -> [String] {
-            ((node[key] as? [String: Any])?["nodes"] as? [Any] ?? []).compactMap { ($0 as? [String: Any])?[field] as? String }
+            ((node[key] as? [String: Any])?["nodes"] as? [Any] ?? [])
+                .compactMap { ($0 as? [String: Any])?[field] as? String }
         }
         let state: BrowseItem.State = switch (node["state"] as? String)?.uppercased() {
         case "MERGED": .merged

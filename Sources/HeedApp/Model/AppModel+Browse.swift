@@ -34,6 +34,7 @@ extension AppModel {
         browse.refilter()
         if (itemCursor[.browse] ?? 0) >= browse.rows.count { itemCursor[.browse] = 0 }
         browse.fetch()
+        browse.startCounts { [weak self] in self?.view == .browse }
         browseSelectionChanged()
     }
 
@@ -60,9 +61,33 @@ extension AppModel {
         case "browse.scope.prev": browse.nextScope(by: -1); browseQueryChanged()
         case "browse.query.next": browse.nextQuery(by: 1); browseQueryChanged()
         case "browse.query.prev": browse.nextQuery(by: -1); browseQueryChanged()
+        case "browse.filter.add": openBrowseBuilder()
+        case "browse.filter.remove":
+            guard !browse.query.tokens.isEmpty else { return say("no filter to remove") }
+            var next = browse.query
+            next.tokens.removeLast()
+            browse.applyBuilder(next)
+            browseQueryChanged()
         case "browse.query.save":
-            browse.saveQuery()
-            say("kept “\(browse.activeSaved?.name ?? "the query")” in the rail")
+            openBrowseBuilder()
+            browse.builder?.startSaving()
+        case "browse.query.rename":
+            guard let saved = browse.activeSaved
+            else { return say("run a saved query first: \(keyText(for: "browse.query.next", in: "browse"))") }
+            browse.builder = BrowseBuilder(renaming: saved, context: browse.builderContext(wordsOff: browseWordsOff))
+        case "browse.query.delete":
+            guard let saved = browse.activeSaved
+            else { return say("run a saved query first: \(keyText(for: "browse.query.next", in: "browse"))") }
+            browse.removeQuery(saved.id)
+            say("removed “\(saved.name)” from the rail")
+        case "browse.query.up", "browse.query.down":
+            guard let saved = browse.activeSaved
+            else { return say("run a saved query first: \(keyText(for: "browse.query.next", in: "browse"))") }
+            browse.moveQuery(saved.id, by: command.name == "browse.query.up" ? -1 : 1)
+        case "browse.view.new":
+            guard let owner = browse.scope?.owner
+            else { return say("pick an org first: \(keyText(for: "browse.scope", in: "browse"))") }
+            browse.openOrgBuilder(owner: owner)
         case "browse.older":
             browse.toggleOlder()
             browseQueryChanged()
@@ -167,7 +192,101 @@ extension AppModel {
             browse.go(to: scope)
             browseQueryChanged()
         case let .createOrgView(org):
-            say("\(org) has too many repos to browse at once: ⌃b browses it whole")
+            browse.palette = nil
+            browse.openOrgBuilder(owner: org)
+        }
+    }
+
+    // MARK: The add-filter popover (/)
+
+    /// Why words cannot go to the model, or nil when they can: `[llm] enabled`, and never in the fake world's real
+    /// call (it answers from a fixture).
+    var browseWordsOff: String? {
+        config.llm.enabled ? nil : "heed's model calls are off ([llm] enabled = false), so words search as text"
+    }
+
+    func openBrowseBuilder() {
+        if view != .browse { view = .browse }
+        browse.configure(config.browse, viewer: github.viewer)
+        browse.openBuilder(wordsOff: browseWordsOff)
+    }
+
+    func answerBrowseBuilder(_ stroke: KeyStroke) {
+        guard var builder = browse.builder else { return }
+        if stroke == KeyStroke("v", .command), let text = NSPasteboard.general.string(forType: .string) {
+            for character in (text.split(separator: "\n").first ?? "").prefix(600) {
+                _ = builder.handle(KeyStroke(character == " " ? "Space" : String(character)))
+            }
+            browse.builder = builder
+            return
+        }
+        let action = builder.handle(stroke)
+        browse.builder = builder
+        switch action {
+        case .none, .changed: break
+        case .close: browse.builder = nil
+        case let .apply(query):
+            if builder.stage == .fields, builder.input.isEmpty, stroke == KeyStroke("BS") {
+                browse.builder?.base = query // stays open: it only removed a token
+                browse.query = query
+                browse.activeQuery = nil
+                browse.refilter()
+                browse.changed()
+            } else {
+                browse.builder = nil
+                browse.applyBuilder(query)
+            }
+            browseQueryChanged()
+        case let .read(words): readBrowseWords(words)
+        case let .copy(text):
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+            say("copied the GitHub query")
+        case let .keep(keep):
+            browse.builder = nil
+            browse.keep(keep)
+            say("kept “\(keep.name)” in the rail")
+        }
+    }
+
+    /// Words to tokens: the cheap model reads the sentence, the pure parser turns its JSON into typed tokens. In the
+    /// fake world the answer is a fixture. A failure, or the model being off, is said on the card.
+    private func readBrowseWords(_ words: String) {
+        if isFixture || tutor != nil {
+            browse.builder?.setReading(.ready(Fixtures.Browse.understood))
+            return
+        }
+        let summarizer = summarizer
+        let viewer = github.viewer
+        Task { [weak self] in
+            do {
+                let answer = try await summarizer.summarize(
+                    kind: .browseWords, inputs: BrowseWords.inputs(words), caller: BrowseWords.caller,
+                    priority: .interactive
+                )
+                guard let self, browse.builder?.sentence == words else { return }
+                browse.builder?.setReading(.ready(BrowseWords.understand(answer, viewer: viewer)))
+            } catch {
+                guard let self, browse.builder?.sentence == words else { return }
+                browse.builder?.setReading(.failed("\(error)"))
+            }
+        }
+    }
+
+    // MARK: Org view builder
+
+    func answerBrowseOrgBuilder(_ stroke: KeyStroke) {
+        guard var builder = browse.orgBuilder else { return }
+        let action = builder.handle(stroke)
+        browse.orgBuilder = builder
+        switch action {
+        case .none, .changed: break
+        case .close: browse.orgBuilder = nil
+        case let .loadTeam(team): browse.loadTeam(team, of: builder.owner)
+        case let .create(view):
+            browse.create(view)
+            browseQueryChanged()
+            say("kept “\(view.name)” as a scope: \(view.repos?.count ?? 0) repos")
         }
     }
 }

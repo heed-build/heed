@@ -68,7 +68,7 @@ struct BrowseView: View {
 
 // MARK: Marks
 
-private extension BrowseGlyph {
+extension BrowseGlyph {
     var symbol: String {
         switch self {
         case .bolt: "bolt.fill"
@@ -85,7 +85,7 @@ private extension BrowseGlyph {
     }
 }
 
-private extension BrowseTint {
+extension BrowseTint {
     var color: Color {
         switch self {
         case .amber: Theme.block
@@ -100,7 +100,7 @@ private extension BrowseTint {
 }
 
 /// A label's color: the ones every repo has by convention, else one picked from the name.
-private func labelColor(_ name: String) -> Color {
+func labelColor(_ name: String) -> Color {
     switch name.lowercased() {
     case "bug", "regression": return Theme.err
     case "enhancement", "feature": return Theme.busy
@@ -312,6 +312,11 @@ private struct BrowseRail: View {
                 .foregroundStyle(repo.color.foreground)
                 .frame(width: 18, height: 18)
                 .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(repo.color.foreground, lineWidth: 1.2))
+        case .view:
+            Image(systemName: "line.3.horizontal.decrease").font(.system(size: 10, weight: .bold))
+                .foregroundStyle(Theme.ink)
+                .frame(width: 20, height: 20)
+                .background(RoundedRectangle(cornerRadius: 5).fill(Repo(org: scope.owner, name: "").color.foreground))
         case .project:
             Image(systemName: "rectangle.split.3x1").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.done)
                 .frame(width: 20, height: 20)
@@ -341,8 +346,8 @@ private struct BrowseHeader: View {
         FlowLayout(spacing: 8) {
             if let scope = query.scope { scopeChip(scope) }
             chip("Type", typeText(query))
-            ForEach(Array(query.tokens.enumerated()), id: \.offset) { _, token in
-                if let text = tokenChip(token) { chip(text.0, text.1) }
+            ForEach(Array(query.tokens.enumerated()), id: \.offset) { index, token in
+                if let text = tokenChip(token) { chip(text.0, text.1, removable: index) }
             }
             chip(
                 "Age",
@@ -353,10 +358,13 @@ private struct BrowseHeader: View {
             HStack(spacing: 6) {
                 Image(systemName: "plus").font(.system(size: 10))
                 Text("filter").font(Theme.ui(12.5))
-                Text(model.keyText(for: "session.filter", in: "browse")).font(Theme.mono(10)).foregroundStyle(Theme.fg3)
+                Text(model.keyText(for: "browse.filter.add", in: "browse")).font(Theme.mono(10))
+                    .foregroundStyle(Theme.fg3)
                     .padding(.horizontal, 5).overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.line))
             }
             .foregroundStyle(Theme.fg2).padding(.horizontal, 8).padding(.vertical, 4)
+            .contentShape(Rectangle())
+            .tap { model.perform(CommandInvocation(name: "browse.filter.add")) }
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -386,10 +394,21 @@ private struct BrowseHeader: View {
         return Fixtures.Browse.orgs.first { $0.name == org }?.repoCount
     }
 
-    private func chip(_ name: String, _ value: String, dashed: Bool = false) -> some View {
+    private func chip(_ name: String, _ value: String, dashed: Bool = false, removable: Int? = nil) -> some View {
         HStack(spacing: 5) {
-            Text(name).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
-            Text(value).font(Theme.ui(12.5, weight: .semibold))
+            if !name.isEmpty { Text(name).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2) }
+            Text(value).font(Theme.ui(12.5, weight: .semibold)).lineLimit(1)
+            if let index = removable {
+                Image(systemName: "xmark").font(.system(size: 8)).foregroundStyle(Theme.fg3)
+                    .padding(3).contentShape(Rectangle())
+                    .tap {
+                        guard model.browse.query.tokens.indices.contains(index) else { return }
+                        var next = model.browse.query
+                        next.tokens.remove(at: index)
+                        model.browse.applyBuilder(next)
+                        model.browseOpenedQuery()
+                    }
+            }
         }
         .padding(.horizontal, 8).padding(.vertical, 4)
         .background(RoundedRectangle(cornerRadius: 6).fill(dashed ? .clear : Theme.chip))
@@ -423,6 +442,10 @@ private struct BrowseHeader: View {
         case let .created(span): ("Opened", spanText(span))
         case let .activity(span): ("Activity", spanText(span))
         case let .linkedPull(linked): ("Linked PR", linked ? "yes" : "no")
+        case let .topic(value): ("Topic", value)
+        case let .team(value): ("Team", value)
+        case let .language(value): ("Language", value)
+        case let .archived(value): ("Archived", value ? "only" : "hidden")
         case let .text(text): ("Text", text)
         case let .raw(text): ("", text)
         }
@@ -683,20 +706,45 @@ struct BrowsePaletteView: View {
     }
 
     private func guidance(org: String, repos: Int) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             Label(
                 "\(org) has \(repos.formatted()) repos. Start with a view of the ones you care about.",
                 systemImage: "exclamationmark.triangle"
             )
-            .font(Theme.ui(13, weight: .semibold))
+            .font(Theme.ui(14, weight: .semibold))
             Text(
-                "Browsing every repo is slow and mostly noise. Narrow it to a repo, or search the whole org from a query."
+                "Browsing every repo is slow and mostly noise. Pick what matters; heed keeps it as a scope in the rail and you can still search the whole org."
             )
-            .font(Theme.ui(12.5)).foregroundStyle(Theme.fg2).fixedSize(horizontal: false, vertical: true)
-            HStack {
-                Text("Browse all anyway").font(Theme.ui(12.5)).padding(.horizontal, 10).padding(.vertical, 5)
+            .font(Theme.ui(13)).foregroundStyle(Theme.fg2).fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                ForEach(["Topic", "Team", "Language", "Archived"], id: \.self) { name in
+                    Text(name).font(Theme.ui(13)).foregroundStyle(Theme.fg2).padding(.horizontal, 10).padding(
+                        .vertical,
+                        4
+                    )
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Theme.chip.opacity(0.5)))
                     .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
-                Text("⌃b").font(Theme.mono(10)).foregroundStyle(Theme.fg3)
+                }
+                HStack(spacing: 4) {
+                    Image(systemName: "plus").font(.system(size: 10))
+                    Text("narrow").font(Theme.ui(13))
+                }.foregroundStyle(Theme.fg2).padding(.horizontal, 6)
+            }
+            HStack(spacing: 10) {
+                Spacer()
+                HStack(spacing: 6) {
+                    Text("Browse all anyway").font(Theme.ui(13))
+                    Text("⌃b").font(Theme.mono(10)).foregroundStyle(Theme.fg3)
+                }
+                .padding(.horizontal, 12).padding(.vertical, 7)
+                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
+                HStack(spacing: 8) {
+                    Text("Create \(org) view").font(Theme.ui(13.5, weight: .semibold))
+                    Text("↩").font(Theme.mono(10)).padding(.horizontal, 5)
+                        .background(RoundedRectangle(cornerRadius: 3).fill(Theme.bg)).foregroundStyle(Theme.fg)
+                }
+                .foregroundStyle(Theme.ink).padding(.horizontal, 14).padding(.vertical, 8)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Color.white))
             }
         }
         .padding(14)

@@ -821,6 +821,13 @@ enum Shots {
     static let browse: [Shot] = [
         Shot(id: "github/browse", keys: "gv"),
         Shot(id: "github/browse-scope", keys: "gv<D-k>gl"),
+        // `/`: words, read into tokens (the fixture's answer, no model); the fields below them.
+        Shot(id: "github/browse-build-type", keys: "gv/agent ready bugs nobody touched<CR>"),
+        // A field's value picker: two labels ticked, any / all / none, the live count, the raw query.
+        Shot(id: "github/browse-build-edit", keys: "gv/lab<CR><Space><Down><Down><Space>"),
+        Shot(id: "github/browse-save", keys: "gv/lab<CR><Space><D-s>"),
+        // The big org's view builder, opened from the quick jump's guidance.
+        Shot(id: "github/browse-org-view", keys: "gv<D-k>gl<CR><CR><Space><CR>"),
     ]
 
     static let worktrees: [Shot] = [

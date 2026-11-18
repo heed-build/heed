@@ -133,6 +133,8 @@ struct MainWindow: View {
             if let state = model.pathImport { PathImportView(state: state) }
             if let form = model.addRepoDialog { AddRepoView(form: form) }
             if let palette = model.browse.palette { BrowsePaletteView(palette: palette) }
+            if let builder = model.browse.builder { BrowseBuilderView(builder: builder) }
+            if let builder = model.browse.orgBuilder { BrowseOrgBuilderView(builder: builder) }
         }
         .overlay {
             if let confirmation = model.confirmation { ConfirmationView(confirmation: confirmation) }
@@ -599,12 +601,22 @@ struct StatusBar: View {
                 + "\(key("worktree.new", in: "repos")) start work here · \(key("select.open", in: "repos")) open / import · "
                 + "\(key("mode.visual", in: "repos")) select · \(key("select.remove", in: "repos")) remove · "
                 + "\(key("session.filter", in: "repos")) filter"
+        case .normal where model.browse.builder != nil:
+            switch model.browse.builder?.stage {
+            case .values: "↑↓ move · space toggle · ⇥ any / all / none · ↩ done · ⌘S save as query · ⌘C copy · ⎋ back"
+            case .save: "type a name · ⇥ glyph · ⌃t tint · ↩ save · ⎋ close"
+            case .raw: "paste or type a GitHub query · ↩ read it · ⎋ back"
+            default: "type to filter · ↩ apply · ⌘↩ search as text · ⇥ edit tokens · ⌫ remove last · ⎋ close"
+            }
+        case .normal where model.browse.orgBuilder != nil:
+            "↑↓ move · ↩ choose · space toggle · ⌘↩ create the view · ⎋ close"
         case .normal where model.browse.palette != nil:
             "type to find · ⌃n ⌃p move · ↩ go · ⌃b browse a big org whole · ⎋ close"
         case .normal where model.view == .browse:
             "\(key("row.next", "row.prev", in: "browse")) move · space pick · ↩ open · "
                 + "\(key("browse.scope", in: "browse")) scope · \(key("browse.query.next", in: "browse")) query · "
-                + "\(key("browse.older", in: "browse")) older · \(key("session.filter", in: "browse")) filter"
+                + "\(key("browse.older", in: "browse")) older · \(key("browse.filter.add", in: "browse")) add filter · "
+                + "\(key("session.filter", in: "browse")) filter"
         case .normal where model.view == .history:
             "\(key("row.next", "row.prev", in: "history")) move · "
                 + [

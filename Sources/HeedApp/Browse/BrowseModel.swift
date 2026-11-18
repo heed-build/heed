@@ -23,26 +23,32 @@ final class BrowseModel {
     }
 
     private(set) var store: BrowseStore?
-    private(set) var items: [BrowseItem] = []
+    var items: [BrowseItem] = []
     /// The items the query keeps, in the sort order: what the list draws.
     private(set) var rows: [BrowseItem] = []
-    private(set) var queries: [SavedQuery] = []
-    private(set) var scopes: [BrowseScope] = []
-    private(set) var query = BrowseQuery(tokens: [.state(.open)])
+    var queries: [SavedQuery] = []
+    var scopes: [BrowseScope] = []
+    var query = BrowseQuery(tokens: [.state(.open)])
     /// The saved query `query` is, until you change it.
-    private(set) var activeQuery: String?
+    var activeQuery: String?
     private(set) var sort = BrowseSort.updated
     private(set) var search = ""
     private(set) var load = Load.idle
     private(set) var meta: Meta?
     /// What GitHub counted for a scope or a saved query, by id: the rail's numbers (the cache's own count until then).
     private(set) var scopeTotals: [String: Int] = [:]
-    private(set) var queryTotals: [String: Int] = [:]
+    var queryTotals: [String: Int] = [:]
     /// Saved queries with something new since you looked: the blue dot.
     private(set) var newQueries: Set<String> = []
     /// How many repos an org has, as GitHub said.
     private(set) var repoCounts: [String: Int] = [:]
     var palette: BrowsePalette?
+    /// The add-filter popover (`/`), and the org view builder ("Create <org> view").
+    var builder: BrowseBuilder?
+    var orgBuilder: BrowseOrgBuilder?
+    /// When each saved query's count was last asked of GitHub, so the rail's refresh is slow.
+    @ObservationIgnored var countedAt: [String: Date] = [:]
+    @ObservationIgnored var countsTask: Task<Void, Never>?
     private(set) var settings = BrowseSettings()
     private(set) var viewer: String?
     let fixture: Bool
@@ -207,31 +213,7 @@ final class BrowseModel {
         changed()
     }
 
-    /// Keeps the query you are on in the rail, with the glyph its filter picks.
-    func saveQuery(named name: String? = nil) {
-        var kept = query
-        kept.scope = nil
-        let id = "q\(Int(Date().timeIntervalSince1970))"
-        let saved = SavedQuery(id: id, name: name ?? Self.name(of: kept), query: kept)
-        queries.append(saved)
-        activeQuery = id
-        let store = store
-        Task { try? await store?.save(saved) }
-    }
-
-    static func name(of query: BrowseQuery) -> String {
-        for token in query.tokens {
-            switch token {
-            case let .label(mode, names) where mode != .none: return names.joined(separator: ", ")
-            case let .milestone(name): return name
-            case let .assignee(name): return name == "@me" ? "Assigned to me" : "Assigned to \(name)"
-            default: continue
-            }
-        }
-        return "Saved query"
-    }
-
-    private func changed() {
+    func changed() {
         refilter()
         remember()
         fetch()
@@ -278,7 +260,10 @@ final class BrowseModel {
         items = Array(byID.values)
         meta = Meta(total: result.total, capped: result.capped, hidden: result.hidden, fetchedAt: result.fetchedAt)
         if let scope = asked.scope, asked.tokens == [.state(.open)] { scopeTotals[scope.id] = result.total }
-        if let id = activeQuery { queryTotals[id] = result.total }
+        if let id = activeQuery {
+            queryTotals[id] = result.total
+            countedAt[id] = Date()
+        }
         load = .idle
         refilter()
         let store = store

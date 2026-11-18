@@ -2397,7 +2397,7 @@ final class AppModel {
             || linkPicker != nil || pathImport != nil || startWork != nil || resume != nil || firstRun != nil
             || hostRootsChooser != nil || awaySummary != nil || runReader != nil || pilotExplain != nil
             || overlay != nil || filtering || tutor != nil || repoSetup != nil || nudge != nil || addRepoDialog != nil
-            || browse.palette != nil
+            || browse.palette != nil || browse.builder != nil || browse.orgBuilder != nil
     }
 
     /// After you added or checked a host: asks where its projects are, once, when config does not say. While you are
@@ -2824,6 +2824,14 @@ final class AppModel {
         }
         if browse.palette != nil {
             answerBrowsePalette(stroke)
+            return true
+        }
+        if browse.builder != nil {
+            answerBrowseBuilder(stroke)
+            return true
+        }
+        if browse.orgBuilder != nil {
+            answerBrowseOrgBuilder(stroke)
             return true
         }
         if firstRun != nil {
@@ -3294,7 +3302,8 @@ final class AppModel {
             performHelper(command)
         case "view.browse", "browse.open", "browse.scope", "browse.scope.next", "browse.scope.prev",
              "browse.query.next", "browse.query.prev", "browse.query.save", "browse.older", "browse.refresh",
-             "browse.sort":
+             "browse.sort", "browse.filter.add", "browse.filter.remove", "browse.query.rename", "browse.query.delete",
+             "browse.query.up", "browse.query.down", "browse.view.new":
             performBrowse(command)
         case "view.autopilot", "view.watch", "autopilot.cando", "autopilot.where", "autopilot.now", "autopilot.done",
              "autopilot.move", "autopilot.on", "autopilot.ask", "autopilot.off", "autopilot.everywhere",

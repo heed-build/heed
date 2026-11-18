@@ -950,6 +950,25 @@ public enum Commands {
         .init("browse.older", "Browse: show items older than the cap, or go back to it", .selection),
         .init("browse.refresh", "Browse: ask GitHub again", .selection),
         .init("browse.sort", "Browse: next sort (updated, created, comments, oldest)", .selection),
+        .init(
+            "browse.filter.add",
+            "Browse: add a filter: pick a field, type words, or paste a GitHub query",
+            .selection
+        ),
+        .init("browse.filter.remove", "Browse: take the last filter off the query", .selection),
+        .init(
+            "browse.query.rename",
+            "Browse: rename the saved query you are on, or change its glyph and tint",
+            .selection
+        ),
+        .init("browse.query.delete", "Browse: remove the saved query you are on from the rail", .selection),
+        .init("browse.query.up", "Browse: move the saved query you are on one place up the rail", .selection),
+        .init("browse.query.down", "Browse: move the saved query you are on one place down the rail", .selection),
+        .init(
+            "browse.view.new",
+            "Browse: make a view of the org you are in (topic, team, language) and pin it",
+            .selection
+        ),
         .init("attention.session", "go to the item's session", .selection),
         .init(
             "attention.filter", "next Attention tab (Muted after Everything), or the one named", .selection,

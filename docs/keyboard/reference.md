@@ -22,7 +22,7 @@ This page is generated from the code (`mise run shots`).
 | `row.halfpage.up` | `<C-u>` | half a page up (ten rows) |
 | `group.next` | `}` | first row of the next group (sidebar group, repo) |
 | `group.prev` | `{` | first row of this group, or of the one before |
-| `session.filter` | `/` | filter the current view (typed in the status bar) |
+| `session.filter` | `/`, `<D-f>` (browse) | filter the current view (typed in the status bar) |
 | `filter.clear` |  | clear the current view's filter |
 | `session.attention` | `ga` | next session needing you |
 | `session.park` | `zz` | park session |
@@ -416,6 +416,13 @@ This page is generated from the code (`mise run shots`).
 | `browse.older` | `e` (browse) | Browse: show items older than the cap, or go back to it |
 | `browse.refresh` | `r` (browse) | Browse: ask GitHub again |
 | `browse.sort` | `T` (browse) | Browse: next sort (updated, created, comments, oldest) |
+| `browse.filter.add` | `/` (browse) | Browse: add a filter: pick a field, type words, or paste a GitHub query |
+| `browse.filter.remove` | `x` (browse) | Browse: take the last filter off the query |
+| `browse.query.rename` | `R` (browse) | Browse: rename the saved query you are on, or change its glyph and tint |
+| `browse.query.delete` | `D` (browse) | Browse: remove the saved query you are on from the rail |
+| `browse.query.up` | `[Q` (browse) | Browse: move the saved query you are on one place up the rail |
+| `browse.query.down` | `]Q` (browse) | Browse: move the saved query you are on one place down the rail |
+| `browse.view.new` |  | Browse: make a view of the org you are in (topic, team, language) and pin it |
 | `attention.session` | `gS` (attention), `gS` (attentionhelper), `gS` (attentionother), `gS` (swarmask) | go to the item's session |
 | `attention.filter` `[filter]` | `t` (attention), `t` (attentionhelper), `t` (attentionother), `t` (swarmask) | next Attention tab (Muted after Everything), or the one named |
 | `attention.done.new` | `X` (attention), `X` (attentionother), `X` (swarmask) | done with everything in For you's New since |

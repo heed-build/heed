@@ -1,0 +1,324 @@
+---
+description: Search the issues and PRs of an org, a repo or a Project on GitHub, see heed's read of each, and put an agent on one or a group.
+---
+
+# Browse
+
+[Attention](attention.md) brings the work that involves you. Browse is where you go to find the rest: `gb` opens the
+issues and pull requests of an org, a repo or a Project, searched on GitHub, with the thread beside the list and four
+agents a key away. Read this page top to bottom and you know what Browse can do.
+
+![Browse: queries and scopes on the left, the list in the middle, the thread and the agent buttons on the right](../images/shots/github/browse.png)
+
+Browse asks GitHub when you ask: when you enter it, change the scope or the query, press `e` for older items or `r`
+to refresh. It never asks on the sync's poll. What it fetched last time draws first, and the fresh answer replaces
+it.
+
+## Layout and the rail
+
+Three panes, left to right:
+
+- **The rail.** Queries on top, scopes under them.
+- **The list.** One row per issue or pull request, newest update first.
+- **The reader.** The thread under the cursor, as GitHub renders it, with heed's read and the agent buttons.
+
+**Queries** are searches you keep. heed starts you with five: *Agent-ready* (open items heed read as ready for an
+agent), *Assigned to me*, *Bugs nobody touched*, *Good first issues* and *Stale 30d+*. Each has a glyph and a tint:
+heed picks the glyph from the query's main filter (a bug for bug labels, a sprout for good first issues, a clock for
+stale, a flag for a milestone, a person for an assignee, a bolt for agent-ready, a pull for pull requests), and you
+can change it when you save. The number beside a query is what GitHub counts for it, refreshed slowly in the
+background while you are in Browse. A blue dot marks a query with news; `]q` and `[q` step through the queries.
+
+**Scopes** say where the search runs. The shape says what a scope is:
+
+| Mark | Scope |
+|---|---|
+| Filled square with the initial | An org or your own account |
+| Outlined small square, indented under its org | One repo |
+| Filled square with a filter glyph | An org view: an org narrowed by language or archived state ([below](#orgs-with-very-many-repos)) |
+| Circle with a board glyph | A Project |
+
+`]o` and `[o` step through the scopes. A scope joins the rail when you go there, and the rail keeps it.
+
+### Quick jump
+
+`⌘K` opens the jump: type to find an org or account, or a repo of one. Orgs list their repo count. Matching repos
+follow (six at most) with *cloned ✓* or *not cloned* and how many items are open. `↩` goes there. A repo that is not
+cloned still browses: only starting an agent on it asks to clone first.
+
+![The quick jump: an org with 1,240 repos, two matching repos, and the offer of a view of its own](../images/shots/github/browse-scope.png)
+
+### Orgs with very many repos
+
+Browsing every repo of a big org is slow and mostly noise. An org with more repos than `many_repos` (200 by default)
+gets a card in the jump instead of a plain go: **Create `<org>` view**, or **Browse all anyway** (`⌃B`). An org view is
+the org narrowed by a language and by archived or not. heed stores nothing but those two filters, and GitHub applies
+them on every search, so the view never goes stale. The builder counts the matching repos live as you choose. `:browse.view.new`
+makes a view of the org you are in.
+
+![Creating an org view: a language, archived or not, and the repos that match now](../images/shots/github/browse-org-view.png)
+
+## The list
+
+![One screen of rows: type, repo, title, labels, heed's read and the verb it suggests](../images/shots/github/browse.png)
+
+Each row holds the item type (`IS` issue, `PR` pull request), its repo, its title and number, its labels, and a few
+tags: *assigned to you*, *open PR* when an issue has a linked pull request, *draft*. A cloud means the repo is not
+cloned on this Mac. On the right:
+
+- **heed's read:** the class (a glyph: bug, feature and so on), the size (one to three pips) and a ring with the
+  agent-ready percentage. A hatched *unread* means heed has not read the item yet.
+- **The verb heed suggests:** Fix (red), Implement (blue), Chat (purple) or Review (green), when heed has one.
+- **The age and the comment count.**
+
+Above the list a line says how many items are open and the cap: *47 open · last 3 months*, with **Show older** beside
+it. Browse searches items updated in the last 3 months (`max_age_days`). `e` lifts the cap for the view you are in, and
+`e` again puts it back. A query with its own *Activity* filter ignores the cap. A search brings in at most 300
+items.
+
+`T` cycles the sort: updated, created, comments, oldest. `⌘F` narrows the rows by words over titles, repos and labels.
+
+## Filtering
+
+`/` opens the filter builder over the list. A query is a scope and a row of filters (the chips above the list), each
+of which becomes a GitHub search qualifier.
+
+![The filter popover: what you typed, what heed understood, and the fields to add one by hand](../images/shots/github/browse-build-type.png)
+
+**The fields:** Label, Type, State, Assignee, Author, Repo, Age, Activity, Linked PR, Project and Milestone, the
+three heed fields (class, size, agent-ready), and GitHub query. Type to narrow the list of fields, or press `1` to `9`
+for one.
+
+**Value pickers show counts.** Pick a field and a list of its values appears, each with how many of the items you
+have would match. Label takes several values and reads them as *any of*, *all of* or *none of* (`⇥` switches).
+Under the list, *would match 7 of 10* updates as you tick, with bars by age, and the GitHub query it makes. `↩`
+applies, `⌘C` copies the query, `⌘S` saves it.
+
+![The label picker: three modes, counts per label, the live match count and the raw query](../images/shots/github/browse-build-edit.png)
+
+**Say it in words.** Type a sentence that is not a field name, for example *agent ready bugs nobody touched*, and
+`↩` sends it to heed's cheap model tier. The card *Understood as* shows the filters it made. Nothing hides behind the
+sentence: a field heed does not know, or a value out of range, is dropped and listed with its reason, and you can
+edit the tokens (`⇥`) before you apply. `⌘↩` searches the words as text instead. With model calls off
+(`[llm] enabled = false`), words are searched as text.
+
+**The raw GitHub query** is always one step away: pick GitHub query to see, edit and paste the search syntax.
+What heed does not model (`sort:`, `no:assignee` and the like) stays as written.
+
+**Heed fields filter locally.** Class, size and agent-ready narrow what GitHub answered, on this Mac, using heed's
+read. They never go to GitHub, and an item heed has not read matches none of them.
+
+**Save as query** (`S`, or `⌘S` in the builder) takes a name, a glyph (`⇥`) and a tint (`⌃T`) and puts the query in
+the rail. `N` renames the query you are on, `D` removes it, `]Q` and `[Q` move it. `x` takes the last filter off.
+
+![Save as query: a name, a glyph and a tint](../images/shots/github/browse-save.png)
+
+## heed's read
+
+![The reader's card: class, size, agent-ready, a TL;DR and a possible duplicate](../images/shots/github/browse-read.png)
+
+For each item heed writes a read: its **class** (bug, feature, docs, question or chore), its **size** (S, M or L), how
+**agent-ready** it is (0 to 100: a clear repro or acceptance, bounded, no design decision pending), a **TL;DR**, and
+**possible duplicates** among the other items of the repo. Duplicates come from the titles, not from the model.
+
+The read is local. heed keeps it in `browse.sqlite` on this Mac for 90 days and never writes it to GitHub. A read
+belongs to the item as it was: when the item changes, the card says *stale* and keeps the old read, dimmed, until
+heed writes a new one. The card always says its state: up to date, stale, reading, queued, failed and why, or off.
+
+**When heed reads:**
+
+- **Ahead:** the top 20 rows of the view, once the view settles (`read_ahead`), and the item under the cursor.
+- **On open:** the item under the cursor once it rests.
+- **On demand:** `U` reads the item under the cursor, or every picked item, one at a time, and reads again if it is stale.
+
+`reads` in `[browse]` chooses *ahead*, *open* or *off* (only `U`). Reads are model calls: they follow `[llm]`, so
+they stop when model calls are off and ahead and on-open reads stop at the daily cap. `U` goes past the daily cap.
+
+## Fix, Implement, Chat, Review
+
+Four buttons sit under every item, always all four, with one filled when heed has a suggestion and a line saying why.
+A button that does not fit is dashed and says why.
+
+| Key | Does |
+|---|---|
+| `F` Fix | Reproduces the bug, fixes it, tests it and opens a PR. Comments on the issue. On a PR, addresses its feedback |
+| `I` Implement | Builds what the issue asks, with tests, and opens a PR that closes it |
+| `C` Chat | Asks questions, finds the cause, drafts a reply. Edits nothing |
+| `R` Review | Reads the diff, runs the tests and drafts a review for you |
+| `t` | Tell an agent in your own words what to do |
+
+**What heed suggests:**
+
+| The item | Suggested |
+|---|---|
+| Closed or merged | Chat; the others are off |
+| An issue heed has not read | Nothing; Fix and Implement wait for the read |
+| A question, an issue under 50% agent-ready, or one with a PR already linked | Chat |
+| A bug at 50% or more, no linked PR | Fix |
+| A feature, docs or chore item at 50% or more, no linked PR | Implement |
+| A PR whose review is requested of you | Review (not on a draft) |
+| Your PR with failing checks or changes requested | Fix, addressing the feedback |
+
+Implement never fits a PR, and Review is off on your own PR. An agent action works on one item: with several picked,
+`F` `I` `C` `R` say so.
+
+![Fix running: its feed, the temporary worktree and the way to keep or close it](../images/shots/github/browse-run.png)
+
+**Where it runs.** The agent runs in a temporary worktree, named `issue-<number>-<hex>` for an issue and
+`pr-<number>-<hex>` for a PR, on a branch `heed/browse/<name>`, under the same root as helper worktrees. The reader
+shows the feed: what it read, edited (with the diff), ran, tested, commented, pushed and opened. Closing the run
+(`⎋`) removes the worktree and its local branch. A branch it pushed stays on GitHub. If commits were never pushed,
+heed says so as it closes.
+
+**Clone first.** When the repo is not on this Mac, the run opens with a card: `↩` clones and starts, `c` only clones,
+`d` picks the folder, `⎋` is not now.
+
+![The clone card: clone and start, only clone, or choose the folder](../images/shots/github/browse-clone.png)
+
+**What the agent may and may not do.** Fix and Implement edit files and run commands inside the worktree, commit, push
+a branch of this repo, open and update PRs, and comment and label, all without asking. Chat reads only and changes
+nothing. Review also builds and tests, but edits, commits, pushes and writes nothing to GitHub. For every verb, heed
+refuses a path outside the worktree, secrets and credential files, another repo, force-pushes, any push to the default
+branch, changes to the repo's settings, download-and-run, and fetches from anywhere but GitHub. The feed shows each
+refusal. This is a guard on what an agent asks to run, not a sandbox: a test suite the agent runs executes whatever the
+repo's code does.
+
+**Review drafts need your Post.** A review is public speech on someone else's PR, so the agent's review is a draft with
+a verdict (approve, comment or request changes): **Post** (`P`), **Edit** (`E`, the agent changes it) or **Discard**
+(`X`). Nothing is posted any other way.
+
+![A drafted review waiting for you: Post, Edit or Discard](../images/shots/github/browse-review-draft.png)
+
+**Untrusted authors run as Chat.** heed applies the same rule as everywhere else: work is trusted when it is yours,
+when someone who can write to the repo wrote it, or when `trusted_authors` names them. A PR from a fork is never
+trusted unless it is yours. For anyone else the run is a Chat, whatever you pressed: it reads, edits nothing, runs none
+of the repo's code and has no GitHub login, and the header says why.
+
+**Keep it as a session.** `s` turns a run into a full session: its worktree moves to heed's usual naming (`fix/...`),
+its branch is renamed, and a session opens in it. Nothing is removed. `i` (or `↩`) steers a run or asks a follow-up.
+
+**How many at once.** One run per item, and `max_runs` (3 by default) working at the same time. A run that is waiting
+for you does not count. Past the limit, heed says so and starts nothing: it does not queue. Runs use `[browse] agent`,
+else `[helpers] agent`, and count against `[helpers] spend_cap`.
+
+## Selecting several items
+
+`space` picks the item under the cursor, `v` picks a range, `a` picks every item in the view (again: none) and `⎋`
+clears. With two items picked, the reader becomes a bulk panel.
+
+![Four bugs picked: heed's note, and what to do with them](../images/shots/github/browse-bulk.png)
+
+heed's note names what it noticed: issues of one repo and one class that share a label or a title word. It does this
+from titles and labels, without asking a model, and never groups pull requests.
+
+- **One session for the related** (`s`): one worktree, one branch, one PR. heed writes the prompt from the issues, with
+  a `Closes` line for each. The button is there when heed finds a group; picks that hang together by nothing leave it out.
+- **A goal from all** (`G`): heed plans it with you first, and each item goes on the goal.
+- **A session for each** (`S`): one worktree per item. Above five, heed asks first.
+- **On GitHub:** **Label** (`1`), **Assign to me** (`A`), **Comment on all** (`c`) and **Close as...** (`x`: completed
+  or not planned). Each opens a confirm step that lists exactly what changes on each item, and what it leaves alone
+  and why. Nothing is written before you confirm. A write that fails does not stop the rest, and a report says what
+  each item got. A closed PR is closed without merging.
+- **Read the unread** (`U`): heed reads the picked items it has not read.
+
+## Smaller windows
+
+Browse draws itself from the width of its own area, so a window in a split behaves as a narrow window does.
+
+| Width | Layout |
+|---|---|
+| 1100 and up | Rail, list and reader side by side |
+| 640 to 1100 | An icon rail and the list; `↩` pushes the reader over them, `⎋` goes back, `j` and `k` move to the next item |
+| Under 640 | No rail: the scope chip and the filter count sit over two-line rows, the scope chip opens the jump as a sheet, filters and bulk actions are sheets too |
+
+![Half width: the icon rail and the list](../images/shots/github/browse-half-list.png)
+
+![Half width: the reader pushed over the list](../images/shots/github/browse-half-detail.png)
+
+![Third width: two-line rows, and the scope chip over them](../images/shots/github/browse-third-list.png)
+
+![Third width: the filter builder as a sheet](../images/shots/github/browse-third-build.png)
+
+![Third width: picked items and their actions in a bottom sheet](../images/shots/github/browse-third-bulk.png)
+
+Where you are, what you picked and the query survive a resize.
+
+## Keys
+
+`gb` opens Browse. These keys work inside it, and you can rebind each (`:keys`, [Customizing](../keyboard/customizing.md)).
+
+| Key | Command | Does |
+|---|---|---|
+| `j` `k` | | Move through the list |
+| `↩` | `browse.open` | Load the item now; on a narrow window, push the reader |
+| `⌘K` | `browse.scope` | Jump to an org or a repo |
+| `]o` `[o` | `browse.scope.next` `browse.scope.prev` | Next and previous scope |
+| `]q` `[q` | `browse.query.next` `browse.query.prev` | Next and previous saved query |
+| `/` | `browse.filter.add` | Add a filter |
+| `x` | `browse.filter.remove` | Take the last filter off |
+| `S` | `browse.query.save` | Keep the query in the rail |
+| `N` `D` | `browse.query.rename` `browse.query.delete` | Rename (and change glyph and tint), or remove, the saved query you are on |
+| `]Q` `[Q` | `browse.query.down` `browse.query.up` | Move the saved query down or up the rail |
+| `e` | `browse.older` | Show older items, or go back to the cap |
+| `r` | `browse.refresh` | Ask GitHub again |
+| `T` | `browse.sort` | Next sort |
+| `⌘F` | `session.filter` | Narrow the rows by words |
+| `space` `v` `a` | | Pick one, pick a range, pick all |
+| `U` | `browse.read` | heed reads the item or the picked items |
+| `F` `I` `C` `R` | `browse.fix` `browse.implement` `browse.chat` `browse.review` | Fix, Implement, Chat, Review |
+| `t` | `browse.tell` | Tell an agent what to do, in your words |
+| `s` | `browse.run.keep` | Keep the run as a session |
+| `i` | `browse.run.steer` | Steer the run |
+| `⎋` | `browse.run.close` | Close the run and remove its worktree; with items picked, clear them; on a pushed reader, go back |
+| `P` `E` `X` | `browse.run.review.post` `.edit` `.discard` | Post, edit or discard the drafted review |
+| `c` `d` | `browse.clone.only` `browse.clone.folder` | On the clone card: only clone, choose the folder |
+
+With items picked:
+
+| Key | Command | Does |
+|---|---|---|
+| `s` | `browse.bulk.session` | One session for the related items |
+| `S` | `browse.bulk.each` | A session for each |
+| `G` | `browse.bulk.goal` | A goal from all |
+| `1` | `browse.bulk.label` | Label them on GitHub |
+| `A` | `browse.bulk.assign` | Assign them to you on GitHub |
+| `c` | `browse.bulk.comment` | Comment on all on GitHub |
+| `x` | `browse.bulk.close` | Close them on GitHub |
+
+[Keyboard reference](../keyboard/reference.md) lists every command and its key.
+
+## Settings
+
+`[browse]` in `config.toml`, and Settings › GitHub:
+
+| Key | Default | Means |
+|---|---|---|
+| `max_age_days` | `90` | Browse leaves out items not updated within this many days. `0` shows everything. Show older lifts it for one view |
+| `many_repos` | `200` | An org with more repos than this is offered a view of its own first. `0` never asks |
+| `reads` | `"ahead"` | `"ahead"` reads the top rows and the item under the cursor, `"open"` only that item, `"off"` only when you press `U` |
+| `read_ahead` | `20` | How many rows from the top of the view are read ahead. `0` reads none |
+| `max_runs` | `3` | How many agent runs may work at once (0 to 20). `0` sets no limit |
+| `agent` | unset | The agent Browse's runs use: `claude`, `codex`, `opencode` or `gemini`. Unset, it is `[helpers] agent` |
+
+Reads follow `[llm]`: its switch, its daily limits and its back-off. See [Model calls](../agents/model-calls.md) and
+the [configuration reference](../configuration/reference.md).
+
+## What Browse does not do
+
+- **It fetches when you ask, not on a timer.** A list can be as old as your last look: `r` asks again, and the line
+  over the list says when GitHub is being asked.
+- **It brings in at most 300 items per search.** A longer result is filtered, not read: narrow the query.
+- **An org view is a filter GitHub applies,** language and archived. It has no topic or team filter, because GitHub's
+  issue search has none, and it keeps no list of repos.
+- **Project titles are not read.** That needs a GitHub token scope heed's default does not have. A Project scope or
+  filter works through `project:org/number` in a GitHub query, but heed does not list the Projects on an item and
+  cannot offer them as values, and there is no key to add a Project to the rail yet.
+- **Heed's fields are local.** The counts for queries that use them come from what this Mac has fetched and read, not
+  from GitHub.
+- **Words need the model.** With model calls off, a sentence is searched as text.
+- **Agent actions take one item,** and an agent never starts on an item whose Fix, Implement or Review does not fit
+  it: the button says why.
+- **A run is not a sandbox,** and it is not free: it spends against `[helpers] spend_cap`.
+- **A crash can leave a run's worktree behind.** heed removes it when you close the run, not on its own at startup.
+
+**Next:** [Reading](reading.md), or [start a session from an item](../start-work/from-github.md).

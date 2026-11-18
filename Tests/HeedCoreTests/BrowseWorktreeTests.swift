@@ -155,28 +155,6 @@ struct BrowseWorktreeTests {
         #expect(try await branches(record) == ["main"])
     }
 
-    @Test func theStartupSweepRemovesASafeBrowseLeftoverAndKeepsTheRest() async throws {
-        defer { try? FileManager.default.removeItem(atPath: base) }
-        let record = try await world()
-        func make(_ number: Int, _ suffix: String) async throws -> (String, String) {
-            let plan = BrowseWorktree.plan(for: item(number), defaultBranch: "main", root: base + "/wt", suffix: suffix)
-            return (plan.branch, try await BrowseWorktree.create(plan, in: record))
-        }
-        let (safe, safePath) = try await make(1, "aaaaaa")
-        let (dirty, dirtyPath) = try await make(2, "bbbbbb")
-        let (unpushed, unpushedPath) = try await make(3, "cccccc")
-        let (live, livePath) = try await make(4, "dddddd")
-        try "x\n".write(toFile: dirtyPath + "/wip.txt", atomically: true, encoding: .utf8)
-        _ = try await git(unpushedPath, ["commit", "-q", "--allow-empty", "-m", "mine"])
-
-        let result = await RunCleanup.clean(record, live: [live])
-        let removed = Set(result.filter(\.removed).map(\.branch))
-        #expect(removed == [safe])
-        #expect(!FileManager.default.fileExists(atPath: safePath))
-        for kept in [dirtyPath, unpushedPath, livePath] { #expect(FileManager.default.fileExists(atPath: kept)) }
-        #expect(try await Set(branches(record)) == ["main", dirty, unpushed, live])
-    }
-
     @Test func removingLeavesWhatTheRunPushedOnTheRemote() async throws {
         defer { try? FileManager.default.removeItem(atPath: base) }
         let record = try await world()

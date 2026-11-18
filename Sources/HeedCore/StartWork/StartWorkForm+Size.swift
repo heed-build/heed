@@ -22,9 +22,9 @@ public struct StartGoal: Equatable, Sendable {
     }
 }
 
-/// Start work sizes a longer prompt (`[start_work] size_check`): bigger than one session shows a card in place of the
-/// fields with three ways on: Make it a goal (⌘↩), Just a session (⌥↩), It's a question (⌃↩). Small tasks, chats and
-/// promotions never see it, and the dialog keys work as before.
+/// Start work sizes a longer prompt (`[start_work] size_check`): bigger than one session shows a quiet hint under the
+/// prompt, and the fields stay where they are. ⌘↩ always starts what the fields show; the hint only offers
+/// Make it a goal (⌘G or a click) and goes away with ✕. Small tasks, chats and promotions never see it.
 public extension StartWorkForm {
     /// The prompt to size now (`TaskSizer.key`), or nil: sizing is off, it is a chat or a promotion, or the prompt is
     /// short.
@@ -33,8 +33,8 @@ public extension StartWorkForm {
         return TaskSizer.key(prompt)
     }
 
-    /// The card shows: the last sizing said goal, the prompt is still a longer one, and it was not put away.
-    var showsSizeCard: Bool {
+    /// The hint shows: the last sizing said goal, the prompt is still a longer one, and it was not put away.
+    var showsSizeHint: Bool {
         guard let sizing, sizing.kind == .goal, sizeQuestion != nil else { return false }
         return sizingSetAside != sizing.prompt
     }
@@ -47,48 +47,18 @@ public extension StartWorkForm {
         )
     }
 
-    /// The sizing of `key` arrived (nil: none could be had). Kept only for the prompt still current. When ⌘↩ was
-    /// waiting for it, the work starts now unless the card shows.
-    mutating func sized(_ sizing: TaskSizing?, for key: String) -> Outcome {
-        guard key == sizeQuestion else { return .handled }
-        sizedPrompt = key
-        if let sizing { self.sizing = sizing }
-        guard waitingForSize else { return .handled }
-        waitingForSize = false
-        if showsSizeCard { return .handled }
-        return canStart ? .start(plan) : .handled
+    /// The sizing of `key` arrived (nil: none could be had). Kept only for the prompt still current.
+    mutating func sized(_ sizing: TaskSizing?, for key: String) {
+        guard key == sizeQuestion, let sizing else { return }
+        self.sizing = sizing
     }
 
-    /// The card's keys: ⌘↩ a goal, ⌥↩ a session, ⌃↩ a chat; in NORMAL, `j`, `↓` or `⇥` put the card away for the
-    /// fields. Nil: the key is the dialog's as usual (typing in the prompt goes on).
-    internal mutating func answerSizeCard(_ stroke: KeyStroke) -> Outcome? {
-        switch stroke {
-        case KeyStroke("CR", .command):
-            return .goal(startGoal)
-        case KeyStroke("CR", .option):
-            setSizingAside()
-            guard canStart else { return .handled }
-            return .start(plan)
-        case KeyStroke("CR", .control):
-            setSizingAside()
-            setChat(true)
-            guard canStart else { return .handled }
-            return .start(plan)
-        case KeyStroke("j"), KeyStroke("Down"):
-            guard !editing else { return nil }
-            setSizingAside()
-            focus(field: fields.first { $0 != .prompt } ?? .repo)
-            return .handled
-        case KeyStroke("Tab"):
-            // ⇥ moves on as always; the fields it moves to show.
-            setSizingAside()
-            return nil
-        default:
-            return nil
-        }
+    /// Make it a goal, from ⌘G or a click on the hint. Nothing starts until the goal's wizard asks for it.
+    mutating func makeGoal() -> Outcome {
+        .goal(startGoal)
     }
 
-    /// The card goes away for this sizing; a later one for another prompt can bring it back.
+    /// The hint goes away for this sizing; a later one for another prompt can bring it back.
     mutating func setSizingAside() {
         sizingSetAside = sizing?.prompt
     }

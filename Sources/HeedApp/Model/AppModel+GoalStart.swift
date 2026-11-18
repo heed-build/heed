@@ -25,31 +25,25 @@ extension AppModel {
         startWork?.sizeCheck = true
     }
 
-    /// After every change to the dialog (`now`: ⌘↩ waits on it): sizes the prompt once typing pauses. An answer for
-    /// a prompt no longer typed is dropped; one ⌘↩ waited for starts the work or shows the card.
-    func sizeStartWork(now: Bool = false) {
+    /// After every change to the dialog: sizes the prompt once typing pauses. An answer for a prompt no longer typed
+    /// is dropped; one that says goal shows the hint under the prompt.
+    func sizeStartWork() {
         guard let form = startWork else {
             startWorkSizer?.cancel()
             return
         }
-        guard let sizer = startWorkSizer else {
-            // Nothing can size here: a ⌘↩ that waited starts.
-            if now, let key = form.sizeQuestion { deliverSize(nil, for: key) }
-            return
-        }
-        sizer.ask(form.sizeQuestion, now: now) { [weak self] key, sizing in
+        startWorkSizer?.ask(form.sizeQuestion) { [weak self] key, sizing in
             self?.deliverSize(sizing, for: key)
         }
     }
 
     private func deliverSize(_ sizing: TaskSizing?, for key: String) {
         guard var form = startWork else { return }
-        let outcome = form.sized(sizing, for: key)
+        form.sized(sizing, for: key)
         startWork = form
-        if case let .start(plan) = outcome { proceed(plan) }
     }
 
-    /// Make it a goal on the card: the goal from the prompt, then its wizard's first step, since you chose a goal.
+    /// Make it a goal on the hint: the goal from the prompt, then its wizard's first step, since you chose a goal.
     func makeGoal(_ draft: StartGoal) {
         let repo = draft.repos.first.flatMap { id in repos.first { $0.id == id }?.repo.slug }
         let tracker = config.goals.mirror.tracker(for: repo) ?? ""

@@ -7900,9 +7900,6 @@ final class AppModel {
         case let .start(plan):
             startWork = form
             proceed(plan)
-        case .sizeFirst:
-            startWork = form
-            sizeStartWork(now: true)
         case let .goal(goal):
             startWork = nil
             makeGoal(goal)
@@ -9111,7 +9108,7 @@ final class AppModel {
         lookUpStartWorkLinks()
     }
 
-    /// A click on the sizing card's options: exactly their keys (⌘↩ ⌥↩ ⌃↩).
+    /// A click on the sizing hint's Make it a goal: exactly its key (⌘G).
     func clickStartWorkKey(_ stroke: KeyStroke) {
         guard startWork != nil, !startingWork else { return }
         handleStartWork(stroke)

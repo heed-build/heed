@@ -64,8 +64,8 @@ what `⎋` and `⌘↩` do.
 
 ## Bigger than one session
 
-A longer prompt is sized as you type. When it looks bigger than one session, a card offers a goal (`⌘↩`), a session
-(`⌥↩`) or a chat (`⌃↩`) in place of the fields; small tasks start as before. See
+A longer prompt is sized as you type. When it looks bigger than one session, a quiet line under the prompt offers a
+goal (`⌘G`); the fields stay and `⌘↩` starts what they show. Small tasks never see the line. See
 [Bigger than one session](sizing.md).
 
 ## With the mouse

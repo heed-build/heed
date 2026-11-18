@@ -142,7 +142,7 @@ enum Shots {
         // The goal wizard's Panel step and the Split board, lead on top.
         // Memory: the mindmap, a standup, the insights dashboard and OpenTelemetry.
         // Feature tiles: each shot is the element its tile names, not the window around it.
-        Shot(id: "landing/t-sizing", chrome: false, crop: .sizeCard, cropPadding: 10, prepare: { model in
+        Shot(id: "landing/t-sizing", chrome: false, crop: .dialog, cropPadding: 10, prepare: { model in
             model.openStartWork(prompt: bigPrompt)
             model.clickStartWork { form in
                 form.sizeCheck = true
@@ -465,7 +465,7 @@ enum Shots {
 
     static let startWork: [Shot] = [
         Shot(id: "start-work/dialog", keys: "o" + prompt, crop: .dialog),
-        // A longer prompt sized as bigger than one session: the card in place of the fields.
+        // A longer prompt sized as bigger than one session: the hint under the prompt.
         Shot(id: "start-work/size-card", crop: .dialog, prepare: { model in
             model.openStartWork(prompt: bigPrompt)
             model.clickStartWork { form in

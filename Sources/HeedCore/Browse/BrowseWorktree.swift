@@ -1,7 +1,7 @@
 import Foundation
 
 /// The temporary worktree a Browse run works in: how it is named, where it goes, how it is made and removed, what
-/// the startup sweep takes of the ones a crash left, and what a run becomes when you keep it as a session.
+/// the startup sweep (`RunCleanup`, at launch) takes of the ones a crash left, and what a run becomes when you keep it as a session.
 ///
 /// A run's worktree is `issue-<number>-<6 hex>` or `pr-<number>-<6 hex>`, under the runs root helpers use
 /// (`<root>/heed/<repo>/<name>`), on the branch `heed/browse/<name>`. Closing the run removes both; whatever the run
@@ -122,34 +122,5 @@ public enum BrowseWorktree {
             "git", ["-C", newPath, "branch", "-m", old, branch], caller: "browse.promote"
         )
         return newPath
-    }
-
-    // MARK: The startup sweep
-
-    /// A Browse run's branch and where it is checked out, as the sweep found them.
-    public struct Found: Equatable, Sendable {
-        public var branch: String
-        public var worktree: String?
-        public var dirty: Bool
-        /// Commits on it that exist on no remote, since it was made.
-        public var unpushed: Int
-
-        public init(branch: String, worktree: String?, dirty: Bool, unpushed: Int) {
-            self.branch = branch
-            self.worktree = worktree
-            self.dirty = dirty
-            self.unpushed = unpushed
-        }
-    }
-
-    /// What the sweep does with each: removes a leftover nobody is using and that holds nothing that exists only
-    /// here; keeps the rest, with why. `live` is the branches of runs under way.
-    public static func sweep(_ found: [Found], live: Set<String>) -> [(found: Found, remove: Bool, reason: String)] {
-        found.filter { isBranch($0.branch) }.map { item in
-            let verdict = Runs.leftoverVerdict(
-                ownedByLiveRun: live.contains(item.branch), dirty: item.dirty, unpushedCommits: item.unpushed
-            )
-            return (item, verdict.remove, verdict.remove ? "left by a Browse run" : verdict.reason)
-        }
     }
 }

@@ -25,7 +25,6 @@ public enum BrowseFetch {
     assignees(first: 5) { nodes { login } }
     milestone { title }
     comments { totalCount }
-    projectItems(first: 5) { nodes { project { title } } }
     """
 
     static let query = """

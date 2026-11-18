@@ -21,10 +21,28 @@ struct BrowseBuilderView: View {
             .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bg2))
             .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.line))
             .shadow(color: .black.opacity(0.5), radius: 30)
-            .padding(.leading, builder.stage == .fields ? 340 : 470).padding(.top, builder.stage == .fields ? 122 : 122)
+            .padding(.leading, sheet ? 12 : builder.stage == .fields ? 340 : 470).padding(.trailing, sheet ? 12 : 0)
+            .padding(.top, sheet ? 62 : 122)
             .shotRegion(.browseBuilder)
         }
     }
+
+    /// Below 640 the card is a sheet across the window (the design's third width), not a popover at a fixed place.
+    private var sheet: Bool { model.browse.layout == .third }
+}
+
+/// A card's width: fixed on a wide window, the whole sheet on a third-width one.
+struct BrowseCardWidth: ViewModifier {
+    @Environment(AppModel.self) private var model
+    let width: CGFloat
+
+    func body(content: Content) -> some View {
+        if model.browse.layout == .third { content.frame(maxWidth: .infinity) } else { content.frame(width: width) }
+    }
+}
+
+extension View {
+    func browseCardWidth(_ width: CGFloat) -> some View { modifier(BrowseCardWidth(width: width)) }
 }
 
 private func cap(_ text: String) -> some View {
@@ -50,8 +68,6 @@ private func tokenText(_ token: BrowseToken) -> (String, String) {
     case let .created(span): ("Opened", spanWords(span))
     case let .activity(span): ("Activity", spanWords(span))
     case let .linkedPull(linked): ("Linked PR", linked ? "yes" : "none")
-    case let .topic(value): ("Topic", value)
-    case let .team(value): ("Team", value)
     case let .language(value): ("Language", value)
     case let .archived(value): ("Archived", value ? "only" : "hidden")
     case let .text(text): ("Text", text)
@@ -120,7 +136,7 @@ private struct FieldsCard: View {
             }
             .padding(.horizontal, 20).padding(.vertical, 11)
         }
-        .frame(width: 780)
+        .browseCardWidth(780)
     }
 
     private func hint(_ field: BrowseField) -> String {
@@ -141,12 +157,20 @@ private struct FieldsCard: View {
 
     private func row(_ field: BrowseField, index: Int, selected: Bool) -> some View {
         let disabled = field.disabledReason != nil
+        let sheet = model.browse.layout == .third
         return HStack(spacing: 14) {
             Image(systemName: field.symbol).font(.system(size: 14)).frame(width: 22)
                 .foregroundStyle(field == .heedClass || field == .heedSize || field == .heedReady ? Theme.busy : Theme
                     .fg2)
-            Text(field.title).font(Theme.ui(14.5, weight: .semibold)).frame(width: 190, alignment: .leading)
-            Text(hint(field)).font(Theme.ui(13.5)).foregroundStyle(Theme.fg2).lineLimit(1)
+            if sheet {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(field.title).font(Theme.ui(14.5, weight: .semibold))
+                    Text(hint(field)).font(Theme.ui(13)).foregroundStyle(Theme.fg2).lineLimit(1)
+                }
+            } else {
+                Text(field.title).font(Theme.ui(14.5, weight: .semibold)).frame(width: 190, alignment: .leading)
+                Text(hint(field)).font(Theme.ui(13.5)).foregroundStyle(Theme.fg2).lineLimit(1)
+            }
             Spacer()
             if index < 9, builder.input.isEmpty { cap("\(index + 1)") }
         }
@@ -268,7 +292,7 @@ private struct ValuesCard: View {
             Theme.line.frame(height: 1).padding(.top, 6)
             footer
         }
-        .frame(width: 580)
+        .browseCardWidth(580)
     }
 
     private var plural: String {
@@ -425,7 +449,7 @@ private struct RawCard: View {
             Text("Paste or type any GitHub search. ↩ reads it into filters; what heed does not model stays as written.")
                 .font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
         }
-        .padding(20).frame(width: 640)
+        .padding(20).browseCardWidth(640)
     }
 }
 
@@ -473,6 +497,6 @@ private struct SaveCard: View {
             }
             Text(builder.raw).font(Theme.mono(11.5)).foregroundStyle(Theme.fg2)
         }
-        .padding(20).frame(width: 520)
+        .padding(20).browseCardWidth(520)
     }
 }

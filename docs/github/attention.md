@@ -23,6 +23,7 @@ one. `T` switches the sort between recent first and weight then recent, `/` filt
 | For you | What wants you, in three sections (the default; its count leaves out what is folded) |
 | Reviews | Reviews asked of you or your teams |
 | Mentions | You or one of your teams was mentioned, mentions from before included |
+| Assigned | Issues assigned to you, assigned-before ones included |
 | My PRs | Your open pull requests, whether or not something about them wants you (`gp`) |
 | Agents | Agents asking, blocked or rate limited |
 | Everything | All of it: every notification and every item the other tabs list. `:inbox` opens it |

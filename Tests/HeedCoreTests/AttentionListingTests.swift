@@ -34,7 +34,7 @@ struct AttentionListingTests {
         #expect(AttentionFilter.named("My PRs") == .myPRs)
         #expect(AttentionFilter.named("nonsense") == nil)
         // t steps through the tabs, then Muted; CI and Issues are reached by name only.
-        #expect(AttentionFilter.cycle == [.forYou, .reviews, .mentions, .myPRs, .agents, .everything, .muted])
+        #expect(AttentionFilter.cycle == [.forYou, .reviews, .mentions, .assigned, .myPRs, .agents, .everything, .muted])
     }
 
     @Test func everythingListsWhatTheOtherTabsLeaveOut() {

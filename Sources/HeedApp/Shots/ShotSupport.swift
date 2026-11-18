@@ -34,7 +34,7 @@ enum ShotRegion: String, CaseIterable {
     case pilotDetail, pilotActivity
     case autopilotBar, autopilotCards, autopilotDetail, autopilotMatrix, autopilotFooter, autopilotNow, autopilotDone,
          autopilotRail, autopilotStalled
-    case browseRail, browseList, browseDetail, browsePalette, browseBuilder, browseRead, browseWork
+    case browseRail, browseList, browseDetail, browsePalette, browseBuilder, browseRead, browseWork, browseRun
     case attentionTabs, attentionList, attentionDetail, attentionCoverage, attentionSummary
     case goalsList, goalsOverview, goalsDoc, goalVersions, goalForm, sessionGoal, inspectorGoal
     case historyPaneTabs, historyPaneBar, mindmapColumns, mindmapDetail, standupList, standupDetail, goalPaneTabs,

@@ -557,19 +557,42 @@ private struct BrowseReader: View {
     let item: BrowseItem
 
     var body: some View {
-        let work = BrowseWorkSection(item: item).frame(maxWidth: 900)
-        if ShotMode.active {
-            // An offscreen render lays the thread out at its whole height: the buttons sit over its bottom instead.
-            GeometryReader { geometry in
-                thread.frame(height: geometry.size.height, alignment: .top).clipped()
-                    .overlay(alignment: .bottom) { work.background(Theme.bg2) }
+        let run = model.browse.runs.current(for: item.id)
+        if let run, run.phase != .needsClone, run.phase != .cloning || !run.worktree.isEmpty {
+            // A run is on the item: the title and what it says, then the run, which takes the rest of the reader.
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                    .padding(.horizontal, 28).padding(.top, 22).padding(.bottom, 14)
+                    .frame(maxWidth: 900, alignment: .leading)
+                BrowseRunPanel(run: run).frame(maxWidth: 900)
             }
         } else {
-            VStack(spacing: 0) {
-                thread.frame(maxHeight: .infinity)
-                work
+            let work = if let run { AnyView(BrowseCloneCard(run: run).frame(maxWidth: 900)) } else {
+                AnyView(BrowseWorkSection(item: item).frame(maxWidth: 900))
+            }
+            if ShotMode.active {
+                // An offscreen render lays the thread out at its whole height: the buttons sit over its bottom instead.
+                GeometryReader { geometry in
+                    thread.frame(height: geometry.size.height, alignment: .top).clipped()
+                        .overlay(alignment: .bottom) { work.background(Theme.bg2) }
+                }
+            } else {
+                VStack(spacing: 0) {
+                    thread.frame(maxHeight: .infinity)
+                    work
+                }
             }
         }
+    }
+
+    private var header: some View {
+        let conversation = model.conversation(item.repo, item.number)
+        return ThreadHeader(
+            repo: item.repo, kind: item.kind == .pull ? .pr : .issue, number: item.number,
+            title: conversation?.title ?? item.title.display,
+            author: conversation?.author?.login ?? item.author,
+            openedAt: conversation?.createdAt ?? item.createdAt, chips: chips
+        )
     }
 
     private var thread: some View {

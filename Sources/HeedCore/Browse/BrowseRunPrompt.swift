@@ -42,11 +42,11 @@ public enum BrowseRunPrompt {
             return text + BrowseWorkPrompts.prompt(.chat, item: item)
         }
         if let words = run.words {
-            text = text + BrowseWorkPrompts.told(words, item: item)
+            text.append(BrowseWorkPrompts.told(words, item: item))
             return verb == .review ? text + "\n\n" + HelperPrompt.signOffReview : text
         }
-        text = text + BrowseWorkPrompts.prompt(verb, item: item)
-        if verb == .review { text = text + "\n\n" + HelperPrompt.signOffReview }
+        text.append(BrowseWorkPrompts.prompt(verb, item: item))
+        if verb == .review { text.append("\n\n" + HelperPrompt.signOffReview) }
         return text
     }
 

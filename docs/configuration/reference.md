@@ -278,6 +278,11 @@ many_repos = 200
 reads = "ahead"
 # How many rows from the top of the view are read ahead of time. 0 reads none ahead.
 read_ahead = 20
+# How many agent runs (Fix, Implement, Chat, Review on an item) may work at once. Each runs in a temporary worktree and
+# counts against [helpers] spend_cap. 0 sets no limit.
+max_runs = 3
+# The agent Browse's runs use: claude, codex, opencode or gemini. Unset, it is [helpers] agent.
+# agent = "claude"
 
 [summary]
 # While you were away: what still waits on you, then what merged, how background runs ended, which agents

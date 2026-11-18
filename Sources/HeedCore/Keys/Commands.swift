@@ -983,6 +983,30 @@ public enum Commands {
             .selection
         ),
         .init("browse.tell", "Browse: tell an agent what to do with the item, in your own words", .selection),
+        .init(
+            "browse.run.close",
+            "Browse: close the agent run under the cursor and remove its temporary worktree (a branch it pushed stays)",
+            .selection
+        ),
+        .init(
+            "browse.run.keep",
+            "Browse: keep the agent run as a session: its worktree moves under heed's usual naming and a session opens in it",
+            .selection
+        ),
+        .init("browse.run.steer", "Browse: steer the agent run, or ask it a follow-up", .selection),
+        .init(
+            "browse.run.review.post",
+            "Browse: post the review the agent drafted to the pull request (public: only on this key)",
+            .selection
+        ),
+        .init(
+            "browse.run.review.edit", "Browse: ask the agent to change the review it drafted before you post it",
+            .selection
+        ),
+        .init("browse.run.review.discard", "Browse: throw the drafted review away; nothing is posted", .selection),
+        .init("browse.clone.go", "Browse: clone the repo, then start the agent run", .selection),
+        .init("browse.clone.only", "Browse: clone the repo and stop there", .selection),
+        .init("browse.clone.folder", "Browse: choose the folder the repo is cloned into", .selection),
         .init("attention.session", "go to the item's session", .selection),
         .init(
             "attention.filter", "next Attention tab (Muted after Everything), or the one named", .selection,

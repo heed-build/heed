@@ -2397,7 +2397,7 @@ final class AppModel {
             || linkPicker != nil || pathImport != nil || startWork != nil || resume != nil || firstRun != nil
             || hostRootsChooser != nil || awaySummary != nil || runReader != nil || pilotExplain != nil
             || overlay != nil || filtering || tutor != nil || repoSetup != nil || nudge != nil || addRepoDialog != nil
-            || browse.palette != nil || browse.builder != nil || browse.orgBuilder != nil
+            || browse.palette != nil || browse.builder != nil || browse.orgBuilder != nil || browse.runs.input != nil
     }
 
     /// After you added or checked a host: asks where its projects are, once, when config does not say. While you are
@@ -2878,6 +2878,10 @@ final class AppModel {
             typeSteer(stroke)
             return true
         }
+        if browse.runs.input != nil {
+            typeBrowseInput(stroke)
+            return true
+        }
         let before = engine.mode
         let outcome = engine.handle(stroke)
         switch outcome {
@@ -3304,7 +3308,9 @@ final class AppModel {
              "browse.query.next", "browse.query.prev", "browse.query.save", "browse.older", "browse.refresh",
              "browse.sort", "browse.filter.add", "browse.filter.remove", "browse.query.rename", "browse.query.delete",
              "browse.query.up", "browse.query.down", "browse.view.new", "browse.read", "browse.fix", "browse.implement",
-             "browse.chat", "browse.review", "browse.tell":
+             "browse.chat", "browse.review", "browse.tell", "browse.run.close", "browse.run.keep", "browse.run.steer",
+             "browse.run.review.post", "browse.run.review.edit", "browse.run.review.discard", "browse.clone.go",
+             "browse.clone.only", "browse.clone.folder":
             performBrowse(command)
         case "view.autopilot", "view.watch", "autopilot.cando", "autopilot.where", "autopilot.now", "autopilot.done",
              "autopilot.move", "autopilot.on", "autopilot.ask", "autopilot.off", "autopilot.everywhere",
@@ -6642,7 +6648,7 @@ final class AppModel {
     /// Removes what runs left behind (`heed/…` branches and their worktrees) that is safe to remove, in every repo
     /// on this Mac. Part of the cleanup sweep, and once at launch.
     func cleanUpRunLeftovers() async -> [RunCleanup.Leftover] {
-        let live = Set(liveRuns.values.map(\.branch))
+        let live = Set(liveRuns.values.map(\.branch)).union(browse.runs.liveBranches)
         var result: [RunCleanup.Leftover] = []
         for record in repos where record.location.isLocal {
             result += await RunCleanup.clean(record, live: live)

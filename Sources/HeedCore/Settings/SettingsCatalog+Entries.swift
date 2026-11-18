@@ -662,6 +662,17 @@ extension SettingsCatalog {
                 + "reads none ahead.",
             level: .advanced, since: "0.47.0"
         ) { .integer($0.browse.readAhead) },
+        global(
+            "browse.max_runs", .github, "Browse", "Browse: runs at once",
+            "How many agent runs (Fix, Implement, Chat, Review) may work at once. Each runs in a temporary worktree and "
+                + "counts against the helpers' spend cap. 0 sets no limit.",
+            since: "0.47.0"
+        ) { .integer($0.browse.maxRuns) },
+        global(
+            "browse.agent", .github, "Browse", "Browse: agent",
+            "The agent Browse's runs use: claude, codex, opencode or gemini, over ACP. Unset, it is the helpers' agent.",
+            level: .advanced, since: "0.47.0"
+        ) { .text($0.browse.agent ?? "") },
     ]
 
     static let attention: [SettingsEntry] = [

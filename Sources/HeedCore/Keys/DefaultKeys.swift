@@ -401,6 +401,12 @@ public enum DefaultKeys {
         ("D", "browse.query.delete"), ("]Q", "browse.query.down"), ("[Q", "browse.query.up"),
         ("<D-f>", "session.filter"), ("U", "browse.read"), ("F", "browse.fix"), ("I", "browse.implement"),
         ("C", "browse.chat"), ("R", "browse.review"), ("t", "browse.tell"),
+        // An agent run in the reader: esc closes it (and removes its worktree), s keeps it as a session, i steers it
+        // (↩ too); a drafted review is posted with P, changed with E or thrown away with X; the clone card clones
+        // with ↩, only clones with c, changes the folder with d and is dismissed with esc.
+        ("<Esc>", "browse.run.close"), ("s", "browse.run.keep"), ("i", "browse.run.steer"),
+        ("P", "browse.run.review.post"), ("E", "browse.run.review.edit"), ("X", "browse.run.review.discard"),
+        ("c", "browse.clone.only"), ("d", "browse.clone.folder"),
     ]
 
     static let attention: [(String, String)] = [

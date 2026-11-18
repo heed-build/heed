@@ -814,6 +814,18 @@ public enum ConfigLoader {
                 ))
             }
         }
+        if let value = root.value(at: ["browse", "max_runs"]) {
+            if let count = value.integer, (0 ... 20).contains(count) {
+                config.browse.maxRuns = count
+            } else {
+                problems.append(ConfigProblem(
+                    path: "browse.max_runs", message: "expected a number of runs, 0 to 20 (0: no limit)"
+                ))
+            }
+        }
+        if let text = string(["browse", "agent"]) {
+            config.browse.agent = text.isEmpty ? nil : text
+        }
         // [summary]
         if let hours = integer(["summary", "away_hours"], range: 0 ... 720) { config.summaryAwayHours = hours }
         if let names = strings(["summary", "when"]) {
@@ -1330,6 +1342,11 @@ public enum ConfigLoader {
     reads = "ahead"
     # How many rows from the top of the view are read ahead of time. 0 reads none ahead.
     read_ahead = 20
+    # How many agent runs (Fix, Implement, Chat, Review on an item) may work at once. Each runs in a temporary worktree and
+    # counts against [helpers] spend_cap. 0 sets no limit.
+    max_runs = 3
+    # The agent Browse's runs use: claude, codex, opencode or gemini. Unset, it is [helpers] agent.
+    # agent = "claude"
 
     [summary]
     # While you were away: what still waits on you, then what merged, how background runs ended, which agents

@@ -58,6 +58,10 @@ extension AppModel {
         case "view.browse": view = .browse
         case "browse.open":
             guard let item = browseSelected else { return }
+            // On an item with a run, ↩ is the card's first button (clone) or the steer line.
+            if let run = browse.runs.current(for: item.id) {
+                return run.phase == .needsClone ? browseCloneGo() : browseRunSteer()
+            }
             loadConversation(item.repo, item.number)
         case "browse.scope": openBrowsePalette()
         case "browse.scope.next": browse.nextScope(by: 1); browseQueryChanged()
@@ -101,7 +105,16 @@ extension AppModel {
         case "browse.implement": browseVerb(.implement)
         case "browse.chat": browseVerb(.chat)
         case "browse.review": browseVerb(.review)
-        case "browse.tell": browseTell()
+        case "browse.tell": browseTellRun()
+        case "browse.run.close": closeBrowseRun()
+        case "browse.run.keep": keepBrowseRun()
+        case "browse.run.steer": browseRunSteer()
+        case "browse.run.review.post": postBrowseReview()
+        case "browse.run.review.edit": editBrowseReview()
+        case "browse.run.review.discard": discardBrowseReview()
+        case "browse.clone.go": browseCloneGo()
+        case "browse.clone.only": browseCloneOnly()
+        case "browse.clone.folder": browseCloneFolder()
         case "browse.sort":
             browse.cycleSort()
             itemCursor[.browse] = 0

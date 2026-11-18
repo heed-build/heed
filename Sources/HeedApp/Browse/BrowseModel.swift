@@ -23,6 +23,8 @@ final class BrowseModel {
     }
 
     private(set) var store: BrowseStore?
+    /// The agent runs on items (Fix, Implement, Chat, Review).
+    let runs = BrowseRunsModel()
     var items: [BrowseItem] = []
     /// The items the query keeps, in the sort order: what the list draws.
     private(set) var rows: [BrowseItem] = []

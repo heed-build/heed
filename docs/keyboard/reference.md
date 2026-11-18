@@ -429,6 +429,15 @@ This page is generated from the code (`mise run shots`).
 | `browse.chat` | `C` (browse) | Browse: chat about the item with an agent, no edits |
 | `browse.review` | `R` (browse) | Browse: review the pull request with an agent; nothing is posted without you |
 | `browse.tell` | `t` (browse) | Browse: tell an agent what to do with the item, in your own words |
+| `browse.run.close` | `<Esc>` (browse) | Browse: close the agent run under the cursor and remove its temporary worktree (a branch it pushed stays) |
+| `browse.run.keep` | `s` (browse) | Browse: keep the agent run as a session: its worktree moves under heed's usual naming and a session opens in it |
+| `browse.run.steer` | `i` (browse) | Browse: steer the agent run, or ask it a follow-up |
+| `browse.run.review.post` | `P` (browse) | Browse: post the review the agent drafted to the pull request (public: only on this key) |
+| `browse.run.review.edit` | `E` (browse) | Browse: ask the agent to change the review it drafted before you post it |
+| `browse.run.review.discard` | `X` (browse) | Browse: throw the drafted review away; nothing is posted |
+| `browse.clone.go` |  | Browse: clone the repo, then start the agent run |
+| `browse.clone.only` | `c` (browse) | Browse: clone the repo and stop there |
+| `browse.clone.folder` | `d` (browse) | Browse: choose the folder the repo is cloned into |
 | `attention.session` | `gS` (attention), `gS` (attentionhelper), `gS` (attentionother), `gS` (swarmask) | go to the item's session |
 | `attention.filter` `[filter]` | `t` (attention), `t` (attentionhelper), `t` (attentionother), `t` (swarmask) | next Attention tab (Muted after Everything), or the one named |
 | `attention.done.new` | `X` (attention), `X` (attentionother), `X` (swarmask) | done with everything in For you's New since |

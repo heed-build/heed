@@ -154,7 +154,17 @@ struct BrowseVerbHint: View {
     let item: BrowseItem
 
     var body: some View {
-        if let advice = model.browseVerbs(item).recommended {
+        if let run = model.browse.runs.current(for: item.id) {
+            // A run is live on it: its verb, with a dot that pulses while it works.
+            HStack(spacing: 5) {
+                if run.phase.holdsSlot { PulseDot(color: run.effectiveVerb.tint) } else {
+                    Image(systemName: run.effectiveVerb.symbol).font(.system(size: 10.5))
+                }
+                Text(run.phase == .needsClone ? run.verb.title : "\(run.verb.title) · \(run.phase.text)")
+                    .font(Theme.ui(12, weight: .semibold))
+            }
+            .foregroundStyle(run.effectiveVerb.tint).fixedSize()
+        } else if let advice = model.browseVerbs(item).recommended {
             let stale = if case .stale = model.browseReadState(item) { true } else { false }
             HStack(spacing: 4) {
                 Image(systemName: advice.verb.symbol).font(.system(size: 10.5))
@@ -342,9 +352,9 @@ struct BrowseWorkSection: View {
     }
 
     private var footer: String {
-        var text = "Each opens Start work with the prompt ready. Nothing runs until you start it."
+        var text = "Runs in a temporary worktree that is removed when you close it. Anything it pushes stays on its branch."
         if !model.browseIsCloned(item.repo) {
-            text = "\(item.repo.slug) is not cloned on this Mac: Start work offers to clone it. " + text
+            text = "\(item.repo.slug) is not on this Mac: a clone comes first. " + text
         }
         return text
     }

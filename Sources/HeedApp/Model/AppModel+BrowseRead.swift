@@ -172,9 +172,8 @@ extension AppModel {
 
     // MARK: The verbs
 
-    /// F, I, C, R: an agent on the item under the cursor. One item at a time. A verb that does not fit says why. Until
-    /// the agent view runs them, each opens Start work (or the review helper) with the verb's prompt, so the work
-    /// starts the way a session does.
+    /// F, I, C, R: an agent on the item under the cursor, run in the reader (`startBrowseRun`). One item at a time. A
+    /// verb that does not fit says why.
     func browseVerb(_ verb: BrowseVerb) {
         let ids = actionIDs(.browse)
         guard ids.count <= 1, let item = browseSelected else {
@@ -182,16 +181,7 @@ extension AppModel {
         }
         let advice = browseVerbs(item)[verb]
         guard advice.availability != .unavailable else { return say("\(verb.title): \(advice.reason)") }
-        switch verb {
-        case .review where item.kind == .pull:
-            startReview(PullRef(repo: item.repo, number: item.number), title: item.title.display)
-        case .chat:
-            openStartWork(
-                prompt: BrowseWorkPrompts.prompt(.chat, item: item).text, fromCursor: false, chat: true
-            )
-        default:
-            openStartWork(prompt: BrowseWorkPrompts.prompt(verb, item: item).text)
-        }
+        startBrowseRun(verb, item: item)
     }
 
     /// `t` and the line under the buttons: Start work on the item, the prompt ready for what you want done.

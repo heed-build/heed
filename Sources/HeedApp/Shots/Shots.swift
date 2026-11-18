@@ -826,6 +826,20 @@ enum Shots {
         Shot(id: "github/browse-chat", keys: "gvjjj", highlight: [.browseWork]),
         // A pull request awaiting your review: Review leads (design 10).
         Shot(id: "github/browse-review", keys: "gvjjjjjj", highlight: [.browseWork]),
+        // A Fix running in its temporary worktree: the feed, the steer line, Close and Keep as a session (design 6).
+        Shot(id: "github/browse-run", keys: "gv", highlight: [.browseRun], prepare: { model in
+            model.browse.runs.runs = [browseRun(2830, .fix)]
+        }),
+        // The repo is not on this Mac: the clone card comes first (design 7).
+        Shot(id: "github/browse-clone", keys: "gvjjj", highlight: [.browseRun], prepare: { model in
+            var run = browseRun(94, .chat, phase: .needsClone)
+            run.cloneRoot = "~/Projects"
+            model.browse.runs.runs = [run]
+        }),
+        // A Review's draft, waiting for Post, Edit or Discard: a review is public, so nothing is posted before.
+        Shot(id: "github/browse-review-draft", keys: "gvjjjjjj", highlight: [.browseRun], prepare: { model in
+            model.browse.runs.runs = [browseRun(412, .review, phase: .done(.endTurn))]
+        }),
         Shot(id: "github/browse-scope", keys: "gv<D-k>gl"),
         // `/`: words, read into tokens (the fixture's answer, no model); the fields below them.
         Shot(id: "github/browse-build-type", keys: "gv/agent ready bugs nobody touched<CR>"),
@@ -835,6 +849,13 @@ enum Shots {
         // The big org's view builder, opened from the quick jump's guidance.
         Shot(id: "github/browse-org-view", keys: "gv<D-k>gl<CR><CR><Space><CR>"),
     ]
+
+    private static func browseRun(
+        _ number: Int, _ verb: BrowseVerb, phase: BrowseRun.Phase = .working
+    ) -> BrowseRun {
+        let item = Fixtures.Browse.cached.first { $0.number == number }!
+        return Fixtures.Browse.FakeAgent.run(item, verb: verb, phase: phase)
+    }
 
     static let worktrees: [Shot] = [
         // A repo picked in the column (h, then j): its card, then its worktrees.

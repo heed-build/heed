@@ -34,6 +34,18 @@ struct GitHubPage: View {
                     range: 0 ... 200, step: 10
                 )
             }
+            SettingRow("browse.max_runs", unit: "runs") {
+                NumberField(
+                    path: ["browse", "max_runs"], value: model.config.browse.maxRuns, unit: "runs", range: 0 ... 20,
+                    step: 1
+                )
+            }
+            SettingRow("browse.agent") {
+                ConfigTextField(
+                    path: ["browse", "agent"], value: model.config.browse.agent ?? "", placeholder: "claude",
+                    emptyUnsets: true
+                )
+            }
             SettingRow("browse.many_repos", unit: "repos") {
                 NumberField(
                     path: ["browse", "many_repos"], value: model.config.browse.manyRepos, unit: "repos",

@@ -637,6 +637,18 @@ extension SettingsCatalog {
             "Seconds between gh syncs of the view on screen; the others refresh five times less often.",
             level: .advanced, since: "0.1.0"
         ) { .integer($0.githubPollSeconds) },
+        global(
+            "browse.max_age_days", .github, "Browse", "Browse: oldest item",
+            "Browse searches for GitHub items updated within this many days; Show older lifts it for one view. 0 "
+                + "shows everything.",
+            level: .advanced, since: "0.47.0"
+        ) { .integer($0.browse.maxAgeDays) },
+        global(
+            "browse.many_repos", .github, "Browse", "Browse: many repos",
+            "An org with more repos than this is offered a view of its own before Browse lists everything in it. 0 "
+                + "never asks.",
+            level: .advanced, since: "0.47.0"
+        ) { .integer($0.browse.manyRepos) },
     ]
 
     static let attention: [SettingsEntry] = [

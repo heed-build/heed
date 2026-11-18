@@ -23,6 +23,7 @@ public struct HeedConfig: Equatable, Sendable {
     public var approvals = ApprovalSettings()
     /// `[attention]`: quiet hours, which notifications respect.
     public var attention = AttentionSettings()
+    public var browse = BrowseSettings()
     /// `[summary] away_hours`: how long away (from the Mac, or with heed quit) before the summary of what happened
     /// opens on its own; 0 never opens it.
     public var summaryAwayHours = 8
@@ -111,6 +112,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.notifications == rhs.notifications,
             lhs.approvals == rhs.approvals,
             lhs.attention == rhs.attention,
+            lhs.browse == rhs.browse,
             lhs.summaryAwayHours == rhs.summaryAwayHours,
             lhs.ledger == rhs.ledger,
             flat(lhs.keys) == flat(rhs.keys),
@@ -777,6 +779,25 @@ public enum ConfigLoader {
                 ))
             }
         }
+        // [browse]
+        if let value = root.value(at: ["browse", "max_age_days"]) {
+            if let days = value.integer, days >= 0 {
+                config.browse.maxAgeDays = min(days, AttentionAge.maxDays)
+            } else {
+                problems.append(ConfigProblem(
+                    path: "browse.max_age_days", message: "expected a number of days, 0 or more (0: no cap)"
+                ))
+            }
+        }
+        if let value = root.value(at: ["browse", "many_repos"]) {
+            if let count = value.integer, count >= 0 {
+                config.browse.manyRepos = count
+            } else {
+                problems.append(ConfigProblem(
+                    path: "browse.many_repos", message: "expected a number of repos, 0 or more (0: never ask)"
+                ))
+            }
+        }
         // [summary]
         if let hours = integer(["summary", "away_hours"], range: 0 ... 720) { config.summaryAwayHours = hours }
         if let names = strings(["summary", "when"]) {
@@ -1279,6 +1300,14 @@ public enum ConfigLoader {
     # GitHub items (PRs, issues, notifications) not updated within this many days are left out of Attention, and not
     # asked of GitHub either. 0 shows everything. Sessions' PRs and issues, goals' and the ones the pilot watches stay.
     max_age_days = 60
+
+    [browse]
+    # Browse searches GitHub for the issues and PRs of an org, a repo or a Project, and leaves out the ones not
+    # updated within this many days ("Show older" lifts it for the view you are in). 0 shows everything.
+    max_age_days = 90
+    # An org with more repos than this is offered a view of its own (a topic, a team, a language) before the whole
+    # org is browsed. 0 never asks.
+    many_repos = 200
 
     [summary]
     # While you were away: what still waits on you, then what merged, how background runs ended, which agents

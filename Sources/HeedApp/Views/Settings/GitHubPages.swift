@@ -15,6 +15,20 @@ struct GitHubPage: View {
                 )
             }
         }
+        SettingsCard(title: "Browse") {
+            SettingRow("browse.max_age_days", unit: "days") {
+                NumberField(
+                    path: ["browse", "max_age_days"], value: model.config.browse.maxAgeDays, unit: "days",
+                    range: 0 ... AttentionAge.maxDays, step: 30
+                )
+            }
+            SettingRow("browse.many_repos", unit: "repos") {
+                NumberField(
+                    path: ["browse", "many_repos"], value: model.config.browse.manyRepos, unit: "repos",
+                    range: 0 ... 100_000, step: 50
+                )
+            }
+        }
     }
 }
 

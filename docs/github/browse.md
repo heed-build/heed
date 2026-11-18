@@ -1,11 +1,11 @@
 ---
-description: Search the issues and PRs of an org, a repo or a Project on GitHub, see heed's read of each, and put an agent on one or a group.
+description: Search the issues and PRs of an org or a repo on GitHub, see heed's read of each, and put an agent on one or a group.
 ---
 
 # Browse
 
 [Attention](attention.md) brings the work that involves you. Browse is where you go to find the rest: `gb` opens the
-issues and pull requests of an org, a repo or a Project, searched on GitHub, with the thread beside the list and four
+issues and pull requests of an org or a repo, searched on GitHub, with the thread beside the list and four
 agents a key away. Read this page top to bottom and you know what Browse can do.
 
 ![Browse: queries and scopes on the left, the list in the middle, the thread and the agent buttons on the right](../images/shots/github/browse.png)
@@ -36,7 +36,6 @@ background while you are in Browse. A blue dot marks a query with news; `]q` and
 | Filled square with the initial | An org or your own account |
 | Outlined small square, indented under its org | One repo |
 | Filled square with a filter glyph | An org view: an org narrowed by language or archived state ([below](#orgs-with-very-many-repos)) |
-| Circle with a board glyph | A Project |
 
 `]o` and `[o` step through the scopes. A scope joins the rail when you go there, and the rail keeps it.
 
@@ -88,6 +87,11 @@ of which becomes a GitHub search qualifier.
 **The fields:** Label, Type, State, Assignee, Author, Repo, Age, Activity, Linked PR, Project and Milestone, the
 three heed fields (class, size, agent-ready), and GitHub query. Type to narrow the list of fields, or press `1` to `9`
 for one.
+
+**Project takes text, not a list.** heed does not read the Projects on an item (that needs a GitHub token scope its
+default token does not have), so Project asks for the board's `owner/number`, as in
+`github.com/orgs/acme/projects/7`: type `acme/7`. `↩` keeps only the items on that Project, and an empty field
+removes the filter. The query shows it as `project:acme/7`, and it can be saved like any other.
 
 **Value pickers show counts.** Pick a field and a list of its values appears, each with how many of the items you
 have would match. Label takes several values and reads them as *any of*, *all of* or *none of* (`⇥` switches).
@@ -212,7 +216,7 @@ heed's note names what it noticed: issues of one repo and one class that share a
 from titles and labels, without asking a model, and never groups pull requests.
 
 - **One session for the related** (`s`): one worktree, one branch, one PR. heed writes the prompt from the issues, with
-  a `Closes` line for each. The button is there when heed finds a group; picks that hang together by nothing leave it out.
+  a `Closes` line for each. When heed finds no group, the button reads *One session for all N* and `s` still starts one session with every pick in the prompt; the prompt says they may be unrelated, promises no single pull request, and asks for one pull request per issue.
 - **A goal from all** (`G`): heed plans it with you first, and each item goes on the goal.
 - **A session for each** (`S`): one worktree per item. Above five, heed asks first.
 - **On GitHub:** **Label** (`1`), **Assign to me** (`A`), **Comment on all** (`c`) and **Close as...** (`x`: completed
@@ -310,9 +314,9 @@ the [configuration reference](../configuration/reference.md).
 - **It brings in at most 300 items per search.** A longer result is filtered, not read: narrow the query.
 - **An org view is a filter GitHub applies,** language and archived. It has no topic or team filter, because GitHub's
   issue search has none, and it keeps no list of repos.
-- **Project titles are not read.** That needs a GitHub token scope heed's default does not have. A Project scope or
-  filter works through `project:org/number` in a GitHub query, but heed does not list the Projects on an item and
-  cannot offer them as values, and there is no key to add a Project to the rail yet.
+- **Projects are a filter you type, not a scope.** Reading Project titles needs a GitHub token scope heed's default
+  does not have, so heed neither lists the Projects on an item nor offers them as values, and the rail has no Project
+  rows. The Project filter takes `owner/number` and GitHub does the matching.
 - **Heed's fields are local.** The counts for queries that use them come from what this Mac has fetched and read, not
   from GitHub.
 - **Words need the model.** With model calls off, a sentence is searched as text.

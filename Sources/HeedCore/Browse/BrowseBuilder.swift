@@ -37,7 +37,7 @@ public enum BrowseField: String, CaseIterable, Hashable, Sendable {
         case .age: "last 3 months, older than a week"
         case .activity: "no reply in 30 days"
         case .linkedPull: "has one, has none"
-        case .project: "Docs 2.0 board"
+        case .project: "owner/number, from the board's address"
         case .milestone: "3.2"
         case .heedClass: "bug, feature, docs…"
         case .heedSize: "S, M, L"
@@ -161,7 +161,7 @@ public struct BrowseBuilder: Sendable {
         }
     }
 
-    public enum Stage: Equatable, Sendable { case fields, values(BrowseField), raw, save }
+    public enum Stage: Equatable, Sendable { case fields, values(BrowseField), raw, project, save }
 
     public enum Reading: Equatable, Sendable {
         case idle, reading
@@ -228,6 +228,8 @@ public struct BrowseBuilder: Sendable {
     public private(set) var editing = false
     public private(set) var tokenCursor = 0
     public var draft: Draft?
+    /// Why the Project text is not accepted yet (shown under the field).
+    public private(set) var projectError: String?
     private var tokens: [BrowseToken] = []
 
     public init(base: BrowseQuery, context: Context) {
@@ -514,6 +516,12 @@ public struct BrowseBuilder: Sendable {
                 .rendered(maxAgeDays: context.maxAgeDays, now: context.now))
             return
         }
+        if field == .project {
+            stage = .project
+            projectError = nil
+            if case let .project(value)? = base.tokens.first(where: { field.owns($0) }) { input.set(value) }
+            return
+        }
         stage = .values(field)
         mode = base.tokens.compactMap { token -> BrowseLabelMode? in
             if case let .label(mode, _) = token { mode } else { nil }
@@ -567,6 +575,7 @@ public struct BrowseBuilder: Sendable {
         case .fields: handleFields(stroke)
         case let .values(field): handleValues(field, stroke)
         case .raw: handleRaw(stroke)
+        case .project: handleProject(stroke)
         case .save: handleSave(stroke)
         }
     }
@@ -704,6 +713,54 @@ public struct BrowseBuilder: Sendable {
             input = EditableText()
             return .apply(query)
         default: return input.handle(stroke) ? .changed : .none
+        }
+    }
+
+    /// The `owner/number` GitHub's `project:` qualifier takes, from what was typed: `acme/7`, `project:acme/7`, or the
+    /// board's address (`github.com/orgs/acme/projects/7`). Nil when it is none of these.
+    public static func projectRef(_ text: String) -> String? {
+        var value = text.trimmingCharacters(in: .whitespaces)
+        if value.lowercased().hasPrefix("project:") { value = String(value.dropFirst("project:".count)) }
+        let parts = value.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+        var owner = "", number = ""
+        if value.contains("github.com"), let at = parts.firstIndex(of: "projects"), at >= 2, at + 1 < parts.count {
+            owner = parts[at - 1]
+            number = parts[at + 1]
+        } else if parts.count == 2 {
+            (owner, number) = (parts[0], parts[1])
+        } else {
+            return nil
+        }
+        let name = owner.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" || $0 == "." }
+        guard !owner.isEmpty, name, let n = Int(number), n > 0, String(n) == number else { return nil }
+        return "\(owner)/\(n)"
+    }
+
+    private mutating func handleProject(_ stroke: KeyStroke) -> Action {
+        switch stroke {
+        case .escape:
+            stage = .fields
+            input = EditableText()
+            return .changed
+        case KeyStroke("c", .command): return .copy(raw)
+        case KeyStroke("CR"):
+            let text = input.text.trimmingCharacters(in: .whitespaces)
+            var applied = base
+            applied.tokens.removeAll { BrowseField.project.owns($0) }
+            if !text.isEmpty {
+                guard let ref = Self.projectRef(text) else {
+                    projectError = "Not a Project: type owner/number, like acme/7."
+                    return .changed
+                }
+                applied.tokens.append(.project(ref))
+            }
+            base = applied
+            stage = .fields
+            input = EditableText()
+            return .apply(applied)
+        default:
+            projectError = nil
+            return input.handle(stroke) ? .changed : .none
         }
     }
 

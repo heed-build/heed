@@ -190,17 +190,15 @@ public extension Fixtures {
         ]
         .map { RepoRecord(repo: $0, path: "/Users/you/code/\($0.name)", defaultBranch: "main") }
 
-        public static let project = BrowseScope.project(owner: "acme", number: 7, title: "Docs 2.0 board")
-
         /// Pinned in the rail, in order.
         public static let scopes: [BrowseScope] = [
-            .org("acme"), .repo(acmeDocs), .repo(acmeIngest), .repo(acmeMarkgraph), .org("globex"), project,
+            .org("acme"), .repo(acmeDocs), .repo(acmeIngest), .repo(acmeMarkgraph), .org("globex"),
         ]
 
         /// What the rail counts, as GitHub's searches would answer.
         public static let scopeTotals: [String: Int] = [
             BrowseScope.org("acme").id: 212, BrowseScope.repo(acmeDocs).id: 83, BrowseScope.repo(acmeIngest).id: 40,
-            BrowseScope.repo(acmeMarkgraph).id: 21, BrowseScope.org("globex").id: 64, project.id: 29,
+            BrowseScope.repo(acmeMarkgraph).id: 21, BrowseScope.org("globex").id: 64,
         ]
 
         public static let queries: [SavedQuery] = [

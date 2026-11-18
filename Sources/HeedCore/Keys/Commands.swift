@@ -155,7 +155,7 @@ public enum Commands {
         ),
         .init(
             "view.browse",
-            "browse: the issues and PRs of an org, a repo or a Project, searched on GitHub, the thread beside them",
+            "browse: the issues and PRs of an org or a repo, searched on GitHub, the thread beside them",
             .views
         ),
         .init("view.inbox", "Attention's Everything tab, where the inbox went", .views),
@@ -941,7 +941,7 @@ public enum Commands {
             "attention.reply", "draft a reply with the model; you read it before anything is posted", .selection
         ),
         .init("browse.open", "Browse: load the item under the cursor into the reader now", .selection),
-        .init("browse.scope", "Browse: jump to an org, a repo or a Project (type to find it)", .selection),
+        .init("browse.scope", "Browse: jump to an org or a repo (type to find it)", .selection),
         .init("browse.scope.next", "Browse: the next scope in the rail", .selection),
         .init("browse.scope.prev", "Browse: the previous scope in the rail", .selection),
         .init("browse.query.next", "Browse: the next saved query", .selection),

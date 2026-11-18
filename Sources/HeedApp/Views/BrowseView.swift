@@ -91,7 +91,7 @@ struct BrowseView: View {
         let browse = model.browse
         if !model.filter(for: .browse).isEmpty { return "Nothing matches /\(model.filter(for: .browse))." }
         if browse.scope == nil, browse.query.tokens.isEmpty {
-            return "Pick an org, a repo or a Project with \(model.keyText(for: "browse.scope", in: "browse"))."
+            return "Pick an org or a repo with \(model.keyText(for: "browse.scope", in: "browse"))."
         }
         if case let .failed(why) = browse.load { return "GitHub did not answer: \(why)" }
         if browse.load == .loading { return "Asking GitHub…" }
@@ -716,7 +716,7 @@ struct BrowsePaletteView: View {
                     Image(systemName: "magnifyingglass").foregroundStyle(Theme.fg2)
                     CaretText(input: palette.input).font(Theme.ui(15))
                     Spacer()
-                    Text("org, repo or project").font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
+                    Text("org or repo").font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
                 }
                 .padding(.horizontal, 18).padding(.vertical, 14)
                 Theme.line.frame(height: 1)

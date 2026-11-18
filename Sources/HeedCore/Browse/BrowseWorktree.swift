@@ -1,7 +1,8 @@
 import Foundation
 
 /// The temporary worktree a Browse run works in: how it is named, where it goes, how it is made and removed, what
-/// the startup sweep (`RunCleanup`, at launch) takes of the ones a crash left, and what a run becomes when you keep it as a session.
+/// the startup sweep (`RunCleanup`, at launch) takes of the ones a crash left, and what a run becomes when you keep it
+/// as a session.
 ///
 /// A run's worktree is `issue-<number>-<6 hex>` or `pr-<number>-<6 hex>`, under the runs root helpers use
 /// (`<root>/heed/<repo>/<name>`), on the branch `heed/browse/<name>`. Closing the run removes both; whatever the run

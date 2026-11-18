@@ -151,7 +151,7 @@ struct BrowseCompactRow: View {
 }
 
 /// Third width: the rail's content as a sheet over the list: the saved queries, then the scopes. A click goes there;
-/// ⌘K (or the search) types to find any org, repo or Project.
+/// ⌘K (or the search) types to find any org or repo.
 struct BrowseJumpSheet: View {
     @Environment(AppModel.self) private var model
 

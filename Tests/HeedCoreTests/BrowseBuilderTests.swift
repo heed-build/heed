@@ -34,6 +34,44 @@ struct BrowseBuilderTests {
         ]
     }
 
+    @Test func theProjectFieldTakesOwnerSlashNumberAsText() {
+        for (typed, ref) in [
+            ("acme/7", "acme/7"), (" project:acme/7 ", "acme/7"), (
+                "https://github.com/orgs/acme/projects/7/views/1",
+                "acme/7"
+            ),
+        ] {
+            #expect(BrowseBuilder.projectRef(typed) == ref, "\(typed)")
+        }
+        for typed in ["", "acme", "acme/", "acme/x", "acme/0", "acme/07", "a b/7", "acme/7/8"] {
+            #expect(BrowseBuilder.projectRef(typed) == nil, "\(typed)")
+        }
+        var b = builder()
+        b.open(.project)
+        #expect(b.stage == .project)
+        for ch in "acme/x" {
+            _ = b.handle(KeyStroke(String(ch)))
+        }
+        #expect(b.handle(KeyStroke("CR")) == .changed && b.projectError != nil && b.stage == .project)
+        for _ in 0 ..< 1 {
+            _ = b.handle(KeyStroke("BS"))
+        }
+        for ch in "9" {
+            _ = b.handle(KeyStroke(String(ch)))
+        }
+        guard case let .apply(query) = b.handle(KeyStroke("CR")) else { Issue.record("not applied"); return }
+        #expect(query.tokens.contains(.project("acme/9")))
+        #expect(query.rendered(maxAgeDays: 90, now: now).contains("project:acme/9"))
+        // Opening it again edits what is there; emptying it removes the filter.
+        b.open(.project)
+        #expect(b.input.text == "acme/9")
+        for _ in 0 ..< 6 {
+            _ = b.handle(KeyStroke("BS"))
+        }
+        guard case let .apply(cleared) = b.handle(KeyStroke("CR")) else { Issue.record("not applied"); return }
+        #expect(!cleared.tokens.contains(.project("acme/9")))
+    }
+
     private func builder(_ base: BrowseQuery? = nil, off: String? = nil) -> BrowseBuilder {
         BrowseBuilder(
             base: base ?? BrowseQuery(scope: .org("acme"), tokens: [.state(.open)]),

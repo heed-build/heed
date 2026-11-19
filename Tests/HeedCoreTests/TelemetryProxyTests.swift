@@ -224,22 +224,34 @@ struct TelemetryProxyTests {
         #expect(stats?.lastError == "HTTP 400")
     }
 
+    /// The forwarder starts sending at the first enqueue, so the export it holds in flight when the buffer fills may be
+    /// one that is then dropped from the queue (it is still delivered, and counted as forwarded). Which one is in
+    /// flight is up to the scheduler, so the test holds every send until all five are in and the counts are read, and
+    /// asserts what holds whichever it was: the two newest are delivered, last, in order, and nothing newer than them
+    /// is lost.
     @Test func aFullBufferDropsTheOldestAndCountsIt() async {
-        let gate = Mutex(false)
-        let forwarder = TelemetryForwarder(capacity: 2, send: { _ in
-            // The collector is down until the test lets it up.
-            gate.withLock { $0 } ? 200 : 503
+        let collector = HeldCollector()
+        let forwarder = TelemetryForwarder(capacity: 2, send: { request in
+            await collector.receive(request.httpBody)
         }, backoff: { _ in .milliseconds(2) })
         let url = URL(string: "https://otel.example.com/v1/logs")!
         for index in 0 ..< 5 {
             forwarder.enqueue(ForwardedRequest(url: url, body: Data("\(index)".utf8), headers: [:]))
         }
+        // Nothing has been delivered yet: every send is held.
         #expect(forwarder.stats()["otel.example.com"]?.dropped == 3)
         #expect(forwarder.stats()["otel.example.com"]?.pending == 2)
-        gate.withLock { $0 = true }
+        #expect(forwarder.stats()["otel.example.com"]?.forwarded == 0)
+        await collector.letThrough()
         await forwarder.flushed()
-        #expect(forwarder.stats()["otel.example.com"]?.forwarded == 2)
+        let received = await collector.bodies
+        // The newest two, in order, are the last delivered; one older export may have gone first, in flight.
+        #expect(received.suffix(2) == ["3", "4"])
+        #expect((2 ... 3).contains(received.count))
+        #expect(received.dropLast(2).allSatisfy { ["0", "1", "2"].contains($0) })
+        #expect(forwarder.stats()["otel.example.com"]?.forwarded == received.count)
         #expect(forwarder.stats()["otel.example.com"]?.pending == 0)
+        #expect(forwarder.stats()["otel.example.com"]?.dropped == 3)
     }
 
     @Test func theReceiverPassesForwardsOnOverLoopback() async throws {
@@ -302,5 +314,26 @@ struct TelemetryProxyTests {
         #expect(metrics.points.first { $0.name == "claude_code.cost.usage" }?.value == 0.5)
         #expect(metrics.points.first { $0.name == "codex.tool.call.duration_ms" }?.value == 1500)
         #expect(throws: OTLPError.notProtobuf) { try OTLPProtobuf.decode(Data([0x0A, 0x7F, 1]), signal: .logs) }
+    }
+}
+
+/// A collector that takes every request and answers none until it is let through: no sleeping, no timing.
+private actor HeldCollector {
+    private(set) var bodies: [String] = []
+    private var open = false
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+
+    func receive(_ body: Data?) async -> Int {
+        if !open { await withCheckedContinuation { waiting.append($0) } }
+        bodies.append(String(decoding: body ?? Data(), as: UTF8.self))
+        return 200
+    }
+
+    func letThrough() {
+        open = true
+        for waiter in waiting {
+            waiter.resume()
+        }
+        waiting = []
     }
 }

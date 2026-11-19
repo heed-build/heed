@@ -161,7 +161,10 @@ final class AppModel {
     private(set) var layouts: [String: SessionLayout] = [:]
     /// Permission requests waiting on you (AppModel+Approvals).
     let approvals = ApprovalsLive()
-    private(set) var repos: [RepoRecord] = [] { didSet { if repos != oldValue { rebuildWorktreeRows() } } }
+    private(set) var repos: [RepoRecord] = [] {
+        didSet { if repos != oldValue { rebuildWorktreeRows(); refreshBrowseCheckouts() } }
+    }
+
     private(set) var worktrees: [Worktree] = [] { didSet { if worktrees != oldValue { rebuildWorktreeRows() } } }
     private(set) var history: [HistoryEntry] = [] {
         didSet { if history != oldValue { historyBrowser.setEntries(history) } }

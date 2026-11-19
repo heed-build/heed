@@ -17,6 +17,9 @@ final class BrowseModel {
     /// What the last fetch said about its search.
     struct Meta: Equatable {
         var total: Int
+        /// "All checkouts" took this many searches, of this many its orgs needed.
+        var groups = 1
+        var groupsTotal = 1
         var capped: Bool
         var hidden: Int
         var fetchedAt: Date
@@ -67,6 +70,9 @@ final class BrowseModel {
     /// When each saved query's count was last asked of GitHub, so the rail's refresh is slow.
     @ObservationIgnored var countedAt: [String: Date] = [:]
     @ObservationIgnored var countsTask: Task<Void, Never>?
+    @ObservationIgnored private var pruneTask: Task<Void, Never>?
+    /// What Browse works inside: the orgs and repos checked out, as `repos` says now (never stored).
+    private(set) var checkouts = BrowseCheckouts(records: [])
     private(set) var settings = BrowseSettings()
     private(set) var viewer: String?
     let fixture: Bool
@@ -78,6 +84,50 @@ final class BrowseModel {
     init(fixture: Bool) { self.fixture = fixture }
 
     var scope: BrowseScope? { query.scope }
+
+    /// Why the query is not asked, or nil: its org is not checked out, or nothing is.
+    var refusal: BrowseFetchError? { BrowseFetch.refusal(for: query, checkouts: checkouts) }
+
+    /// The checkouts changed (a clone, a removal, repos loaded): the list and the counts follow.
+    func setCheckouts(_ new: BrowseCheckouts) {
+        guard new != checkouts else { return }
+        checkouts = new
+        schedulePrune()
+        guard started else { return }
+        refilter()
+        countedAt = [:]
+        fetch()
+    }
+
+    /// Drops what the cache holds outside the checkouts, quietly: once the checkouts have been steady for a while (so
+    /// a repo list still loading never wipes anything), at utility priority, off the main actor, in batches. Never in
+    /// the fake world, and never with nothing checked out (`BrowseStore.prune` does nothing for no orgs).
+    func schedulePrune(after delay: Duration = .seconds(20)) {
+        pruneTask?.cancel()
+        guard !fixture, let store, !checkouts.isEmpty else { return }
+        let orgs = checkouts.orgNames
+        pruneTask = Task.detached(priority: .utility) {
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            if let removed = try? await store.prune(keepingOrgs: orgs), removed > 0 {
+                NSLog("heed: Browse's cache dropped \(removed) items outside what is checked out")
+            }
+        }
+    }
+
+    /// The query a saved one runs as: inside the scope you are in, unless it names a place of its own (then the scope
+    /// neither widens nor narrows it). With no scope either, it runs inside the checkouts.
+    func effective(_ saved: SavedQuery) -> BrowseQuery {
+        var next = saved.query
+        if next.scope == nil, !next.hasOwnPlace { next.scope = scope }
+        return next
+    }
+
+    /// The cached items the query can show: with no place of its own it is the checked-out orgs' items only.
+    private func visible(_ query: BrowseQuery) -> [BrowseItem] {
+        guard query.scope == nil, !query.hasOwnPlace else { return items }
+        return items.filter { checkouts.contains(org: $0.repo.org) }
+    }
 
     var activeSaved: SavedQuery? { queries.first { $0.id == activeQuery } }
 
@@ -115,6 +165,7 @@ final class BrowseModel {
         }
         started = true
         refilter()
+        schedulePrune()
     }
 
     /// The fake world's: no store, what the fixtures say.
@@ -128,6 +179,7 @@ final class BrowseModel {
         queryTotals = data.queryTotals
         newQueries = data.newQueries
         query = data.last.query
+        checkouts = BrowseCheckouts(records: data.records)
         meta = Meta(total: data.total, capped: true, hidden: 0, fetchedAt: Clock.now)
         started = true
         refilter()
@@ -142,12 +194,14 @@ final class BrowseModel {
 
     // MARK: What the list shows
 
-    func refilter(now: Date = Clock.now) { rows = narrowed(query, now: now) }
+    func refilter(now: Date = Clock.now) {
+        rows = BrowseFetch.refusal(for: query, checkouts: checkouts) == nil ? narrowed(query, now: now) : []
+    }
 
     /// The items `query` keeps, in the sort order, and the search words (`/` in the list) over them.
     private func narrowed(_ query: BrowseQuery, now: Date) -> [BrowseItem] {
         var kept = BrowseFilter(query: query, viewer: viewer, maxAgeDays: settings.maxAgeDays, reads: reads)
-            .apply(to: items, sort: sort, now: now)
+            .apply(to: visible(query), sort: sort, now: now)
         let words = search.trimmingCharacters(in: .whitespaces)
         if !words.isEmpty {
             let parts = words.split(separator: " ").map(String.init)
@@ -200,17 +254,24 @@ final class BrowseModel {
     }
 
     /// The count the rail shows for a scope: GitHub's when a fetch said, else the cache's.
-    func count(of scope: BrowseScope, now: Date = Clock.now) -> Int {
-        scopeTotals[scope.id] ?? BrowseFilter.count(
-            BrowseQuery(scope: scope, tokens: [.state(.open)]), in: items, viewer: viewer,
-            maxAgeDays: settings.maxAgeDays, now: now, reads: reads
+    /// nil (a dash) for an org that is not checked out: nothing of it is searched.
+    func count(of scope: BrowseScope, now: Date = Clock.now) -> Int? {
+        let asked = BrowseQuery(scope: scope, tokens: [.state(.open)])
+        guard BrowseFetch.refusal(for: asked, checkouts: checkouts) == nil else { return nil }
+        return scopeTotals[scope.id] ?? BrowseFilter.count(
+            asked, in: items, viewer: viewer, maxAgeDays: settings.maxAgeDays, now: now, reads: reads
         )
     }
 
-    func count(of saved: SavedQuery, now: Date = Clock.now) -> Int {
+    /// nil (a dash) when the query would not be asked.
+    func count(of saved: SavedQuery, now: Date = Clock.now) -> Int? {
+        let asked = effective(saved)
+        guard BrowseFetch.refusal(for: asked, checkouts: checkouts) == nil else { return nil }
+        // heed's own filters count what heed has read: before it has read anything, that is not "0" but not known yet.
+        if !saved.query.localTokens.isEmpty, reads.isEmpty, !fixture { return nil }
         // A query with heed's own filters has more than GitHub's total: the cache's count, narrowed by the reads.
-        (saved.query.localTokens.isEmpty || fixture ? queryTotals[saved.id] : nil) ?? BrowseFilter.count(
-            saved.query, in: items, viewer: viewer, maxAgeDays: settings.maxAgeDays, now: now, reads: reads
+        return (saved.query.localTokens.isEmpty || fixture ? queryTotals[saved.id] : nil) ?? BrowseFilter.count(
+            asked, in: visible(asked), viewer: viewer, maxAgeDays: settings.maxAgeDays, now: now, reads: reads
         )
     }
 
@@ -226,11 +287,20 @@ final class BrowseModel {
 
     /// Browses `scope`: opens its open items, keeps it in the rail, and asks GitHub.
     func go(to scope: BrowseScope?) {
+        // A saved query you are on goes with you (Stale 30d+ in another org), unless it names a place of its own.
         var next = BrowseQuery(scope: scope, tokens: [.state(.open)])
+        var keep = activeQuery
+        if let saved = activeSaved, !saved.query.hasOwnPlace {
+            next = saved.query
+            next.scope = scope
+        } else {
+            keep = nil
+        }
         next.showOlder = false
         query = next
-        activeQuery = nil
-        if let scope, !scopes.contains(scope) {
+        activeQuery = keep
+        // Only a scope that is searched joins the rail: an org with no checkout shows the clone-first card instead.
+        if let scope, !scopes.contains(scope), checkouts.allows(BrowsePlace(owner: scope.owner)) {
             scopes.append(scope)
             let store = store
             Task { try? await store?.pin(scope) }
@@ -244,11 +314,9 @@ final class BrowseModel {
         Task { try? await store?.unpin(scope) }
     }
 
-    /// Runs a saved query, within the scope you are in when it names none.
+    /// Runs a saved query, within the scope you are in when it names none (see `effective`).
     func run(_ saved: SavedQuery) {
-        var next = saved.query
-        if next.scope == nil { next.scope = scope }
-        query = next
+        query = effective(saved)
         activeQuery = saved.id
         newQueries.remove(saved.id)
         changed()
@@ -291,14 +359,17 @@ final class BrowseModel {
     /// Asks GitHub for the query, off the main actor. What the cache held stays on screen until the answer lands; a
     /// failure leaves it and says why. Never in the fake world.
     func fetch() {
-        guard !fixture, started, query.scope != nil || !query.tokens.isEmpty else { return }
         fetchTask?.cancel()
+        // Nothing is sent for a place that is not checked out (the list says so), and nothing for no place with no
+        // checkouts: `BrowseFetch` refuses both again, so this is only to not show "asking GitHub".
+        guard !fixture, started, refusal == nil else { return load = .idle }
         let asked = query
         let days = settings.maxAgeDays
+        let checkouts = checkouts
         load = .loading
         fetchTask = Task { [weak self] in
             do {
-                let result = try await BrowseFetch.search(asked, maxAgeDays: days)
+                let result = try await BrowseFetch.search(asked, maxAgeDays: days, checkouts: checkouts)
                 guard !Task.isCancelled, let self else { return }
                 land(result, for: asked)
             } catch is CancellationError {
@@ -317,7 +388,10 @@ final class BrowseModel {
             byID[item.id] = item
         }
         items = Array(byID.values)
-        meta = Meta(total: result.total, capped: result.capped, hidden: result.hidden, fetchedAt: result.fetchedAt)
+        meta = Meta(
+            total: result.total, groups: result.groups, groupsTotal: result.groupsTotal, capped: result.capped,
+            hidden: result.hidden, fetchedAt: result.fetchedAt
+        )
         if let scope = asked.scope, asked.tokens == [.state(.open)] { scopeTotals[scope.id] = result.total }
         if let id = activeQuery, asked.localTokens.isEmpty {
             queryTotals[id] = result.total

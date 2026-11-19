@@ -820,6 +820,21 @@ enum Shots {
     /// Browse (`gb`): an org's open items with the thread beside them, and the quick jump with a big org's warning.
     static let browse: [Shot] = [
         Shot(id: "github/browse", keys: "gb"),
+        // A fresh install: no scope chosen, so the queries run inside every org with a checkout.
+        Shot(id: "github/browse-fresh", keys: "gb", prepare: { model in
+            model.browse.scopes = []
+            model.browse.query = BrowseQuery(tokens: [.state(.open)])
+            model.browse.activeQuery = nil
+            model.browse.refilter()
+        }),
+        // Nothing checked out: the list asks for a repo first, and the counts are dashes.
+        Shot(id: "github/browse-none", keys: "gb", prepare: { model in
+            model.browse.scopes = []
+            model.browse.query = BrowseQuery(tokens: [.state(.open)])
+            model.browse.activeQuery = nil
+            model.browse.setCheckouts(BrowseCheckouts(records: []))
+            model.browse.refilter()
+        }),
         // heed's read of the item under the cursor, and the four verbs with the suggested one outlined (design 8).
         Shot(id: "github/browse-read", keys: "gb", highlight: [.browseRead, .browseWork]),
         // An item under 50% agent-ready: Chat leads, Fix is on offer with a caveat (design 9).

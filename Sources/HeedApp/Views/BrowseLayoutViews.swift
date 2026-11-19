@@ -81,7 +81,7 @@ struct BrowseCompactHeader: View {
                             .fill(Repo(org: scope.owner, name: "").color.foreground))
                     Text(scope.title).font(Theme.ui(14.5, weight: .semibold)).lineLimit(1)
                 } else {
-                    Text("Pick a scope").font(Theme.ui(14.5, weight: .semibold))
+                    Text("All checkouts").font(Theme.ui(14.5, weight: .semibold))
                 }
                 Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.fg3)
             }
@@ -210,12 +210,12 @@ struct BrowseJumpSheet: View {
     }
 
     private func row(
-        active: Bool, count: Int, @ViewBuilder label: () -> some View, go: @escaping () -> Void
+        active: Bool, count: Int?, @ViewBuilder label: () -> some View, go: @escaping () -> Void
     ) -> some View {
         HStack(spacing: 12) {
             label()
             Spacer()
-            Text("\(count)").font(Theme.mono(12)).foregroundStyle(Theme.fg3)
+            Text(verbatim: count.map { "\($0)" } ?? "–").font(Theme.mono(12)).foregroundStyle(Theme.fg3)
         }
         .padding(.horizontal, 16).padding(.vertical, 9)
         .background(active ? Theme.bg3 : .clear)

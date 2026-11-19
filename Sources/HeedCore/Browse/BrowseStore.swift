@@ -230,6 +230,44 @@ public actor BrowseStore {
         )
     }
 
+    /// The most rows one transaction deletes, so a big cache never holds the file for long.
+    public static let pruneBatch = 500
+
+    /// Drops what Browse cached outside what is checked out: items (and heed's reads of them) whose org is not in
+    /// `orgs`, compared without case. Only `browse.sqlite`: saved queries and pinned scopes stay (a pinned scope for an
+    /// org with no checkout shows the check-out-first state). With no orgs it does nothing: an empty list is more
+    /// likely a repo list not loaded yet than a Mac with nothing checked out, and the list shows nothing for it anyway.
+    /// Deletes in batches of `pruneBatch`, each its own transaction, yielding between them; safe to run twice, and a
+    /// stop in the middle leaves the rows that were not reached, all consistent. Returns the items removed.
+    @discardableResult
+    public func prune(keepingOrgs orgs: [String]) async throws -> Int {
+        let keep = Set(orgs.map { $0.lowercased() }.filter { !$0.isEmpty })
+        guard !keep.isEmpty else { return 0 }
+        func outside(_ id: String) -> Bool {
+            // `org/repo#12`: the id's org; one without a slash is not Browse's and is left alone.
+            guard let slash = id.firstIndex(of: "/") else { return false }
+            return !keep.contains(id[..<slash].lowercased())
+        }
+        let items = try database.query("SELECT id FROM items") { $0[0].text }.compactMap(\.self).filter(outside)
+        let reads = try database.query("SELECT id FROM reads") { $0[0].text }.compactMap(\.self).filter(outside)
+        var removed = 0
+        for (table, ids) in [("items", items), ("reads", reads)] {
+            for start in stride(from: 0, to: ids.count, by: Self.pruneBatch) {
+                let batch = ids[start ..< min(start + Self.pruneBatch, ids.count)]
+                try database.transaction {
+                    let delete = try database.prepare("DELETE FROM \(table) WHERE id = ?1")
+                    for id in batch {
+                        try delete.bind([.text(id)])
+                        try delete.run()
+                    }
+                }
+                if table == "items" { removed += batch.count }
+                await Task.yield()
+            }
+        }
+        return removed
+    }
+
     private static func json(_ value: some Encodable) throws -> String {
         try String(decoding: JSONEncoder.heed.encode(value), as: UTF8.self)
     }

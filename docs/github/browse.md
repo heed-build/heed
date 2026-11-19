@@ -14,6 +14,29 @@ Browse asks GitHub when you ask: when you enter it, change the scope or the quer
 to refresh. It never asks on the sync's poll. What it fetched last time draws first, and the fresh answer replaces
 it.
 
+## Browse works inside what you have checked out
+
+Browse searches the **orgs and accounts you have checked out a repo of**, on this Mac or on a host, and nothing else.
+heed reads that list from your repos each time (it keeps no copy), so cloning a repo adds its org at once and removing the
+last one takes the org away.
+
+- **No scope means all your checkouts.** A query with no scope of its own (the starter queries, a fresh install) runs
+  inside every org you have a checkout in. The chip over the list says *All checkouts* and how many orgs that is. GitHub
+  limits a search to 256 characters, so many orgs are searched in groups of at most 240 characters, up to six, and the
+  counts are added up; past six groups the line over the list says so, and `⌘K` narrows to one org.
+- **A scope or a place you type wins.** A saved query with its own `org:`, `repo:` or Project is neither widened nor
+  narrowed by the scope you are in. Picking a scope replaces the default, and the query you are on goes with you.
+- **An org with no checkout is refused, not searched.** Pick it, or type `org:`, `repo:` or `user:` for it, and the list
+  says *`<name>` isn't checked out*, with a button that opens Add or clone on that name. Nothing is sent to GitHub. A repo
+  of an org you have checked out something of is allowed, since Browse searches an org as a whole.
+- **With nothing checked out,** the list says *Check out a repo first* with the same button, and the rail's counts are
+  dashes.
+- **Browse never searches all of GitHub.** The check is in the fetch itself, so no key, saved query or typed filter can
+  get around it.
+- **The cache follows.** Shortly after launch, and again when your checkouts change, heed quietly drops the issues and
+  pull requests of orgs you have no checkout in from Browse's own cache (`browse.sqlite`), along with heed's reads of them.
+  Saved queries and pinned scopes stay. [Attention](attention.md) keeps its own cache and is not touched.
+
 ## Layout and the rail
 
 Three panes, left to right:
@@ -26,10 +49,12 @@ Three panes, left to right:
 agent), *Assigned to me*, *Bugs nobody touched*, *Good first issues* and *Stale 30d+*. Each has a glyph and a tint:
 heed picks the glyph from the query's main filter (a bug for bug labels, a sprout for good first issues, a clock for
 stale, a flag for a milestone, a person for an assignee, a bolt for agent-ready, a pull for pull requests), and you
-can change it when you save. The number beside a query is what GitHub counts for it, refreshed slowly in the
+can change it when you save. The number beside a query is what GitHub counts for it inside the scope you are in (a dash when Browse would not search it), refreshed slowly in the
 background while you are in Browse. A blue dot marks a query with news; `]q` and `[q` step through the queries.
 
-**Scopes** say where the search runs. The shape says what a scope is:
+**Scopes** say where the search runs. *All checkouts* (a dashed square) comes first and is the default; the orgs you
+have checked out follow, and an org you pinned but have no checkout in is dimmed with a dash for its count. The shape
+says what a scope is:
 
 | Mark | Scope |
 |---|---|

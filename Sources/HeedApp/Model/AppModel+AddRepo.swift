@@ -6,7 +6,8 @@ import HeedCore
 /// the chosen "then" (`[worktrees] after_add`).
 extension AppModel {
     /// Opens the dialog on the last lists heed has, and asks gh for fresher ones.
-    func openAddRepo() {
+    /// `prefill` types a slug into the field (Browse: "clone it first").
+    func openAddRepo(prefill: String? = nil) {
         if view != .repos { view = .repos }
         let fake = isFixture || tutor != nil
         let cache = fake ? fixtureRepoLists : loadedRepoListCache()
@@ -15,7 +16,9 @@ extension AppModel {
             orgs: orgs, records: repos, roots: settings.repoRoots, then: settings.afterAdd, lists: cache.states
         )
         form.lookups = repoLookups
+        if let prefill { form.setQuery(prefill) }
         addRepoDialog = form
+        if prefill != nil { refreshAddRepoField() }
         if !fake { refreshRepoLists(owners: [""] + orgs) }
     }
 

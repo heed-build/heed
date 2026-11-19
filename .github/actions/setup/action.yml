@@ -19,6 +19,12 @@ inputs:
 runs:
   using: composite
   steps:
+    # A fresh checkout stamps every file with the time it ran, which made a restored .build rebuild all of heed's
+    # sources every run. Stamping each file from its content instead keeps the unchanged ones as the cache saw them.
+    - name: Pin file times to their content
+      shell: bash
+      run: scripts/pin-mtimes.sh
+
     - uses: jdx/mise-action@v2
 
     - name: Select Xcode ${{ inputs.xcode }}

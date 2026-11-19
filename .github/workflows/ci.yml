@@ -18,6 +18,9 @@ jobs:
   test:
     runs-on: macos-26
     timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: write # prune-caches deletes old .build caches
     steps:
       - uses: actions/checkout@v5
 
@@ -33,12 +36,11 @@ jobs:
         run: brew install fish
 
       # HeedCore and the tests only: the test product needs neither the app, MLX, Sparkle nor GhosttyKit (the build job
-      # compiles those). Heed's own sources are touched first so the log carries every warning, which text-check reads.
+      # compiles those). Incremental: the setup action pinned the files' times, so only what changed since main's
+      # cached build compiles, and its log is what text-check reads.
       - name: Build the tests
         shell: bash
-        run: |
-          find Sources/HeedCore Sources/heed Tests -name '*.swift' -exec touch {} +
-          swift build --product HeedPackageTests 2>&1 | tee "$RUNNER_TEMP/build-tests.log"
+        run: swift build --product HeedPackageTests 2>&1 | tee "$RUNNER_TEMP/build-tests.log"
 
       - name: Test
         id: test
@@ -59,7 +61,9 @@ jobs:
           exit "$status"
 
       # Reads the warnings of that build (HeedCore and the tests; the build job checks the app's): other people's text
-      # in a plain String fails here. Runs after the tests so a failing test is not hidden behind it.
+      # in a plain String fails here. A file that did not recompile was clean when main's build compiled it, and one
+      # that depends on a changed declaration (the deprecations in Prompt.swift) does recompile. Runs after the tests so
+      # a failing test is not hidden behind it.
       - name: Text check
         if: "!cancelled()"
         run: scripts/text-check.sh "$RUNNER_TEMP/build-tests.log"
@@ -72,10 +76,21 @@ jobs:
           path: .build
           key: ${{ env.SWIFTPM_CACHE_KEY }}
 
+      # The repository's cache allowance is 10 GB and each of these is about 700 MB: keep this job's newest two.
+      - name: Prune older .build caches
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: scripts/prune-caches.sh "$SWIFTPM_CACHE_BASE-"
+
   # A release build and the tutor played with the real keys on it.
   build:
     runs-on: macos-26
     timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: write # prune-caches deletes old .build caches
     steps:
       - uses: actions/checkout@v5
 
@@ -113,6 +128,14 @@ jobs:
         with:
           path: .build
           key: ${{ env.SWIFTPM_CACHE_KEY }}
+
+      # The repository's cache allowance is 10 GB and each of these is about 700 MB: keep this job's newest two.
+      - name: Prune older .build caches
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: scripts/prune-caches.sh "$SWIFTPM_CACHE_BASE-"
 
   # The docs build as docs.yml publishes it, without publishing.
   docs:

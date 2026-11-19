@@ -890,6 +890,13 @@ enum Shots {
                 Shots.previewRefresh(model)
             }
         ),
+        // The rail's tree: acme and globex open, Only my 4 repos first under acme and the scope (the chip says so).
+        Shot(id: "github/browse-rail-expanded", keys: "gb", prepare: { model in
+            model.browse.toggleExpansion(of: "globex")
+            model.browse.query = BrowseQuery(scope: .ownRepos("acme"), tokens: [.state(.open)])
+            model.browse.activeQuery = nil
+            model.browse.refilter()
+        }),
         Shot(id: "github/browse-scope", keys: "gb<D-k>gl"),
         // Four items picked: the reader is the bulk panel (design 4).
         Shot(id: "github/browse-bulk", keys: "gb<Space>j<Space>jjj<Space>jjjj<Space>"),

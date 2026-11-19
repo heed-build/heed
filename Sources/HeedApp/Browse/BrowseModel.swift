@@ -35,6 +35,8 @@ final class BrowseModel {
     /// When each saved query was last run, for the quick jump's order: kept per Mac, not in the fake world.
     private(set) var queryUsed: [String: Date] = [:]
     var scopes: [BrowseScope] = []
+    /// Which orgs of the rail's Scopes are open, kept per Mac (not in the fake world).
+    private(set) var rail = BrowseRailExpansion()
     var query = BrowseQuery(tokens: [.state(.open)])
     /// The saved query `query` is, until you change it.
     var activeQuery: String?
@@ -106,6 +108,42 @@ final class BrowseModel {
         if !fixture, let saved = UserDefaults.standard.dictionary(forKey: "browseQueryUsed") as? [String: Double] {
             queryUsed = saved.mapValues { Date(timeIntervalSince1970: $0) }
         }
+        if !fixture {
+            let defaults = UserDefaults.standard
+            rail = BrowseRailExpansion(
+                open: Set(defaults.stringArray(forKey: Self.railOpenKey) ?? []),
+                seen: Set(defaults.stringArray(forKey: Self.railSeenKey) ?? [])
+            )
+        }
+    }
+
+    private static let railOpenKey = "browseRailExpanded"
+    private static let railSeenKey = "browseRailOpenedOnce"
+
+    private func keepRail() {
+        guard !fixture else { return }
+        UserDefaults.standard.set(rail.open.sorted(), forKey: Self.railOpenKey)
+        UserDefaults.standard.set(rail.seen.sorted(), forKey: Self.railSeenKey)
+    }
+
+    /// The rows of the rail's Scopes: what is under an org shows only when it is open.
+    var railScopes: BrowseRailScopes.Result {
+        BrowseRailScopes.rows(pinned: scopes, checkouts: checkouts, expanded: rail.open)
+    }
+
+    /// A click on an org row: it becomes the scope and opens; clicking the org that already is the scope closes it
+    /// (and asks GitHub nothing).
+    func clickOrg(_ org: String) {
+        let wasScope = scope == .org(org)
+        rail.clicked(org, wasScope: wasScope)
+        keepRail()
+        if !wasScope { go(to: .org(org)) }
+    }
+
+    /// The chevron, or `browse.scope.toggle`: opens or closes an org without changing the scope.
+    func toggleExpansion(of org: String) {
+        rail.toggle(org)
+        keepRail()
     }
 
     var scope: BrowseScope? { query.scope }
@@ -183,6 +221,10 @@ final class BrowseModel {
             if let last = try await store.last() {
                 query = last.query
                 query.scope = last.scope
+                if let owner = last.scope?.owner {
+                    rail.picked(owner)
+                    keepRail()
+                }
             }
             try await store.prune(now: Date())
         } catch {
@@ -205,6 +247,7 @@ final class BrowseModel {
         newQueries = data.newQueries
         query = data.last.query
         checkouts = BrowseCheckouts(records: data.records)
+        rail = BrowseRailExpansion(open: data.expanded, seen: data.expanded)
         meta = Meta(total: data.total, capped: true, hidden: 0, fetchedAt: Clock.now)
         started = true
         refilter()
@@ -233,7 +276,9 @@ final class BrowseModel {
 
     /// The items `query` keeps, in the sort order, and the search words (`/` in the list) over them.
     private func narrowed(_ query: BrowseQuery, now: Date, from pool: [BrowseItem]? = nil) -> [BrowseItem] {
-        var kept = BrowseFilter(query: query, viewer: viewer, maxAgeDays: settings.maxAgeDays, reads: reads)
+        var kept = BrowseFilter(
+            query: query, viewer: viewer, maxAgeDays: settings.maxAgeDays, reads: reads, checkouts: checkouts
+        )
             .apply(to: pool ?? visible(query), sort: sort, now: now)
         let words = search.trimmingCharacters(in: .whitespaces)
         if !words.isEmpty {
@@ -294,7 +339,7 @@ final class BrowseModel {
         let asked = BrowseQuery(scope: scope, tokens: [.state(.open)])
         guard BrowseFetch.refusal(for: asked, checkouts: checkouts) == nil else { return nil }
         return scopeTotals[scope.id] ?? BrowseFilter.count(
-            asked, in: items, viewer: viewer, maxAgeDays: settings.maxAgeDays, now: now, reads: reads
+            asked, in: items, viewer: viewer, maxAgeDays: settings.maxAgeDays, now: now, reads: reads, checkouts: checkouts
         )
     }
 
@@ -306,7 +351,7 @@ final class BrowseModel {
         if !saved.query.localTokens.isEmpty, reads.isEmpty, !fixture { return nil }
         // A query with heed's own filters has more than GitHub's total: the cache's count, narrowed by the reads.
         return (saved.query.localTokens.isEmpty || fixture ? queryTotals[saved.id] : nil) ?? BrowseFilter.count(
-            asked, in: visible(asked), viewer: viewer, maxAgeDays: settings.maxAgeDays, now: now, reads: reads
+            asked, in: visible(asked), viewer: viewer, maxAgeDays: settings.maxAgeDays, now: now, reads: reads, checkouts: checkouts
         )
     }
 
@@ -334,8 +379,16 @@ final class BrowseModel {
         next.showOlder = false
         query = next
         activeQuery = keep
+        if let scope, checkouts.allows(BrowsePlace(owner: scope.owner)) {
+            let before = rail
+            rail.picked(scope.owner)
+            if rail != before { keepRail() }
+        }
         // Only a scope that is searched joins the rail: an org with no checkout shows the clone-first card instead.
-        if let scope, !scopes.contains(scope), checkouts.allows(BrowsePlace(owner: scope.owner)) {
+        // An org's own repos is the first row under its org, never a row of its own.
+        if let scope, !scopes.contains(scope), !scope.isOwnRepos,
+           checkouts.allows(BrowsePlace(owner: scope.owner))
+        {
             scopes.append(scope)
             let store = store
             Task { try? await store?.pin(scope) }

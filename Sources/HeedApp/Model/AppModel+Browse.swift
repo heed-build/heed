@@ -148,6 +148,9 @@ extension AppModel {
         case "browse.scope": openBrowsePalette()
         case "browse.scope.next": browse.nextScope(by: 1); browseQueryChanged()
         case "browse.scope.prev": browse.nextScope(by: -1); browseQueryChanged()
+        case "browse.scope.toggle":
+            guard let owner = browse.scope?.owner else { return say("pick an org first: \(keyText(for: "browse.scope", in: "browse"))") }
+            browse.toggleExpansion(of: owner)
         case "browse.query.next": browse.nextQuery(by: 1); browseQueryChanged()
         case "browse.query.prev": browse.nextQuery(by: -1); browseQueryChanged()
         case "browse.filter.add": openBrowseBuilder()
@@ -254,14 +257,15 @@ extension AppModel {
             BrowsePalette.Org(
                 name: name,
                 repoCount: browse.repoCounts[name.lowercased()] ?? cache.lists[name]?.listings.count,
-                checkedOut: checkouts.contains(org: name)
+                checkedOut: checkouts.contains(org: name), ownRepos: checkouts.org(name)?.repos.count ?? 0
             )
         }
         if let viewer = github.viewer {
             orgs.insert(
                 .init(
                     name: viewer, repoCount: browse.repoCounts[viewer.lowercased()] ?? cache.lists[""]?.listings.count,
-                    personal: true, checkedOut: checkouts.contains(org: viewer)
+                    personal: true, checkedOut: checkouts.contains(org: viewer),
+                    ownRepos: checkouts.org(viewer)?.repos.count ?? 0
                 ), at: 0
             )
         }

@@ -22,11 +22,28 @@ extension AppModel {
         return rows.indices.contains(index) ? rows[index] : nil
     }
 
-    /// The toggle at the right of the count: only the items with an agent run on them, and back. The cursor goes to
-    /// the top, since the rows it pointed into change.
-    func toggleBrowseAgentOnly() {
-        browse.agentOnly = !browse.showsAgentOnly
+    /// The quick filter at the right of the count: only the items with an agent, a session or a goal, and back. The
+    /// cursor goes to the top, since the rows it pointed into change.
+    func toggleBrowseFilter(_ filter: BrowseWorkFilter) {
+        browse.workFilter = browse.shownFilter == filter ? nil : filter
         itemCursor[.browse] = 0
+    }
+
+    /// To a session or goal an item was started from, in Sessions or Goals.
+    func openBrowseOrigin(session id: String) {
+        view = .sessions
+        select(sessionID: id)
+    }
+
+    func openBrowseOrigin(goal id: String) {
+        view = .goals
+        goals.point(to: id)
+    }
+
+    /// Which items have sessions or goals started from them: rebuilt when sessions or goals change.
+    func refreshBrowseOrigins() {
+        let refs = sessions.map { BrowseOrigins.SessionRefs(id: $0.id, issues: issues(of: $0), pulls: $0.trackedPRs) }
+        browse.origins = BrowseOrigins.build(sessions: refs, goalItems: goals.snapshot.items)
     }
 
     /// Whether heed has a checkout of the repo on this Mac (the fake world's Mac has its own).
@@ -45,6 +62,8 @@ extension AppModel {
     func enteredBrowse() {
         browse.configure(config.browse, viewer: github.viewer)
         refreshBrowseCheckouts()
+        goals.onSnapshot = { [weak self] in self?.refreshBrowseOrigins() }
+        refreshBrowseOrigins()
         browse.refilter()
         if (itemCursor[.browse] ?? 0) >= browse.rows.count { itemCursor[.browse] = 0 }
         browse.landed = { [weak self] in
@@ -196,7 +215,9 @@ extension AppModel {
         case "browse.implement": browseVerb(.implement)
         case "browse.chat": browseVerb(.chat)
         case "browse.review": browseVerb(.review)
-        case "browse.agents": toggleBrowseAgentOnly()
+        case "browse.agents": toggleBrowseFilter(.agent)
+        case "browse.from.sessions": toggleBrowseFilter(.session)
+        case "browse.from.goals": toggleBrowseFilter(.goal)
         case "browse.tell": browseTellRun()
         case "browse.run.close": browseEscape()
         case "browse.run.keep": keepBrowseRun()

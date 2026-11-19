@@ -990,6 +990,8 @@ public enum Commands {
             .selection
         ),
         .init("browse.agents", "Browse: only the items with an agent on them, and back (shown while there are any)", .selection),
+        .init("browse.from.sessions", "Browse: only the items a session was started from, and back (shown while there are any)", .selection),
+        .init("browse.from.goals", "Browse: only the items that are in a goal, and back (shown while there are any)", .selection),
         .init("browse.tell", "Browse: tell an agent what to do with the item, in your own words", .selection),
         .init(
             "browse.run.close",

@@ -31,14 +31,26 @@ final class BrowseModel {
     var items: [BrowseItem] = []
     /// The items the query keeps, in the sort order: what the list draws.
     private(set) var allRows: [BrowseItem] = []
-    /// Only the items with an agent run on them (`agentOnly`): the toggle at the right of the count. Off whenever no
-    /// run is left, so the list never shows nothing for a filter that has gone.
-    var agentOnly = false
-    /// What the list draws: `allRows`, or just those with a run on them.
-    var rows: [BrowseItem] { showsAgentOnly ? allRows.filter { runs.current(for: $0.id) != nil } : allRows }
-    /// How many of the rows have a run on them.
-    var agentCount: Int { allRows.count { runs.current(for: $0.id) != nil } }
-    var showsAgentOnly: Bool { agentOnly && agentCount > 0 }
+    /// The quick filter at the right of the count (`BrowseWorkFilter`): nil shows every row.
+    var workFilter: BrowseWorkFilter?
+    /// Which items have sessions or goals started from them (`BrowseOrigins`), kept up to date by the app.
+    var origins = BrowseOrigins.empty
+    /// What the list draws: `allRows`, narrowed by the quick filter while it is on and something qualifies.
+    var rows: [BrowseItem] {
+        guard let filter = shownFilter else { return allRows }
+        return allRows.filter { filter.keeps($0, hasRun: runs.current(for: $0.id) != nil, origins: origins) }
+    }
+
+    /// How many rows the quick filter `filter` would keep.
+    func count(of filter: BrowseWorkFilter) -> Int {
+        allRows.count { filter.keeps($0, hasRun: runs.current(for: $0.id) != nil, origins: origins) }
+    }
+
+    /// The filters on offer: those some row qualifies for.
+    var offeredFilters: [BrowseWorkFilter] { BrowseWorkFilter.allCases.filter { count(of: $0) > 0 } }
+
+    /// The filter that is on, unless nothing qualifies any more.
+    var shownFilter: BrowseWorkFilter? { workFilter.flatMap { count(of: $0) > 0 ? $0 : nil } }
     var queries: [SavedQuery] = []
     /// When each saved query was last run, for the quick jump's order: kept per Mac, not in the fake world.
     private(set) var queryUsed: [String: Date] = [:]

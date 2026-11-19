@@ -209,6 +209,8 @@ A button that does not fit is dashed and says why.
 | `R` Review | Reads the diff, runs the tests and drafts a review for you |
 | `t` | Tell an agent in your own words what to do |
 | `w` | Only the items with an agent on them, and back |
+| `W` | Only the items a session was started from, and back |
+| `O` | Only the items that are in a goal, and back |
 
 **What heed suggests:**
 
@@ -236,6 +238,13 @@ heed says so as it closes.
 **Which items have an agent.** A row with a run on it is tinted in the run's colour (stronger under the cursor) and
 says what it is doing (*Fix · working*). While there is any, a *● N with an agent* toggle appears at the right of the
 count (`w`) and narrows the list to those items. It goes away with the last run.
+
+**Work started from an item.** An item remembers what became of it. A session started from it (it closes the issue,
+tracks the PR, or was started with the issue linked) and a goal that holds it as an item show as *session* and *goal*
+tags on its row, and as links under heed's read in the reader (*Started from here*), which open the session or the goal.
+heed derives this from what sessions and goals already keep, so it covers work started before this and needs no
+storage. Beside the agent toggle, *N from sessions* (`W`) and *N in goals* (`O`) appear at the right of the count,
+each only while some item qualifies, and narrow the list the same way. A session that was closed is not listed.
 
 **Clone first.** When the repo is not on this Mac, the run opens with a card: `↩` clones and starts, `c` only clones,
 `d` picks the folder, `⎋` is not now.
@@ -361,6 +370,8 @@ Where you are, what you picked and the query survive a resize.
 | `F` `I` `C` `R` | `browse.fix` `browse.implement` `browse.chat` `browse.review` | Fix, Implement, Chat, Review |
 | `t` | `browse.tell` | Tell an agent what to do, in your words |
 | `w` | `browse.agents` | Only the items with an agent on them, and back |
+| `W` | `browse.from.sessions` | Only the items a session was started from, and back |
+| `O` | `browse.from.goals` | Only the items that are in a goal, and back |
 | `s` | `browse.run.keep` | Keep the run as a session |
 | `i` | `browse.run.steer` | Steer the run |
 | `⎋` | `browse.run.close` | Close the run and remove its worktree; with items picked, clear them; on a pushed reader, go back |

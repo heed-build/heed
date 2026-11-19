@@ -70,6 +70,8 @@ public enum MenuBar {
         "browse.review": "the Review button in Browse's reader, and its key in Browse",
         "browse.tell": "the line under the buttons in Browse's reader, and its key in Browse",
         "browse.agents": "the “N with an agent” toggle at the right of Browse's count, and its key in Browse",
+        "browse.from.sessions": "the “N from sessions” toggle at the right of Browse's count, and its key in Browse",
+        "browse.from.goals": "the “N in goals” toggle at the right of Browse's count, and its key in Browse",
         "browse.run.close": "the run's Close button in Browse's reader, and esc in Browse",
         "browse.run.keep": "the run's Keep as a session button in Browse's reader, and its key in Browse",
         "browse.run.steer": "the run's steer line in Browse's reader, and its key in Browse",

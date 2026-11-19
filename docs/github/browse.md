@@ -53,8 +53,8 @@ can change it when you save. The number beside a query is what GitHub counts for
 background while you are in Browse. A blue dot marks a query with news; `]q` and `[q` step through the queries.
 
 **Scopes** say where the search runs. *All checkouts* (a dashed square) comes first and is the default; the orgs you
-have checked out follow, and an org you pinned but have no checkout in is dimmed with a dash for its count. The shape
-says what a scope is:
+have checked out follow, and an org you pinned but have no checkout in is dimmed with a dash for its count. Under an org the rail leaves out the repos with nothing open and says how many
+(*1 with nothing open: show*); the repo you are in, and a repo not searched yet, stay. The shape says what a scope is:
 
 | Mark | Scope |
 |---|---|

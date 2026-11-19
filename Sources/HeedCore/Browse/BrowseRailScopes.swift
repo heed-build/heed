@@ -79,4 +79,19 @@ public enum BrowseRailScopes {
         }
         return Result(rows: rows, more: more)
     }
+
+    /// The rows without the repos that have nothing open (`count` says 0): a long org lists many that never have an
+    /// item, and they only push the ones that do out of sight. The scope you are in stays, and so does a repo whose
+    /// count is not known yet (never searched). `hidden` is how many were left out, for the "show" row.
+    public static func hidingEmpty(
+        _ rows: [Row], count: (BrowseScope) -> Int?, keeping current: BrowseScope? = nil
+    ) -> (rows: [Row], hidden: Int) {
+        var hidden = 0
+        let kept = rows.filter { row in
+            guard row.indent, case .repo = row.scope, count(row.scope) == 0, row.scope != current else { return true }
+            hidden += 1
+            return false
+        }
+        return (kept, hidden)
+    }
 }

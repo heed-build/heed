@@ -55,6 +55,19 @@ struct BrowseRailScopesTests {
         let pinned = BrowseRailScopes.rows(pinned: [.repo(Repo(org: "acme", name: "r2"))], checkouts: all)
         #expect(pinned.rows.map(\.scope.id) == ["org:acme", "repo:acme/r2", "repo:acme/r1", "org:globex"])
     }
+
+    @Test func reposWithNothingOpenAreLeftOutExceptTheCurrentOneAndThoseNotCountedYet() {
+        let a = Repo(org: "acme", name: "a"), b = Repo(org: "acme", name: "b")
+        let c = Repo(org: "acme", name: "c"), d = Repo(org: "acme", name: "d")
+        let rows = [BrowseRailScopes.Row(scope: .org("acme"), indent: false, checkedOut: 4)] + [a, b, c, d].map {
+            BrowseRailScopes.Row(scope: .repo($0), indent: true, checkedOut: nil)
+        }
+        let counts: [BrowseScope: Int] = [.org("acme"): 0, .repo(a): 5, .repo(b): 0, .repo(c): 0]
+        let result = BrowseRailScopes.hidingEmpty(rows, count: { counts[$0] }, keeping: .repo(c))
+        // The org row stays whatever its count; b is hidden; c is where you are; d has no count yet.
+        #expect(result.rows.map(\.scope.title) == ["acme", "a", "c", "d"])
+        #expect(result.hidden == 1)
+    }
 }
 
 struct BrowsePaletteCheckoutTests {

@@ -23,6 +23,7 @@ public struct HeedConfig: Equatable, Sendable {
     public var approvals = ApprovalSettings()
     /// `[attention]`: quiet hours, which notifications respect.
     public var attention = AttentionSettings()
+    public var browse = BrowseSettings()
     /// `[summary] away_hours`: how long away (from the Mac, or with heed quit) before the summary of what happened
     /// opens on its own; 0 never opens it.
     public var summaryAwayHours = 8
@@ -111,6 +112,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.notifications == rhs.notifications,
             lhs.approvals == rhs.approvals,
             lhs.attention == rhs.attention,
+            lhs.browse == rhs.browse,
             lhs.summaryAwayHours == rhs.summaryAwayHours,
             lhs.ledger == rhs.ledger,
             flat(lhs.keys) == flat(rhs.keys),
@@ -777,6 +779,53 @@ public enum ConfigLoader {
                 ))
             }
         }
+        // [browse]
+        if let value = root.value(at: ["browse", "max_age_days"]) {
+            if let days = value.integer, days >= 0 {
+                config.browse.maxAgeDays = min(days, AttentionAge.maxDays)
+            } else {
+                problems.append(ConfigProblem(
+                    path: "browse.max_age_days", message: "expected a number of days, 0 or more (0: no cap)"
+                ))
+            }
+        }
+        if let value = root.value(at: ["browse", "many_repos"]) {
+            if let count = value.integer, count >= 0 {
+                config.browse.manyRepos = count
+            } else {
+                problems.append(ConfigProblem(
+                    path: "browse.many_repos", message: "expected a number of repos, 0 or more (0: never ask)"
+                ))
+            }
+        }
+        if let text = string(["browse", "reads"]) {
+            if let mode = AttentionSummaryMode(rawValue: text) {
+                config.browse.reads = mode
+            } else {
+                problems.append(ConfigProblem(path: "browse.reads", message: "expected \"ahead\", \"open\" or \"off\""))
+            }
+        }
+        if let value = root.value(at: ["browse", "read_ahead"]) {
+            if let count = value.integer, (0 ... 200).contains(count) {
+                config.browse.readAhead = count
+            } else {
+                problems.append(ConfigProblem(
+                    path: "browse.read_ahead", message: "expected a number of rows, 0 to 200 (0: none read ahead)"
+                ))
+            }
+        }
+        if let value = root.value(at: ["browse", "max_runs"]) {
+            if let count = value.integer, (0 ... 20).contains(count) {
+                config.browse.maxRuns = count
+            } else {
+                problems.append(ConfigProblem(
+                    path: "browse.max_runs", message: "expected a number of runs, 0 to 20 (0: no limit)"
+                ))
+            }
+        }
+        if let text = string(["browse", "agent"]) {
+            config.browse.agent = text.isEmpty ? nil : text
+        }
         // [summary]
         if let hours = integer(["summary", "away_hours"], range: 0 ... 720) { config.summaryAwayHours = hours }
         if let names = strings(["summary", "when"]) {
@@ -1279,6 +1328,25 @@ public enum ConfigLoader {
     # GitHub items (PRs, issues, notifications) not updated within this many days are left out of Attention, and not
     # asked of GitHub either. 0 shows everything. Sessions' PRs and issues, goals' and the ones the pilot watches stay.
     max_age_days = 60
+
+    [browse]
+    # Browse searches GitHub for the issues and PRs of an org, a repo or a Project, and leaves out the ones not
+    # updated within this many days ("Show older" lifts it for the view you are in). 0 shows everything.
+    max_age_days = 90
+    # An org with more repos than this is offered a view of its own (one language, without the archived repos) before the whole
+    # org is browsed. 0 never asks.
+    many_repos = 200
+    # heed reads items with a cheap model call (class, size, how ready an agent is to take it, a TL;DR), kept on this Mac
+    # and never written to GitHub. "ahead" reads the top rows of the view and the item under the cursor, "open" only the
+    # item under the cursor, "off" only when you ask (U). Reads count against [llm]'s daily cap.
+    reads = "ahead"
+    # How many rows from the top of the view are read ahead of time. 0 reads none ahead.
+    read_ahead = 20
+    # How many agent runs (Fix, Implement, Chat, Review on an item) may work at once. Each runs in a temporary worktree and
+    # counts against [helpers] spend_cap. 0 sets no limit.
+    max_runs = 3
+    # The agent Browse's runs use: claude, codex, opencode or gemini. Unset, it is [helpers] agent.
+    # agent = "claude"
 
     [summary]
     # While you were away: what still waits on you, then what merged, how background runs ended, which agents

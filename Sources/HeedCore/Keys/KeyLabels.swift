@@ -25,7 +25,7 @@ public enum KeyCapText {
 /// Which key runs a command where you are: what hints, the `?` overlay and menus show next to a command.
 public enum KeyLabels {
     public struct Label: Equatable, Sendable {
-        /// As key caps: `gb`, `⌃w c`, `'1…'9` for a command bound once per argument.
+        /// As key caps: `gv`, `⌃w c`, `'1…'9` for a command bound once per argument.
         public let text: String
         /// Where the key works when that is not where you are: a view (`repos`) or a mode (`VISUAL`).
         public let context: String?

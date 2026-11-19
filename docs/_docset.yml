@@ -71,6 +71,7 @@ toc:
       - file: index.md
       - file: attention.md
       - file: attention-rules.md
+      - file: browse.md
       - file: pull-requests.md
       - file: reading.md
       - file: review-feedback.md

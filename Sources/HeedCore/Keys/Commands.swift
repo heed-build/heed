@@ -145,13 +145,18 @@ public enum Commands {
             "view",
             "switch view",
             .views,
-            arguments: "<sessions|attention|inbox|issues|prs|watch|repos|insights|history|timeline|ledger|dashboard|mindmap|standup|goals|log>"
+            arguments: "<sessions|attention|browse|inbox|issues|prs|watch|repos|insights|history|timeline|ledger|dashboard|mindmap|standup|goals|log>"
         ),
         .init("view.sessions", "sessions", .views),
         .init(
             "view.attention",
             "attention: what wants you, with why, the thread beside it (a tab: foryou, reviews, mentions, mine, ...)",
             .views, arguments: "[filter]"
+        ),
+        .init(
+            "view.browse",
+            "browse: the issues and PRs of an org or a repo, searched on GitHub, the thread beside them",
+            .views
         ),
         .init("view.inbox", "Attention's Everything tab, where the inbox went", .views),
         .init(
@@ -935,6 +940,108 @@ public enum Commands {
         .init(
             "attention.reply", "draft a reply with the model; you read it before anything is posted", .selection
         ),
+        .init("browse.open", "Browse: load the item under the cursor into the reader now", .selection),
+        .init("browse.scope", "Browse: jump to an org or a repo (type to find it)", .selection),
+        .init("browse.scope.next", "Browse: the next scope in the rail", .selection),
+        .init("browse.scope.prev", "Browse: the previous scope in the rail", .selection),
+        .init("browse.query.next", "Browse: the next saved query", .selection),
+        .init("browse.query.prev", "Browse: the previous saved query", .selection),
+        .init("browse.query.save", "Browse: keep the query you are on in the rail", .selection),
+        .init("browse.older", "Browse: show items older than the cap, or go back to it", .selection),
+        .init("browse.refresh", "Browse: ask GitHub again", .selection),
+        .init("browse.sort", "Browse: next sort (updated, created, comments, oldest)", .selection),
+        .init(
+            "browse.filter.add",
+            "Browse: add a filter: pick a field, type words, or paste a GitHub query",
+            .selection
+        ),
+        .init("browse.filter.remove", "Browse: take the last filter off the query", .selection),
+        .init(
+            "browse.query.rename",
+            "Browse: rename the saved query you are on, or change its glyph and tint",
+            .selection
+        ),
+        .init("browse.query.delete", "Browse: remove the saved query you are on from the rail", .selection),
+        .init("browse.query.up", "Browse: move the saved query you are on one place up the rail", .selection),
+        .init("browse.query.down", "Browse: move the saved query you are on one place down the rail", .selection),
+        .init(
+            "browse.view.new",
+            "Browse: make a view of the org you are in (a language, archived or not) and pin it",
+            .selection
+        ),
+        .init(
+            "browse.read",
+            "Browse: heed reads the items under the cursor or picked (class, size, how agent-ready, a TL;DR), again if stale",
+            .selection
+        ),
+        .init("browse.fix", "Browse: work on the item with an agent: reproduce, fix, test, open a PR", .selection),
+        .init("browse.implement", "Browse: work on the item with an agent: build it with tests, open a PR", .selection),
+        .init("browse.chat", "Browse: chat about the item with an agent, no edits", .selection),
+        .init(
+            "browse.review",
+            "Browse: review the pull request with an agent; nothing is posted without you",
+            .selection
+        ),
+        .init("browse.tell", "Browse: tell an agent what to do with the item, in your own words", .selection),
+        .init(
+            "browse.run.close",
+            "Browse: close the agent run under the cursor and remove its temporary worktree (a branch it pushed stays); with items picked, clear the picks; on a pushed reader, go back to the list",
+            .selection
+        ),
+        .init(
+            "browse.run.keep",
+            "Browse: keep the agent run as a session: its worktree moves under heed's usual naming and a session opens in it",
+            .selection
+        ),
+        .init("browse.run.steer", "Browse: steer the agent run, or ask it a follow-up", .selection),
+        .init(
+            "browse.run.review.post",
+            "Browse: post the review the agent drafted to the pull request (public: only on this key)",
+            .selection
+        ),
+        .init(
+            "browse.run.review.edit", "Browse: ask the agent to change the review it drafted before you post it",
+            .selection
+        ),
+        .init("browse.run.review.discard", "Browse: throw the drafted review away; nothing is posted", .selection),
+        .init("browse.select.all", "Browse: pick every item in the view (again: none)", .selection),
+        .init(
+            "browse.bulk.session",
+            "Browse, with items picked: one session for the related ones, its prompt listing each issue with a Closes line",
+            .selection
+        ),
+        .init(
+            "browse.bulk.goal",
+            "Browse, with items picked: a goal from all of them, planned with you first",
+            .selection
+        ),
+        .init(
+            "browse.bulk.each",
+            "Browse, with items picked: one session for each (asks first above \(BrowseBulk.eachCap))",
+            .selection
+        ),
+        .init(
+            "browse.bulk.label", "Browse, with items picked: add labels to all on GitHub, after a confirm step",
+            .selection
+        ),
+        .init(
+            "browse.bulk.assign",
+            "Browse, with items picked: assign all to you on GitHub, after a confirm step",
+            .selection
+        ),
+        .init(
+            "browse.bulk.comment",
+            "Browse, with items picked: comment on all on GitHub, after a confirm step",
+            .selection
+        ),
+        .init(
+            "browse.bulk.close",
+            "Browse, with items picked: close all on GitHub as completed or not planned, after a confirm step",
+            .selection
+        ),
+        .init("browse.clone.go", "Browse: clone the repo, then start the agent run", .selection),
+        .init("browse.clone.only", "Browse: clone the repo and stop there", .selection),
+        .init("browse.clone.folder", "Browse: choose the folder the repo is cloned into", .selection),
         .init("attention.session", "go to the item's session", .selection),
         .init(
             "attention.filter", "next Attention tab (Muted after Everything), or the one named", .selection,

@@ -301,6 +301,22 @@ public enum Git {
         return Int(text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "") ?? 0
     }
 
+    /// Commits on `branch` made since it was created that no remote has: the work that would be lost with it. The
+    /// branch's
+    /// first reflog entry is where it started (for a pull request's worktree, the pull request's own head).
+    public static func unpushedSinceCreation(_ record: RepoRecord, branch: String) async -> Int {
+        let log = await (try? ProcessRunner.output(
+            on: record.location, "git", ["-C", record.path, "reflog", "show", "--format=%H", branch],
+            caller: "git.unpushed"
+        )) ?? ""
+        let start = log.split(separator: "\n").last.map(String.init)?.trimmingCharacters(in: .whitespaces)
+        var arguments = ["-C", record.path, "rev-list", "--count", branch]
+        if let start, !start.isEmpty { arguments.append(contentsOf: ["^" + start]) }
+        arguments.append(contentsOf: ["--not", "--remotes"])
+        let text = try? await ProcessRunner.output(on: record.location, "git", arguments, caller: "git.unpushed")
+        return Int(text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "") ?? 0
+    }
+
     /// Branches a run made (`heed/get-it-green/*`, `heed/get-it-merged/*`), with the worktree each is checked out in.
     public static func runBranches(_ record: RepoRecord) async -> [(branch: String, worktree: String?)] {
         let refs = await (try? ProcessRunner.output(

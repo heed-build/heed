@@ -265,6 +265,25 @@ summaries = "ahead"
 # asked of GitHub either. 0 shows everything. Sessions' PRs and issues, goals' and the ones the pilot watches stay.
 max_age_days = 60
 
+[browse]
+# Browse searches GitHub for the issues and PRs of an org, a repo or a Project, and leaves out the ones not
+# updated within this many days ("Show older" lifts it for the view you are in). 0 shows everything.
+max_age_days = 90
+# An org with more repos than this is offered a view of its own (one language, without the archived repos) before the whole
+# org is browsed. 0 never asks.
+many_repos = 200
+# heed reads items with a cheap model call (class, size, how ready an agent is to take it, a TL;DR), kept on this Mac
+# and never written to GitHub. "ahead" reads the top rows of the view and the item under the cursor, "open" only the
+# item under the cursor, "off" only when you ask (U). Reads count against [llm]'s daily cap.
+reads = "ahead"
+# How many rows from the top of the view are read ahead of time. 0 reads none ahead.
+read_ahead = 20
+# How many agent runs (Fix, Implement, Chat, Review on an item) may work at once. Each runs in a temporary worktree and
+# counts against [helpers] spend_cap. 0 sets no limit.
+max_runs = 3
+# The agent Browse's runs use: claude, codex, opencode or gemini. Unset, it is [helpers] agent.
+# agent = "claude"
+
 [summary]
 # While you were away: what still waits on you, then what merged, how background runs ended, which agents
 # finished, the reviews that arrived and the sessions that closed, by day. It opens on its own when you come back

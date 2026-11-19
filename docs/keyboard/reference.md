@@ -22,7 +22,7 @@ This page is generated from the code (`mise run shots`).
 | `row.halfpage.up` | `<C-u>` | half a page up (ten rows) |
 | `group.next` | `}` | first row of the next group (sidebar group, repo) |
 | `group.prev` | `{` | first row of this group, or of the one before |
-| `session.filter` | `/` | filter the current view (typed in the status bar) |
+| `session.filter` | `/`, `<D-f>` (browse), `<D-f>` (browsebulk) | filter the current view (typed in the status bar) |
 | `filter.clear` |  | clear the current view's filter |
 | `session.attention` | `ga` | next session needing you |
 | `session.park` | `zz` | park session |
@@ -98,9 +98,10 @@ This page is generated from the code (`mise run shots`).
 
 | Command | Keys | Does |
 |---|---|---|
-| `view` `<sessions|attention|inbox|issues|prs|watch|repos|insights|history|timeline|ledger|dashboard|mindmap|standup|goals|log>` |  | switch view |
+| `view` `<sessions|attention|browse|inbox|issues|prs|watch|repos|insights|history|timeline|ledger|dashboard|mindmap|standup|goals|log>` |  | switch view |
 | `view.sessions` | `gs` | sessions |
 | `view.attention` `[filter]` | `gm`, `gi`, `gp` | attention: what wants you, with why, the thread beside it (a tab: foryou, reviews, mentions, mine, ...) |
+| `view.browse` | `gb` | browse: the issues and PRs of an org or a repo, searched on GitHub, the thread beside them |
 | `view.inbox` |  | Attention's Everything tab, where the inbox went |
 | `view.issues` |  | Attention's issues: assigned to you or mentioning you, where the Issues view went |
 | `view.prs` |  | pull requests |
@@ -238,7 +239,7 @@ This page is generated from the code (`mise run shots`).
 | `approvals.deny.all` | `N` (approvals) | approvals: deny every request heed can answer |
 | `approvals.allow.read` | `r` (approvals) | approvals: allow every read-only request inside its worktree |
 | `approvals.session` | `gS` (approvals) | approvals: go to the selected request's session |
-| `select.toggle` | `<Space>` (VISUAL), `<Space>` (attention), `<Space>` (attentionhelper), `<Space>` (attentionother), `<Space>` (prs), `<Space>` (swarmask), `<Space>` (watch), `<Space>` (watchhelper) | toggle row |
+| `select.toggle` | `<Space>` (VISUAL), `<Space>` (attention), `<Space>` (attentionhelper), `<Space>` (attentionother), `<Space>` (browse), `<Space>` (browsebulk), `<Space>` (prs), `<Space>` (swarmask), `<Space>` (watch), `<Space>` (watchhelper) | toggle row |
 | `history.reopen` | `R` (dashboard), `R` (history), `<CR>` (history), `R` (ledger), `<CR>` (ledger) | reopen: resume, recreating the worktree if needed |
 | `history.again` | `O` (history) | start a new session from this prompt |
 | `history.outcome` `[outcome]` | `t` (history) | History: the next outcome filter, or one by name (all, merged, …) |
@@ -405,6 +406,46 @@ This page is generated from the code (`mise run shots`).
 | `attention.snooze` `[duration]` | `Z` (attention), `Z` (attentionhelper), `Z` (attentionother), `Z` (swarmask) | snooze: out of the feed until later (3h, or 30m, 2d, tomorrow) |
 | `attention.mute` | `M` (attention), `M` (attentionhelper), `M` (attentionother), `M` (swarmask) | mute the thread on GitHub (no more notifications about it); listed under Muted |
 | `attention.reply` | `R` (attention), `R` (attentionhelper), `R` (attentionother), `R` (swarmask) | draft a reply with the model; you read it before anything is posted |
+| `browse.open` | `<CR>` (browse), `<CR>` (browsebulk) | Browse: load the item under the cursor into the reader now |
+| `browse.scope` | `<D-k>` (browse), `<D-k>` (browsebulk) | Browse: jump to an org or a repo (type to find it) |
+| `browse.scope.next` | `]o` (browse), `]o` (browsebulk) | Browse: the next scope in the rail |
+| `browse.scope.prev` | `[o` (browse), `[o` (browsebulk) | Browse: the previous scope in the rail |
+| `browse.query.next` | `]q` (browse), `]q` (browsebulk) | Browse: the next saved query |
+| `browse.query.prev` | `[q` (browse), `[q` (browsebulk) | Browse: the previous saved query |
+| `browse.query.save` | `S` (browse) | Browse: keep the query you are on in the rail |
+| `browse.older` | `e` (browse), `e` (browsebulk) | Browse: show items older than the cap, or go back to it |
+| `browse.refresh` | `r` (browse), `r` (browsebulk) | Browse: ask GitHub again |
+| `browse.sort` | `T` (browse), `T` (browsebulk) | Browse: next sort (updated, created, comments, oldest) |
+| `browse.filter.add` | `/` (browse), `/` (browsebulk) | Browse: add a filter: pick a field, type words, or paste a GitHub query |
+| `browse.filter.remove` | `x` (browse) | Browse: take the last filter off the query |
+| `browse.query.rename` | `N` (browse), `N` (browsebulk) | Browse: rename the saved query you are on, or change its glyph and tint |
+| `browse.query.delete` | `D` (browse), `D` (browsebulk) | Browse: remove the saved query you are on from the rail |
+| `browse.query.up` | `[Q` (browse), `[Q` (browsebulk) | Browse: move the saved query you are on one place up the rail |
+| `browse.query.down` | `]Q` (browse), `]Q` (browsebulk) | Browse: move the saved query you are on one place down the rail |
+| `browse.view.new` |  | Browse: make a view of the org you are in (a language, archived or not) and pin it |
+| `browse.read` | `U` (browse), `U` (browsebulk) | Browse: heed reads the items under the cursor or picked (class, size, how agent-ready, a TL;DR), again if stale |
+| `browse.fix` | `F` (browse), `F` (browsebulk) | Browse: work on the item with an agent: reproduce, fix, test, open a PR |
+| `browse.implement` | `I` (browse), `I` (browsebulk) | Browse: work on the item with an agent: build it with tests, open a PR |
+| `browse.chat` | `C` (browse), `C` (browsebulk) | Browse: chat about the item with an agent, no edits |
+| `browse.review` | `R` (browse), `R` (browsebulk) | Browse: review the pull request with an agent; nothing is posted without you |
+| `browse.tell` | `t` (browse), `t` (browsebulk) | Browse: tell an agent what to do with the item, in your own words |
+| `browse.run.close` | `<Esc>` (browse), `<Esc>` (browsebulk) | Browse: close the agent run under the cursor and remove its temporary worktree (a branch it pushed stays); with items picked, clear the picks; on a pushed reader, go back to the list |
+| `browse.run.keep` | `s` (browse) | Browse: keep the agent run as a session: its worktree moves under heed's usual naming and a session opens in it |
+| `browse.run.steer` | `i` (browse), `i` (browsebulk) | Browse: steer the agent run, or ask it a follow-up |
+| `browse.run.review.post` | `P` (browse), `P` (browsebulk) | Browse: post the review the agent drafted to the pull request (public: only on this key) |
+| `browse.run.review.edit` | `E` (browse), `E` (browsebulk) | Browse: ask the agent to change the review it drafted before you post it |
+| `browse.run.review.discard` | `X` (browse), `X` (browsebulk) | Browse: throw the drafted review away; nothing is posted |
+| `browse.select.all` | `a` (browse), `a` (browsebulk) | Browse: pick every item in the view (again: none) |
+| `browse.bulk.session` | `s` (browsebulk) | Browse, with items picked: one session for the related ones, its prompt listing each issue with a Closes line |
+| `browse.bulk.goal` | `G` (browsebulk) | Browse, with items picked: a goal from all of them, planned with you first |
+| `browse.bulk.each` | `S` (browsebulk) | Browse, with items picked: one session for each (asks first above 5) |
+| `browse.bulk.label` | `1` (browsebulk) | Browse, with items picked: add labels to all on GitHub, after a confirm step |
+| `browse.bulk.assign` | `A` (browsebulk) | Browse, with items picked: assign all to you on GitHub, after a confirm step |
+| `browse.bulk.comment` | `c` (browsebulk) | Browse, with items picked: comment on all on GitHub, after a confirm step |
+| `browse.bulk.close` | `x` (browsebulk) | Browse, with items picked: close all on GitHub as completed or not planned, after a confirm step |
+| `browse.clone.go` |  | Browse: clone the repo, then start the agent run |
+| `browse.clone.only` | `c` (browse) | Browse: clone the repo and stop there |
+| `browse.clone.folder` | `d` (browse), `d` (browsebulk) | Browse: choose the folder the repo is cloned into |
 | `attention.session` | `gS` (attention), `gS` (attentionhelper), `gS` (attentionother), `gS` (swarmask) | go to the item's session |
 | `attention.filter` `[filter]` | `t` (attention), `t` (attentionhelper), `t` (attentionother), `t` (swarmask) | next Attention tab (Muted after Everything), or the one named |
 | `attention.done.new` | `X` (attention), `X` (attentionother), `X` (swarmask) | done with everything in For you's New since |
@@ -445,7 +486,7 @@ This page is generated from the code (`mise run shots`).
 | `pilot.why` | `z?` | what heed will do for the PR, and what holds it back |
 | `pilot.watch` | `zw` | watch or stop watching the PR (or the picked PRs) |
 | `pilot.green` `[off|ask|auto]` | `zg` | cycle get it green for the PR: off, ask, auto (or set the one named) |
-| `pilot.run` | `gb` | show the session's running get it green / get it merged run |
+| `pilot.run` | `gv` | show the session's running get it green / get it merged run |
 | `pilot.run.stop` | `zx` | stop the session's running get it green / get it merged run |
 | `pilot.retry` | `zr` | one more round of get it green for a stalled PR (or the picked PRs) |
 | `pilot.copilot` | `C` (pr), `A` (watch), `A` (watchhelper) | ask GitHub's Copilot coding agent to resolve the PR's conflicts and address its comments |

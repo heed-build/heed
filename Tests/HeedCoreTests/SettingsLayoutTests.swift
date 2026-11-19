@@ -114,7 +114,7 @@ struct SettingsLayoutTests {
         // 5 groups, 17 pages, 5 sections.
         #expect(lines.count == 5 + 17 + 5)
         // A page with one section lists none.
-        #expect(SettingsTree(page: .github).children(of: .page(.github)).isEmpty)
+        #expect(SettingsTree(page: .updates).children(of: .page(.updates)).isEmpty)
     }
 
     @Test func aFoldedGroupHidesItsPages() {

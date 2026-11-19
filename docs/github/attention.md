@@ -30,7 +30,7 @@ one. `T` switches the sort between recent first and weight then recent, `/` filt
 
 `gi` (`:view.attention issues`, or `:issues`) and `:view.attention ci` still narrow the list to issues, and to failed
 checks; the tab shows while you are on it. The issues are the ones assigned to you or mentioning you: Attention does
-not list every issue in a repo. The names from before the tabs still work: `needs` is For you, `tagged` Mentions,
+not list every issue in a repo: [Browse](browse.md) (`gb`) does. The names from before the tabs still work: `needs` is For you, `tagged` Mentions,
 `inbox` Everything.
 
 ![Muted: an ignore rule, and a thread muted earlier](../images/shots/github/attention-muted.png)

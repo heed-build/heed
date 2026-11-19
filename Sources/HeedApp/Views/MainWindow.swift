@@ -31,6 +31,8 @@ struct MainWindow: View {
                         }
                     case .attention:
                         AttentionView()
+                    case .browse:
+                        BrowseView()
                     case .prs:
                         PullRequestsView()
                     case .watch:
@@ -130,6 +132,9 @@ struct MainWindow: View {
         .overlay {
             if let state = model.pathImport { PathImportView(state: state) }
             if let form = model.addRepoDialog { AddRepoView(form: form) }
+            if let palette = model.browse.palette { BrowsePaletteView(palette: palette) }
+            if let builder = model.browse.builder { BrowseBuilderView(builder: builder) }
+            if let builder = model.browse.orgBuilder { BrowseOrgBuilderView(builder: builder) }
         }
         .overlay {
             if let confirmation = model.confirmation { ConfirmationView(confirmation: confirmation) }
@@ -191,7 +196,7 @@ struct TitleBar: View {
                     HStack(spacing: 0) {
                         // Room for the window's own traffic lights.
                         Color.clear.frame(width: 60, height: 1)
-                        views(compact: compact)
+                        if width < BrowseLayout.halfMinimum { narrowTabs } else { views(compact: compact) }
                     }
                     .fixedSize()
                     .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { leftWidth = $0 }
@@ -296,6 +301,37 @@ struct TitleBar: View {
         let advance = ("0" as NSString).size(withAttributes: [.font: font]).width
         return max(advance, 6)
     }()
+
+    /// Under 640 points the tabs cannot all fit: the view you are on is a menu of the others, and Attention's count
+    /// stays beside it (`Browse ⌄  Attention 16`).
+    private var narrowTabs: some View {
+        HStack(spacing: 14) {
+            ShotSafeMenu {
+                ForEach(AppView.tabs, id: \.self) { view in
+                    Button(view.tabTitle) { model.perform(CommandInvocation(name: view.tabCommand)) }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(model.view.tab.tabTitle).font(Theme.ui(14, weight: .semibold)).foregroundStyle(Theme.fg)
+                    Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.fg3)
+                }
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .background(RoundedRectangle(cornerRadius: 7).fill(Theme.bg3))
+            }
+            .axID("view-tab-menu")
+            if model.view.tab != .attention {
+                HStack(spacing: 6) {
+                    Text("Attention")
+                    if badge(.attention) > 0 {
+                        Text("\(badge(.attention))").font(Theme.ui(12, weight: .semibold)).foregroundStyle(Theme.block)
+                    }
+                }
+                .contentShape(Rectangle())
+                .tap { model.perform(CommandInvocation(name: AppView.attention.tabCommand)) }
+            }
+        }
+        .shotRegion(.viewTabs)
+    }
 
     /// The views as names with their key (`Attention 7 gm`); narrow windows drop the keys, never the names.
     private func views(compact: Bool) -> some View {
@@ -426,7 +462,7 @@ struct StatusBar: View {
 
     private var position: String {
         switch model.view {
-        case .attention, .prs, .watch:
+        case .attention, .browse, .prs, .watch:
             let count = model.itemIDs(model.view).count
             return "\(count == 0 ? 0 : model.cursor(in: model.view) + 1)/\(count)"
         case .repos where model.reposFocus == .repos:
@@ -596,6 +632,22 @@ struct StatusBar: View {
                 + "\(key("worktree.new", in: "repos")) start work here · \(key("select.open", in: "repos")) open / import · "
                 + "\(key("mode.visual", in: "repos")) select · \(key("select.remove", in: "repos")) remove · "
                 + "\(key("session.filter", in: "repos")) filter"
+        case .normal where model.browse.builder != nil:
+            switch model.browse.builder?.stage {
+            case .values: "↑↓ move · space toggle · ⇥ any / all / none · ↩ done · ⌘S save as query · ⌘C copy · ⎋ back"
+            case .save: "type a name · ⇥ glyph · ⌃t tint · ↩ save · ⎋ close"
+            case .raw: "paste or type a GitHub query · ↩ read it · ⎋ back"
+            default: "type to filter · ↩ apply · ⌘↩ search as text · ⇥ edit tokens · ⌫ remove last · ⎋ close"
+            }
+        case .normal where model.browse.orgBuilder != nil:
+            "↑↓ move · ↩ choose · space toggle · ⌘↩ create the view · ⎋ close"
+        case .normal where model.browse.palette != nil:
+            "type to find · ⌃n ⌃p move · ↩ go · ⌃b browse a big org whole · ⎋ close"
+        case .normal where model.view == .browse:
+            "\(key("row.next", "row.prev", in: "browse")) move · space pick · ↩ open · "
+                + "\(key("browse.scope", in: "browse")) scope · \(key("browse.query.next", in: "browse")) query · "
+                + "\(key("browse.older", in: "browse")) older · \(key("browse.filter.add", in: "browse")) add filter · "
+                + "\(key("session.filter", in: "browse")) filter"
         case .normal where model.view == .history:
             "\(key("row.next", "row.prev", in: "history")) move · "
                 + [

@@ -70,12 +70,15 @@ struct WhatsNewTests {
         }
     }
 
-    /// The next version gets the rendered threads (release-drafter bumps the minor for every feature/ branch); 0.37
-    /// keeps the settings redesign.
-    @Test func theNewestVersionHasTheRenderedThreads() {
+    /// The next version gets Browse (release-drafter bumps the minor for every feature/ branch); 0.39 keeps the
+    /// rendered threads and 0.37 the settings redesign.
+    @Test func theNewestVersionHasBrowse() {
         let newest = WhatsNew.items(since: nil, upTo: WhatsNew.newest.description).features.map(\.title)
-        #expect(WhatsNew.newest.description == "0.39.0")
-        #expect(newest == [
+        #expect(WhatsNew.newest.description == "0.47.0")
+        #expect(newest == ["Browse"])
+        #expect(WhatsNew.items(since: "0.46.0", upTo: "0.47.0").settings.map(\.id).contains("browse.reads"))
+        let threads = WhatsNew.items(since: "0.38.0", upTo: "0.39.0").features.map(\.title)
+        #expect(threads == [
             "Catch up on a thread", "Threads read like GitHub", "Attention says what it has", "Attention, split",
         ])
         // Its setting is new in the same version.

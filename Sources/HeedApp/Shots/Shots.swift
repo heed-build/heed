@@ -8,7 +8,7 @@ enum Shots {
     static let all: [Shot] = landing + home + gettingStarted + concepts + sessions + chats + startWork + agents +
         pilot +
         hosts +
-        github +
+        github + browse +
         worktrees
         + diff + history + goals + log + keyboard + outside + configuration + personaShots + settingsCrops +
         modelCards +
@@ -815,6 +815,71 @@ enum Shots {
     /// A `green_instructions`, so the prompt preview shows where they go.
     private static let withGreenInstructions: @MainActor (AppModel) -> Void = { model in
         model.applyConfig(source: "[pilot]\ngreen_instructions = \"Resolve the threads you addressed.\"\n")
+    }
+
+    /// Browse (`gb`): an org's open items with the thread beside them, and the quick jump with a big org's warning.
+    static let browse: [Shot] = [
+        Shot(id: "github/browse", keys: "gb"),
+        // heed's read of the item under the cursor, and the four verbs with the suggested one outlined (design 8).
+        Shot(id: "github/browse-read", keys: "gb", highlight: [.browseRead, .browseWork]),
+        // An item under 50% agent-ready: Chat leads, Fix is on offer with a caveat (design 9).
+        Shot(id: "github/browse-chat", keys: "gbjjj", highlight: [.browseWork]),
+        // A pull request awaiting your review: Review leads (design 10).
+        Shot(id: "github/browse-review", keys: "gbjjjjjj", highlight: [.browseWork]),
+        // A Fix running in its temporary worktree: the feed, the steer line, Close and Keep as a session (design 6).
+        Shot(id: "github/browse-run", keys: "gb", highlight: [.browseRun], prepare: { model in
+            model.browse.runs.runs = [browseRun(2830, .fix)]
+        }),
+        // The repo is not on this Mac: the clone card comes first (design 7).
+        Shot(id: "github/browse-clone", keys: "gbjjj", highlight: [.browseRun], prepare: { model in
+            var run = browseRun(94, .chat, phase: .needsClone)
+            run.cloneRoot = "~/Projects"
+            model.browse.runs.runs = [run]
+        }),
+        // A Review's draft, waiting for Post, Edit or Discard: a review is public, so nothing is posted before.
+        Shot(id: "github/browse-review-draft", keys: "gbjjjjjj", highlight: [.browseRun], prepare: { model in
+            model.browse.runs.runs = [browseRun(412, .review, phase: .done(.endTurn))]
+        }),
+        Shot(id: "github/browse-scope", keys: "gb<D-k>gl"),
+        // Four items picked: the reader is the bulk panel (design 4).
+        Shot(id: "github/browse-bulk", keys: "gb<Space>j<Space>jjj<Space>jjjj<Space>"),
+        // Half width (720): icon rail and list, the reader pushed over them (designs 11, 12).
+        Shot(id: "github/browse-half-list", size: CGSize(width: 720, height: 900), keys: "gb"),
+        Shot(id: "github/browse-half-detail", size: CGSize(width: 720, height: 900), keys: "gb", prepare: { model in
+            model.browse.reading = true
+        }),
+        // Third width (480): no rail, two-line rows, the reader pushed, the jump sheet, bulk as a bottom sheet
+        // (designs 13 to 16).
+        Shot(id: "github/browse-third-list", size: CGSize(width: 480, height: 900), keys: "gb"),
+        Shot(id: "github/browse-third-detail", size: CGSize(width: 480, height: 900), keys: "gb", prepare: { model in
+            model.browse.reading = true
+        }),
+        Shot(id: "github/browse-third-scope", size: CGSize(width: 480, height: 900), keys: "gb", prepare: { model in
+            model.browse.jumpSheet = true
+        }),
+        Shot(
+            id: "github/browse-third-bulk", size: CGSize(width: 480, height: 900),
+            keys: "gb<Space>j<Space>jjj<Space>"
+        ),
+        // `/`: words, read into tokens (the fixture's answer, no model); the fields below them.
+        Shot(id: "github/browse-build-type", keys: "gb/agent ready bugs nobody touched<CR>"),
+        // A field's value picker: two labels ticked, any / all / none, the live count, the raw query.
+        Shot(id: "github/browse-build-edit", keys: "gb/lab<CR><Space><Down><Down><Space>"),
+        // Below 640 the same popover is a sheet across the window: a field's value picker at the third width.
+        Shot(
+            id: "github/browse-third-build", size: CGSize(width: 480, height: 900),
+            keys: "gb/lab<CR><Space><Down><Down><Space>"
+        ),
+        Shot(id: "github/browse-save", keys: "gb/lab<CR><Space><D-s>"),
+        // The big org's view builder, opened from the quick jump's guidance.
+        Shot(id: "github/browse-org-view", keys: "gb<D-k>gl<CR><CR><Down><CR>"),
+    ]
+
+    private static func browseRun(
+        _ number: Int, _ verb: BrowseVerb, phase: BrowseRun.Phase = .working
+    ) -> BrowseRun {
+        let item = Fixtures.Browse.cached.first { $0.number == number }!
+        return Fixtures.Browse.FakeAgent.run(item, verb: verb, phase: phase)
     }
 
     static let worktrees: [Shot] = [

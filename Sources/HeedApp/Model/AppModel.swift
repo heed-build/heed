@@ -4,7 +4,7 @@ import Observation
 
 /// The app's views, switched with `g` keys (`gs`, `gm`, `gi`, `gp`, `gr`, `gh`).
 enum AppView: String, CaseIterable, Identifiable {
-    case sessions, attention, goals, watch, prs, repos, history, log
+    case sessions, attention, goals, watch, browse, prs, repos, history, log
     /// Insights' ledger (`history.ledger`): under Insights' tab, with History.
     case ledger
     /// Insights' dashboard (`history.dashboard`): where Insights' tab (`gh`) opens.
@@ -75,6 +75,7 @@ enum AppView: String, CaseIterable, Identifiable {
         switch self {
         case .sessions: "Sessions"
         case .attention: "Attention"
+        case .browse: "Browse"
         case .goals: "Goals"
         case .prs: "PRs"
         case .watch: "Now"
@@ -307,6 +308,8 @@ final class AppModel {
     let isFixture: Bool
     /// Attention's store, marks and thread details.
     let attention = AttentionModel()
+    /// Browse: the cached items, the rail and the query (AppModel+Browse).
+    let browse: BrowseModel
     /// The helpers heed runs on your behalf over ACP, and what their splits show (AppModel+Helpers).
     let helpers = HelpersModel()
     /// Personas in sessions: offers, looks, held PRs and the popover.
@@ -362,6 +365,7 @@ final class AppModel {
             if filters[.goals] != oldValue[.goals] { goals.setSearch(filters[.goals] ?? "") }
             if filters[.telemetry] != oldValue[.telemetry] { telemetry.setQuery(filters[.telemetry] ?? "") }
             if filters[.audit] != oldValue[.audit] { audit.setSearch(filters[.audit] ?? "") }
+            if filters[.browse] != oldValue[.browse] { browse.setSearch(filters[.browse] ?? "") }
         }
     }
 
@@ -372,10 +376,16 @@ final class AppModel {
 
     // GitHub lists: cursor and picked ids per view
     var itemCursor: [AppView: Int] = [:] {
-        didSet { if view == .attention, itemCursor[.attention] != oldValue[.attention] { attentionSelectionChanged() } }
+        didSet {
+            if view == .attention, itemCursor[.attention] != oldValue[.attention] { attentionSelectionChanged() }
+            if view == .browse, itemCursor[.browse] != oldValue[.browse] { browseSelectionChanged() }
+        }
     }
 
-    private(set) var picked: [AppView: Set<String>] = [:]
+    private(set) var picked: [AppView: Set<String>] = [:] {
+        // Two picks or more in Browse make the reader a bulk panel, with keys of its own (`browsebulk`).
+        didSet { if view == .browse { updateScope() } }
+    }
 
     // The resume banner (ResumeBanner): which panes have an agent running, whether each session's agent still has
     // its conversation (checked off the main actor), and the sessions whose banner you dismissed until heed restarts.
@@ -426,6 +436,7 @@ final class AppModel {
                 enteredAttention()
                 attentionSelectionChanged()
             }
+            if view == .browse, oldValue != .browse { enteredBrowse() }
             if oldValue == .attention, view != .attention {
                 leftAttention()
                 if overlay == .coverage { overlay = nil }
@@ -525,6 +536,7 @@ final class AppModel {
             : (overlay == .pr || reader != nil) ? "pr" : view == .goals ? goals.scope
             : view == .attention && attentionQuestion != nil ? "swarmask"
             : view == .sessions && goalPromotion != nil ? "sessionspromote"
+            : view == .browse && pickedIDs(.browse).count >= 2 ? "browsebulk"
             : panelPopoverScope ?? helperScope ?? panelOfferScope ?? view.rawValue
         if engine.scope == "goals", goals.focus == .goals, pageShows { engine.scope = "goalpage" }
     }
@@ -703,6 +715,7 @@ final class AppModel {
         ledger = LedgerBrowser(fixture: isFixture)
         dashboard = DashboardBrowser(fixture: isFixture)
         goals = GoalsBrowser(fixture: isFixture)
+        browse = BrowseModel(fixture: isFixture)
         hunch = HunchModel(fixture: isFixture)
         mindmap = MindmapModel(fixture: isFixture)
         standup = StandupModel(fixture: isFixture)
@@ -715,6 +728,7 @@ final class AppModel {
         if isFixture {
             config.attention.rules = Fixtures.attentionRules
             attention.adoptFixtures()
+            browse.adoptFixtures()
             config.hosts = Fixtures.hosts
             config.pilot = Fixtures.pilotRules
             config.repos = Fixtures.repoConfigs
@@ -823,6 +837,7 @@ final class AppModel {
         startMindmap()
         startStandup()
         if !isFixture { await attention.open(beside: file) }
+        if !isFixture { await browse.open(beside: file) }
         // Before resume is offered: sessions on a goal resume told so.
         if !isFixture {
             await startGoals(beside: file)
@@ -1096,6 +1111,8 @@ final class AppModel {
     private var frontParts: Set<GitHubPart> {
         switch view {
         case .attention: [.inbox, .issues, .pulls]
+        // Browse asks GitHub for its own searches, on demand; the sync's poll does not touch them.
+        case .browse: []
         // Sessions show their PRs' state; Repos and History their PR numbers.
         case .sessions, .prs, .watch, .repos, .history, .autopilot, .autopilotWhere, .autopilotDone: [.pulls]
         // Goals show their sessions' PRs, merged or not.
@@ -2384,6 +2401,8 @@ final class AppModel {
             || linkPicker != nil || pathImport != nil || startWork != nil || resume != nil || firstRun != nil
             || hostRootsChooser != nil || awaySummary != nil || runReader != nil || pilotExplain != nil
             || overlay != nil || filtering || tutor != nil || repoSetup != nil || nudge != nil || addRepoDialog != nil
+            || browse.palette != nil || browse.builder != nil || browse.orgBuilder != nil || browse.runs.input != nil
+            || browse.bulk != nil
     }
 
     /// After you added or checked a host: asks where its projects are, once, when config does not say. While you are
@@ -2529,6 +2548,9 @@ final class AppModel {
                 main: item.number.map { "#\($0)" } ?? item.kind.rawValue,
                 detail: item.title
             )
+        case .browse:
+            guard let item = browseSelected else { return nil }
+            return TitleContext(lead: item.repo.name, main: "#\(item.number)", detail: item.title.display)
         case .prs:
             let rows = pullRows
             return rows.indices.contains(index) ? pullContext(rows[index].ref) : nil
@@ -2701,7 +2723,7 @@ final class AppModel {
         case .sessions:
             list.ordered
                 .map { HintTarget.session($0.id) } + (currentTab?.tree.panes.map { HintTarget.pane($0.id) } ?? [])
-        case .attention, .prs, .watch: itemIDs(view).indices.map { HintTarget.row(view, $0) }
+        case .attention, .browse, .prs, .watch: itemIDs(view).indices.map { HintTarget.row(view, $0) }
         case .autopilotDone: autopilotDoneLines.indices.map { HintTarget.row(.autopilotDone, $0) }
         case .autopilot, .autopilotWhere: []
         case .repos: worktreeRows.indices.map { HintTarget.row(.repos, $0) }
@@ -2805,6 +2827,22 @@ final class AppModel {
             answerAddRepo(stroke)
             return true
         }
+        if browse.palette != nil {
+            answerBrowsePalette(stroke)
+            return true
+        }
+        if browse.builder != nil {
+            answerBrowseBuilder(stroke)
+            return true
+        }
+        if browse.orgBuilder != nil {
+            answerBrowseOrgBuilder(stroke)
+            return true
+        }
+        if browse.bulk != nil {
+            answerBrowseBulk(stroke)
+            return true
+        }
         if firstRun != nil {
             if stroke == KeyStroke("CR") || stroke == KeyStroke("CR", .command) || stroke == .escape {
                 firstRun = nil
@@ -2849,6 +2887,10 @@ final class AppModel {
             typeSteer(stroke)
             return true
         }
+        if browse.runs.input != nil {
+            typeBrowseInput(stroke)
+            return true
+        }
         let before = engine.mode
         let outcome = engine.handle(stroke)
         switch outcome {
@@ -2888,6 +2930,14 @@ final class AppModel {
         }
         if previous == .hint { hintText = "" }
         if previous == .visual {
+            // Browse keeps the range as picks, so the bulk keys have something to act on once VISUAL is left.
+            if view == .browse, let anchor = visualAnchor {
+                let ids = itemIDs(.browse)
+                let current = cursor(in: .browse)
+                for index in min(anchor, current) ... max(anchor, current) where ids.indices.contains(index) {
+                    picked[.browse, default: []].insert(ids[index])
+                }
+            }
             toggledRows = []
             visualAnchor = nil
             diffCursor.clearSelection()
@@ -2896,7 +2946,7 @@ final class AppModel {
         if mode == .visual {
             visualAnchor = switch view {
             case .repos: repoCursor
-            case .attention, .prs, .watch: itemCursor[view] ?? 0
+            case .attention, .browse, .prs, .watch: itemCursor[view] ?? 0
             default: nil
             }
         }
@@ -3271,6 +3321,16 @@ final class AppModel {
              "helper.tile.prev", "helper.menu.next", "helper.menu.prev", "helper.menu.pick", "helper.menu.close",
              "helper.dismiss":
             performHelper(command)
+        case "view.browse", "browse.open", "browse.scope", "browse.scope.next", "browse.scope.prev",
+             "browse.query.next", "browse.query.prev", "browse.query.save", "browse.older", "browse.refresh",
+             "browse.sort", "browse.filter.add", "browse.filter.remove", "browse.query.rename", "browse.query.delete",
+             "browse.query.up", "browse.query.down", "browse.view.new", "browse.read", "browse.fix", "browse.implement",
+             "browse.chat", "browse.review", "browse.tell", "browse.run.close", "browse.run.keep", "browse.run.steer",
+             "browse.run.review.post", "browse.run.review.edit", "browse.run.review.discard", "browse.clone.go",
+             "browse.clone.only", "browse.clone.folder", "browse.select.all", "browse.bulk.session",
+             "browse.bulk.goal", "browse.bulk.each", "browse.bulk.label", "browse.bulk.assign", "browse.bulk.comment",
+             "browse.bulk.close":
+            performBrowse(command)
         case "view.autopilot", "view.watch", "autopilot.cando", "autopilot.where", "autopilot.now", "autopilot.done",
              "autopilot.move", "autopilot.on", "autopilot.ask", "autopilot.off", "autopilot.everywhere",
              "autopilot.open", "autopilot.settings", "autopilot.what", "autopilot.repo":
@@ -3613,7 +3673,7 @@ final class AppModel {
         case .audit: setRow(audit.currentCursor + delta)
         case .trace: telemetry.moveTurn(delta)
         case .goals: setRow(goals.rowCursor + delta)
-        case .attention, .prs, .watch: setRow((itemCursor[view] ?? 0) + delta)
+        case .attention, .browse, .prs, .watch: setRow((itemCursor[view] ?? 0) + delta)
         case .autopilotDone: setRow(autopilotBrowser.doneCursor + delta)
         case .autopilot, .autopilotWhere:
             performAutopilot(CommandInvocation(
@@ -3631,6 +3691,7 @@ final class AppModel {
         case .sessions: (list.ordered.map { sessionGroup($0).rawValue }, cursor)
         case .repos: (worktreeRows.map(\.repo.slug), repoCursor)
         case .attention: (attentionRows.map { AttentionView.section($0.item.updatedAt) }, cursor(in: .attention))
+        case .browse: (browse.rows.map(\.repo.slug), cursor(in: .browse))
         case .prs: (pullRows.map(\.ref.repo.slug), cursor(in: .prs))
         // Now's cards are its groups.
         case .watch: (pilotRows.map { AutopilotNow.section(of: autopilotPull($0))?.rawValue ?? "" }, cursor(in: .watch))
@@ -3666,7 +3727,7 @@ final class AppModel {
             return
         }
         if view == .watch { mergeQueueShown = nil }
-        if [.attention, .prs, .watch].contains(view) {
+        if [.attention, .browse, .prs, .watch].contains(view) {
             let count = itemIDs(view).count
             guard count > 0 else { return }
             itemCursor[view] = min(max(index, 0), count - 1)
@@ -4482,7 +4543,7 @@ final class AppModel {
     // MARK: Repos view
 
     private func toggleRow() {
-        if [.attention, .prs, .watch].contains(view) {
+        if [.attention, .browse, .prs, .watch].contains(view) {
             let ids = itemIDs(view)
             let index = itemCursor[view] ?? 0
             guard ids.indices.contains(index) else { return }
@@ -5183,6 +5244,7 @@ final class AppModel {
     func itemIDs(_ view: AppView) -> [String] {
         switch view {
         case .attention: attentionRows.map(\.id)
+        case .browse: browse.rows.map(\.id)
         case .prs: pullRows.map(\.id)
         case .watch: pilotRows.map(\.id)
         default: []
@@ -5233,9 +5295,18 @@ final class AppModel {
             return AttentionText.workPrompt(
                 items, issues: github.issues, instructions: startInstructions(items.compactMap(\.repo))
             )
+        case .browse:
+            let items = browse.rows.filter { ids.contains($0.id) }
+            return BrowseWorkPrompts.together(
+                items, related: BrowseGrouping.suggest(items, reads: browse.reads) != nil,
+                instructions: startInstructions(items.map(\.repo))
+            )
         default: return ""
         }
     }
+
+    /// Picks `ids` in a list (Browse's `a`).
+    func pick(_ ids: Set<String>, in view: AppView) { picked[view] = ids }
 
     /// The `start_instructions` of the repos work starts from, each once.
     func startInstructions(_ repos: [Repo]) -> String {
@@ -5406,6 +5477,7 @@ final class AppModel {
             }
             return pickedRepo.map { [$0] } ?? []
         case .attention: return attentionSelected?.item.repo.map { [$0] } ?? []
+        case .browse: return browseSelected.map { [$0.repo] } ?? []
         case .prs: return pullRows.indices.contains(index) ? [pullRows[index].ref.repo] : []
         case .watch: return pilotRows.indices.contains(index) ? [pilotRows[index].ref.repo] : []
         case .autopilotWhere: return autopilotWhereRepo.map { [$0] } ?? []
@@ -6604,7 +6676,7 @@ final class AppModel {
     /// Removes what runs left behind (`heed/…` branches and their worktrees) that is safe to remove, in every repo
     /// on this Mac. Part of the cleanup sweep, and once at launch.
     func cleanUpRunLeftovers() async -> [RunCleanup.Leftover] {
-        let live = Set(liveRuns.values.map(\.branch))
+        let live = Set(liveRuns.values.map(\.branch)).union(browse.runs.liveBranches)
         var result: [RunCleanup.Leftover] = []
         for record in repos where record.location.isLocal {
             result += await RunCleanup.clean(record, live: live)
@@ -7713,7 +7785,7 @@ final class AppModel {
         case .trace: break
         case .goals: goals.setCursor(0)
         case .repos: repoCursor = 0
-        case .attention, .prs, .watch: itemCursor[view] = 0
+        case .attention, .browse, .prs, .watch: itemCursor[view] = 0
         case .autopilot: autopilotBrowser.setCard(0)
         case .autopilotWhere: autopilotBrowser.setRow(0, rows: autopilotRepos.count)
         case .autopilotDone: autopilotBrowser.setDoneCursor(0, count: autopilotDoneLines.count)
@@ -7735,7 +7807,7 @@ final class AppModel {
         case .trace: telemetry.trace?.turns.count ?? 0
         case .goals: goals.rows.count
         case .repos: worktreeRows.count
-        case .attention, .prs, .watch: itemIDs(view).count
+        case .attention, .browse, .prs, .watch: itemIDs(view).count
         case .autopilot: Capability.allCases.count
         case .autopilotWhere: autopilotRepos.count
         case .autopilotDone: autopilotDoneLines.count
@@ -7860,6 +7932,9 @@ final class AppModel {
             return items(attentionRows.map(\.item).filter { ids.contains($0.id) }.compactMap { item in
                 item.repo.map { ($0, item.number.map { "\($0)" }.map { "\(item.repo!.name)#\($0)" } ?? $0.name) }
             })
+        case .browse:
+            let ids = Set(actionIDs(.browse))
+            return items(browse.rows.filter { ids.contains($0.id) }.map { ($0.repo, "\($0.repo.name)#\($0.number)") })
         case .prs:
             let ids = Set(actionIDs(.prs))
             return items(pullRows.filter { ids.contains($0.id) }.map {
@@ -8865,7 +8940,7 @@ final class AppModel {
         case .goals:
             state.cursor = goals.rowCursor
             state.rows = goals.rowCount
-        case .attention, .prs, .watch:
+        case .attention, .browse, .prs, .watch:
             state.cursor = cursor(in: view)
             state.rows = itemIDs(view).count
         case .autopilot:

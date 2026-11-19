@@ -70,11 +70,14 @@ public struct HelperTool: Hashable, Sendable {
     public var diffs: [HelperDiff]
     /// The first lines of what it printed, when the agent sent text.
     public var output: String?
+    /// The command it runs, when it is one.
+    public var command: String?
 
     public init(
         id: String, title: String, kind: ACPToolKind = .other, status: ACPToolStatus = .pending,
-        paths: [String] = [], diffs: [HelperDiff] = [], output: String? = nil
+        paths: [String] = [], diffs: [HelperDiff] = [], output: String? = nil, command: String? = nil
     ) {
+        self.command = command
         self.id = id
         self.title = title
         self.kind = kind
@@ -326,7 +329,7 @@ public struct HelperRun: Identifiable, Hashable, Sendable {
             let call = local(call)
             var tool = HelperTool(
                 id: call.id, title: call.title ?? "a tool call", kind: call.kind ?? .other,
-                status: call.status ?? .pending, paths: call.paths ?? []
+                status: call.status ?? .pending, paths: call.paths ?? [], command: call.command
             )
             absorb(call.content, into: &tool)
             if let index = toolIndex(call.id) {
@@ -347,6 +350,7 @@ public struct HelperRun: Identifiable, Hashable, Sendable {
             if let title = call.title { tool.title = title }
             if let kind = call.kind { tool.kind = kind }
             if let status = call.status { tool.status = status }
+            if let command = call.command { tool.command = command }
             if let paths = call.paths, !paths.isEmpty { tool.paths = paths }
             if call.content != nil {
                 tool.diffs = []

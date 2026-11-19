@@ -40,7 +40,7 @@ public enum DefaultKeys {
         ("g>", "tab.move.right"), ("g<lt>", "tab.move.left"),
         // A helper on the session's PR: watch it in a split, or take it over (the band over its panes says so).
         ("gW", "helper.watch"), ("gO", "helper.takeover"),
-        ("gs", "view.sessions"), ("gm", "view.attention"), ("gi", "view.attention issues"),
+        ("gs", "view.sessions"), ("gm", "view.attention"), ("gi", "view.attention issues"), ("gb", "view.browse"),
         ("gp", "view.attention mine"),
         ("gl", "links.pick"), ("gI", "issue.add"), ("go", "overlay.item"), ("]p", "pr.next"), ("[p", "pr.prev"), (
             "gd",
@@ -53,7 +53,7 @@ public enum DefaultKeys {
         ("gy", "approvals.open"),
         ("zi", "inspector.toggle"), ("zs", "sidebar.toggle"), ("zt", "sidebar.titles"),
         // The pilot, the same keys everywhere: the PR under the cursor, the open PR, or the session's PRs.
-        ("z?", "pilot.why"), ("zv", "pilot.reviewers"), ("gb", "pilot.run"), ("zx", "pilot.run.stop"),
+        ("z?", "pilot.why"), ("zv", "pilot.reviewers"), ("gv", "pilot.run"), ("zx", "pilot.run.stop"),
         ("zw", "pilot.watch"), ("zg", "pilot.green"), ("zm", "pilot.merge"), ("zM", "pilot.merge.now"), (
             "zp",
             "pilot.pause"
@@ -283,6 +283,8 @@ public enum DefaultKeys {
             ("a", "log.agent"), ("y", "log.copy"),
         ],
         "attention": attention,
+        "browse": browse,
+        "browsebulk": laid(browseBulk, over: browse),
         // A helper's split, open under Attention's reader, under a session's panes (gW) or under Now's tiles: i tells
         // it
         // something, p pauses it, zx stops it, zo zooms it, ⎋ closes the split; y Y n answer what it asks; once done,
@@ -389,6 +391,36 @@ public enum DefaultKeys {
 
     /// Attention's own keys. heed's goal asks have one key each; on other items m pins as before. D does heed's next
     /// step for the item, Y does it and turns it on for the repo from now on, . proposes the next other step.
+    /// Browse: the rail is ⌘K and `]o` `[o` (scopes) and `]q` `[q` (queries); the list is the usual j k, space, ↩ and
+    /// /. U has heed read the items, F I C R send an agent at the one under the cursor (Fix, Implement, Chat, Review),
+    /// t tells one in your own words; N renames the saved query you are on.
+    static let browse: [(String, String)] = [
+        ("<Space>", "select.toggle"), ("<CR>", "browse.open"), ("<D-k>", "browse.scope"), ("]o", "browse.scope.next"),
+        ("[o", "browse.scope.prev"), ("]q", "browse.query.next"), ("[q", "browse.query.prev"),
+        ("S", "browse.query.save"), ("e", "browse.older"), ("r", "browse.refresh"), ("T", "browse.sort"),
+        ("/", "browse.filter.add"), ("x", "browse.filter.remove"), ("N", "browse.query.rename"),
+        ("D", "browse.query.delete"), ("]Q", "browse.query.down"), ("[Q", "browse.query.up"),
+        ("<D-f>", "session.filter"), ("U", "browse.read"), ("F", "browse.fix"), ("I", "browse.implement"),
+        ("C", "browse.chat"), ("R", "browse.review"), ("t", "browse.tell"),
+        // An agent run in the reader: esc closes it (and removes its worktree), s keeps it as a session, i steers it
+        // (↩ too); a drafted review is posted with P, changed with E or thrown away with X; the clone card clones
+        // with ↩, only clones with c, changes the folder with d and is dismissed with esc.
+        ("<Esc>", "browse.run.close"), ("s", "browse.run.keep"), ("i", "browse.run.steer"),
+        ("P", "browse.run.review.post"), ("E", "browse.run.review.edit"), ("X", "browse.run.review.discard"),
+        ("c", "browse.clone.only"), ("d", "browse.clone.folder"),
+        // Pick: space toggles, v a range (⎋ keeps it), a every item in the view, ⎋ clears.
+        ("a", "browse.select.all"),
+    ]
+
+    /// Browse with two items picked or more: the reader is the bulk panel. s is one session for the related ones, S a
+    /// session each, G a goal from all; 1 labels, A assigns to you, c comments and x closes on GitHub (each after a
+    /// confirm step). The agent verbs F I C R are for one item and say so. a is "all", so assigning is A.
+    static let browseBulk: [(String, String)] = [
+        ("s", "browse.bulk.session"), ("S", "browse.bulk.each"), ("G", "browse.bulk.goal"),
+        ("1", "browse.bulk.label"), ("A", "browse.bulk.assign"), ("c", "browse.bulk.comment"),
+        ("x", "browse.bulk.close"),
+    ]
+
     static let attention: [(String, String)] = [
         ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("x", "attention.done"),
         ("Z", "attention.snooze"), ("M", "attention.mute"), ("R", "attention.reply"), ("gS", "attention.session"),

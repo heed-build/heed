@@ -69,7 +69,7 @@ Right-click a session in the sidebar, or in the collapsed rail:
 | Get it green, Get it merged, Pause | `zg`, `zm`, `zp` |
 | One more round (when a PR stalled) | `zr` |
 | What will heed do? | `z?` |
-| Go to its run, Stop run (while a run works on it) | `gb`, `zx` |
+| Go to its run, Stop run (while a run works on it) | `gv`, `zx` |
 | Pin, Park, Start again from its prompt | `m`, `zz`, `O` |
 | Hand off to…, a submenu of the other agents ([handing off](../sessions/handoff.md)) | `gA` |
 | Close, keep worktree; Delete with worktrees… | `x`, `dd` |

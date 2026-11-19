@@ -156,6 +156,7 @@ final class AppModel {
             trackedRefs = Set(sessions.flatMap(\.trackedPRs))
             if sessionsBefore == nil { sessionsBefore = oldValue }
             listRebuild.request()
+            refreshBrowseOrigins()
         }
     }
 
@@ -3366,7 +3367,9 @@ final class AppModel {
              "browse.query.next", "browse.query.prev", "browse.query.save", "browse.older", "browse.refresh",
              "browse.sort", "browse.filter.add", "browse.filter.remove", "browse.query.rename", "browse.query.delete",
              "browse.query.up", "browse.query.down", "browse.view.new", "browse.read", "browse.fix", "browse.implement",
-             "browse.chat", "browse.review", "browse.tell", "browse.agents", "browse.run.close", "browse.run.keep",
+             "browse.chat", "browse.review", "browse.tell", "browse.agents", "browse.from.sessions",
+             "browse.from.goals",
+             "browse.run.close", "browse.run.keep",
              "browse.run.steer",
              "browse.run.review.post", "browse.run.review.edit", "browse.run.review.discard", "browse.clone.go",
              "browse.clone.only", "browse.clone.folder", "browse.select.all", "browse.bulk.session",

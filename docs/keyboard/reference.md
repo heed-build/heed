@@ -434,6 +434,8 @@ This page is generated from the code (`mise run shots`).
 | `browse.chat` | `C` (browse), `C` (browsebulk) | Browse: chat about the item with an agent, no edits |
 | `browse.review` | `R` (browse), `R` (browsebulk) | Browse: review the pull request with an agent; nothing is posted without you |
 | `browse.agents` | `w` (browse), `w` (browsebulk) | Browse: only the items with an agent on them, and back (shown while there are any) |
+| `browse.from.sessions` | `W` (browse), `W` (browsebulk) | Browse: only the items a session was started from, and back (shown while there are any) |
+| `browse.from.goals` | `O` (browse), `O` (browsebulk) | Browse: only the items that are in a goal, and back (shown while there are any) |
 | `browse.tell` | `t` (browse), `t` (browsebulk) | Browse: tell an agent what to do with the item, in your own words |
 | `browse.run.close` | `<Esc>` (browse), `<Esc>` (browsebulk) | Browse: close the agent run under the cursor and remove its temporary worktree (a branch it pushed stays); with items picked, clear the picks; on a pushed reader, go back to the list |
 | `browse.run.keep` | `s` (browse) | Browse: keep the agent run as a session: its worktree moves under heed's usual naming and a session opens in it |

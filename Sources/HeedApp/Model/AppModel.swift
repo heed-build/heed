@@ -161,7 +161,10 @@ final class AppModel {
     private(set) var layouts: [String: SessionLayout] = [:]
     /// Permission requests waiting on you (AppModel+Approvals).
     let approvals = ApprovalsLive()
-    private(set) var repos: [RepoRecord] = [] { didSet { if repos != oldValue { rebuildWorktreeRows() } } }
+    private(set) var repos: [RepoRecord] = [] {
+        didSet { if repos != oldValue { rebuildWorktreeRows(); refreshBrowseCheckouts() } }
+    }
+
     private(set) var worktrees: [Worktree] = [] { didSet { if worktrees != oldValue { rebuildWorktreeRows() } } }
     private(set) var history: [HistoryEntry] = [] {
         didSet { if history != oldValue { historyBrowser.setEntries(history) } }
@@ -5321,9 +5324,11 @@ final class AppModel {
     private func startFromItems() {
         let prompt = itemsPrompt
         guard !prompt.isEmpty else { return }
+        // Browse: one session for all the picks, in every repo they are in (the first, with most picks, is primary).
+        let chosen = view == .browse ? browseSessionRepos(actionIDs(.browse)) : []
         clearPicks()
         issueReader = nil
-        openStartWork(prompt: prompt.text)
+        openStartWork(prompt: prompt.text, repos: chosen)
     }
 
     private func addItemsToSession() {
@@ -7836,7 +7841,7 @@ final class AppModel {
 
     func openStartWork(
         prompt: String, fromCursor: Bool = true, chat: Bool = false, promotion: Promotion? = nil,
-        context given: StartContext? = nil
+        context given: StartContext? = nil, repos chosen: [String] = []
     ) {
         startWorkSession?.clearFailure()
         let context = given ?? (fromCursor ? startContext : nil)
@@ -7855,6 +7860,8 @@ final class AppModel {
         }
         form.knownSlugs = knownRepoSlugs
         form.cloneRoot = cloneRoot(.local)
+        // Several repos for one session (Browse): the first is primary, the form keeps them all.
+        if !chosen.isEmpty { form.choose(repos: chosen) }
         startWork = form
         prepareStartWorkSmarts()
         prepareStartWorkSize()

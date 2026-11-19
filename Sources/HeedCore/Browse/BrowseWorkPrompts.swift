@@ -53,11 +53,12 @@ public enum BrowseWorkPrompts {
             : head + "\(owner: words.trimmingCharacters(in: .whitespacesAndNewlines))"
     }
 
-    /// One prompt for several picked items (`s` on a selection): the issues one pull request should close, each with
-    /// its `Closes` line, in the order picked. Titles stay fenced. `instructions` are the repos' own
+    /// One prompt for several picked items (`s` on a selection): the issues one pull request per repo should close,
+    /// each with its `Closes` line, in the order picked. Titles stay fenced. `instructions` are the repos' own
     /// `start_instructions`, after the list and before the `Closes` lines, as Attention's prompt puts them.
-    /// `related`: heed found the items hang together (`BrowseGrouping`). When it did not, the prompt says so, asks
-    /// for a pull request per issue, and does not promise one pull request, which across repos is not possible.
+    /// `related`: heed found the items hang together (`BrowseGrouping`). When it did not, the prompt says so and asks
+    /// for a pull request per issue. Items in several repos say so: the session has a worktree in each, and the
+    /// pull requests go one per repo, since one pull request cannot span repos.
     public static func together(_ items: [BrowseItem], related: Bool = true, instructions: String = "") -> Prompt {
         guard !items.isEmpty else { return "" }
         let extra: [Prompt] = instructions.isEmpty ? [] : ["", .owner(instructions)]
@@ -68,32 +69,48 @@ public enum BrowseWorkPrompts {
             if item.kind == .issue { lines += ["", "Closes \(name: item.repo.slug)#\(item.number)"] }
             return lines.joined(separator: "\n")
         }
-        guard related else {
-            var lines: [Prompt] = [
-                "Look into these in one session. heed found nothing that ties them together, so they may be unrelated: "
-                    + "say so if they are, and give each issue its own pull request that closes it.",
-            ]
-            lines += items.map { item in
-                let kind: Prompt = item.kind == .pull ? "pull request" : "issue"
-                return "- \(kind) \(name: item.repo.slug)#\(item.number) \(item.title)\n  \(name: item.url)"
-            }
-            lines.append("Read each one and its comments first (`gh issue view <number> --repo <repo> --comments`).")
-            lines += extra
-            return lines.joined(separator: "\n")
-        }
-        let head: Prompt = issues.count == items.count
-            ? "Work on these together. They look related; open one pull request that addresses all of them."
-            : "Look into these together. One pull request should close the issues; the pull requests are context."
-        var lines: [Prompt] = [head]
-        lines += items.map { item in
+        let repos = BrowseBulk.reposPrimaryFirst(items)
+        let several = repos.count > 1
+        let across: Prompt = several
+            ? " They are in \(repos.count) repos (\(name: repos.map(\.slug).joined(separator: ", "))); "
+            + "this session has a worktree in each, and you start in the first."
+            : ""
+        let list: [Prompt] = items.map { item in
             let kind: Prompt = item.kind == .pull ? "pull request" : "issue"
             return "- \(kind) \(name: item.repo.slug)#\(item.number) \(item.title)\n  \(name: item.url)"
         }
-        lines.append("Read each one and its comments first (`gh issue view <number> --repo <repo> --comments`).")
+        let reading: Prompt = "Read each one and its comments first (`gh issue view <number> --repo <repo> --comments`)."
+        guard related else {
+            var lines: [Prompt] = [
+                "Look into these in one session. heed found nothing that ties them together, so they may be unrelated: "
+                    + "say so if they are, and give each issue its own pull request that closes it.\(across)"
+                    + (several ? " Open each pull request in its issue's own repo." : ""),
+            ]
+            lines += list
+            lines.append(reading)
+            lines += extra
+            return lines.joined(separator: "\n")
+        }
+        let head: Prompt = switch (issues.count == items.count, several) {
+        case (true, false):
+            "Work on these together. They look related; open one pull request that addresses all of them."
+        case (false, false):
+            "Look into these together. One pull request should close the issues; the pull requests are context."
+        case (true, true):
+            "Work on these together. They look related.\(across) Open one pull request per repo, each addressing "
+                + "that repo's issues."
+        case (false, true):
+            "Look into these together.\(across) Open one pull request per repo that closes that repo's issues; the "
+                + "pull requests are context."
+        }
+        var lines: [Prompt] = [head]
+        lines += list
+        lines.append(reading)
         lines += extra
         if !issues.isEmpty {
             lines.append("")
-            lines += issues.map { "Closes \(name: $0.repo.slug)#\($0.number)" }
+            let ordered = repos.flatMap { repo in issues.filter { $0.repo.slug == repo.slug } }
+            lines += ordered.map { "Closes \(name: $0.repo.slug)#\($0.number)" }
         }
         return lines.joined(separator: "\n")
     }

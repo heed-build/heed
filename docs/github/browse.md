@@ -14,6 +14,29 @@ Browse asks GitHub when you ask: when you enter it, change the scope or the quer
 to refresh. It never asks on the sync's poll. What it fetched last time draws first, and the fresh answer replaces
 it.
 
+## Browse works inside what you have checked out
+
+Browse searches the **orgs and accounts you have checked out a repo of**, on this Mac or on a host, and nothing else.
+heed reads that list from your repos each time (it keeps no copy), so cloning a repo adds its org at once and removing the
+last one takes the org away.
+
+- **No scope means all your checkouts.** A query with no scope of its own (the starter queries, a fresh install) runs
+  inside every org you have a checkout in. The chip over the list says *All checkouts* and how many orgs that is. GitHub
+  limits a search to 256 characters, so many orgs are searched in groups of at most 240 characters, up to six, and the
+  counts are added up; past six groups the line over the list says so, and `⌘K` narrows to one org.
+- **A scope or a place you type wins.** A saved query with its own `org:`, `repo:` or Project is neither widened nor
+  narrowed by the scope you are in. Picking a scope replaces the default, and the query you are on goes with you.
+- **An org with no checkout is refused, not searched.** Pick it, or type `org:`, `repo:` or `user:` for it, and the list
+  says *`<name>` isn't checked out*, with a button that opens Add or clone on that name. Nothing is sent to GitHub. A repo
+  of an org you have checked out something of is allowed, since Browse searches an org as a whole.
+- **With nothing checked out,** the list says *Check out a repo first* with the same button, and the rail's counts are
+  dashes.
+- **Browse never searches all of GitHub.** The check is in the fetch itself, so no key, saved query or typed filter can
+  get around it.
+- **The cache follows.** Shortly after launch, and again when your checkouts change, heed quietly drops the issues and
+  pull requests of orgs you have no checkout in from Browse's own cache (`browse.sqlite`), along with heed's reads of them.
+  Saved queries and pinned scopes stay. [Attention](attention.md) keeps its own cache and is not touched.
+
 ## Layout and the rail
 
 Three panes, left to right:
@@ -26,10 +49,12 @@ Three panes, left to right:
 agent), *Assigned to me*, *Bugs nobody touched*, *Good first issues* and *Stale 30d+*. Each has a glyph and a tint:
 heed picks the glyph from the query's main filter (a bug for bug labels, a sprout for good first issues, a clock for
 stale, a flag for a milestone, a person for an assignee, a bolt for agent-ready, a pull for pull requests), and you
-can change it when you save. The number beside a query is what GitHub counts for it, refreshed slowly in the
+can change it when you save. The number beside a query is what GitHub counts for it inside the scope you are in (a dash when Browse would not search it), refreshed slowly in the
 background while you are in Browse. A blue dot marks a query with news; `]q` and `[q` step through the queries.
 
-**Scopes** say where the search runs. The shape says what a scope is:
+**Scopes** say where the search runs. *All checkouts* (a dashed square) comes first and is the default; the orgs you
+have checked out follow, and an org you pinned but have no checkout in is dimmed with a dash for its count. The shape
+says what a scope is:
 
 | Mark | Scope |
 |---|---|
@@ -213,12 +238,36 @@ clears. With two items picked, the reader becomes a bulk panel.
 ![Four bugs picked: heed's note, and what to do with them](../images/shots/github/browse-bulk.png)
 
 heed's note names what it noticed: issues of one repo and one class that share a label or a title word. It does this
-from titles and labels, without asking a model, and never groups pull requests.
+from titles and labels, without asking a model, and never groups pull requests. The note is a suggestion: it words the
+prompt and never changes the choices below.
 
-- **One session for the related** (`s`): one worktree, one branch, one PR. heed writes the prompt from the issues, with
-  a `Closes` line for each. When heed finds no group, the button reads *One session for all N* and `s` still starts one session with every pick in the prompt; the prompt says they may be unrelated, promises no single pull request, and asks for one pull request per issue.
+With two items picked or more, the panel always offers the same two sessions, whatever the repos and whatever heed
+noticed:
+
+- **One session for all N** (`s`, the default and the outlined card): one session with every pick in its prompt. Each
+  line names its repo, and each issue gets a `Closes` line. When the picks are in one repo, that is one worktree, one
+  branch and one PR. When heed found no group, the prompt says the items may be unrelated and asks for one PR per issue.
+- **One session per repo** (`S`): one Start work form for each repo, one after the other, each with the prompt for that
+  repo's picks. Above five repos, heed asks first. When all the picks are in one repo this card is dimmed and says
+  *All N are in org/repo*: there is nothing to split.
+
+### A session over several repos
+
+When the picks are in more than one repo, `s` opens Start work with all of those repos chosen, the one with the most
+picks first (the first picked on a tie). A repo that is not on this Mac yet is cloned when the work starts, as a repo
+typed into Start work is. The session gets:
+
+- one worktree in each repo, all on the same branch name, made together;
+- the agent in the first repo's worktree, with a shell tab for each of the others;
+- a line at the end of its prompt naming the other worktrees and their paths, and, for Claude Code and Codex, their
+  paths as extra directories (`--add-dir`), so reading and editing them is not outside the agent's reach;
+- a prompt that lists each item with its repo, asks for one PR per repo (a PR cannot span repos), and has the
+  `Closes org/repo#n` lines grouped by repo.
+
+heed also notices a session that works in a second repo and offers to grow it into a goal (see
+[Goals](../goals/index.md#from-a-session)).
+
 - **A goal from all** (`G`): heed plans it with you first, and each item goes on the goal.
-- **A session for each** (`S`): one worktree per item. Above five, heed asks first.
 - **On GitHub:** **Label** (`1`), **Assign to me** (`A`), **Comment on all** (`c`) and **Close as...** (`x`: completed
   or not planned). Each opens a confirm step that lists exactly what changes on each item, and what it leaves alone
   and why. Nothing is written before you confirm. A write that fails does not stop the rest, and a report says what
@@ -238,6 +287,8 @@ Browse draws itself from the width of its own area, so a window in a split behav
 ![Half width: the icon rail and the list](../images/shots/github/browse-half-list.png)
 
 ![Half width: the reader pushed over the list](../images/shots/github/browse-half-detail.png)
+
+![Half width: picked items and their actions in a bottom sheet](../images/shots/github/browse-half-bulk.png)
 
 ![Third width: two-line rows, and the scope chip over them](../images/shots/github/browse-third-list.png)
 
@@ -281,8 +332,8 @@ With items picked:
 
 | Key | Command | Does |
 |---|---|---|
-| `s` | `browse.bulk.session` | One session for the related items |
-| `S` | `browse.bulk.each` | A session for each |
+| `s` | `browse.bulk.session` | One session for all the picks, in every repo they are in |
+| `S` | `browse.bulk.each` | One session per repo |
 | `G` | `browse.bulk.goal` | A goal from all |
 | `1` | `browse.bulk.label` | Label them on GitHub |
 | `A` | `browse.bulk.assign` | Assign them to you on GitHub |

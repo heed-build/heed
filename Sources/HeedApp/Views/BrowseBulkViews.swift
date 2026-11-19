@@ -36,7 +36,7 @@ struct BrowseBulkPanel: View {
                         BrowseBulkStep(form: form)
                     } else {
                         note(items, group: group)
-                        whatNow(items, group: group)
+                        whatNow(items)
                         onGitHub(items, reads: reads)
                     }
                 }
@@ -99,8 +99,7 @@ struct BrowseBulkPanel: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "sparkle").font(.system(size: 13)).foregroundStyle(Theme.busy).padding(.top, 2)
             Text(group.map { BrowseGrouping.note($0, items: items) }
-                ??
-                "heed found no set among these that one session fits: they are in different repos or are different kinds of work.")
+                ?? "heed found nothing that ties these together. One session can still take them all.")
                 .font(Theme.ui(13.5)).fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)
@@ -108,40 +107,31 @@ struct BrowseBulkPanel: View {
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
     }
 
-    private func whatNow(_ items: [BrowseItem], group: BrowseGroup?) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+    private func whatNow(_ items: [BrowseItem]) -> some View {
+        let choices = BrowseBulk.sessionChoices(for: items)
+        return VStack(alignment: .leading, spacing: 8) {
             sectionTitle("What now?")
-            if let group {
-                card(
-                    "arrow.triangle.branch", group.title,
-                    "One worktree, one branch, one PR. heed writes the prompt from the \(group.ids.count) issues.",
-                    key: model.keyText(for: "browse.bulk.session", in: "browsebulk"), primary: true,
-                    command: "browse.bulk.session"
-                )
-            }
-            if group == nil {
-                card(
-                    "arrow.triangle.branch", "One session for all \(items.count)",
-                    "One session with all of them in the prompt. heed says they may be unrelated; the agent decides how to split them.",
-                    key: model.keyText(for: "browse.bulk.session", in: "browsebulk"), command: "browse.bulk.session"
-                )
-            }
+            card(
+                "arrow.triangle.branch", choices.one.title, choices.one.detail,
+                key: model.keyText(for: "browse.bulk.session", in: "browsebulk"), primary: true,
+                command: "browse.bulk.session"
+            )
+            card(
+                "square.on.square", choices.perRepo.title, choices.perRepo.detail,
+                key: model.keyText(for: "browse.bulk.each", in: "browsebulk"), dimmed: !choices.perRepo.available,
+                command: "browse.bulk.each"
+            )
             card(
                 "scope", "A goal from all \(items.count)",
                 "heed plans it with you first, and each item goes on the goal.",
                 key: model.keyText(for: "browse.bulk.goal", in: "browsebulk"), command: "browse.bulk.goal"
             )
-            card(
-                "plus", "A session for each",
-                "\(items.count) worktrees, \(items.count) sessions"
-                    + (BrowseBulk.eachNeedsConfirm(items.count) ? ": heed asks first." : "."),
-                key: model.keyText(for: "browse.bulk.each", in: "browsebulk"), command: "browse.bulk.each"
-            )
         }
     }
 
     private func card(
-        _ symbol: String, _ title: String, _ detail: String, key: String, primary: Bool = false, command: String
+        _ symbol: String, _ title: String, _ detail: String, key: String, primary: Bool = false, dimmed: Bool = false,
+        command: String
     ) -> some View {
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: symbol).font(.system(size: 14)).foregroundStyle(primary ? Theme.busy : Theme.fg2)
@@ -160,6 +150,7 @@ struct BrowseBulkPanel: View {
             primary ? Theme.busy : Theme.line,
             lineWidth: primary ? 1.5 : 1
         ))
+        .opacity(dimmed ? 0.5 : 1)
         .contentShape(Rectangle())
         .clickRuns(CommandInvocation(name: command))
     }
@@ -220,11 +211,12 @@ struct BrowseBulkPanel: View {
                         Text(BrowseGrouping.note(group, items: items)).font(Theme.ui(13.5))
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    button(group.title, "browse.bulk.session", primary: true)
                 }
+                let choices = BrowseBulk.sessionChoices(for: items)
+                button(choices.one.title, "browse.bulk.session", primary: true)
                 HStack(spacing: 10) {
+                    button("One per repo", "browse.bulk.each", dimmed: !choices.perRepo.available)
                     button("Goal", "browse.bulk.goal")
-                    button("Each", "browse.bulk.each")
                     ShotSafeMenu {
                         Button("Label…") { model.perform(CommandInvocation(name: "browse.bulk.label")) }
                         Button("Assign to me") { model.perform(CommandInvocation(name: "browse.bulk.assign")) }
@@ -247,7 +239,7 @@ struct BrowseBulkPanel: View {
         .overlay(alignment: .top) { Theme.line.frame(height: 1) }
     }
 
-    private func button(_ title: String, _ command: String, primary: Bool = false) -> some View {
+    private func button(_ title: String, _ command: String, primary: Bool = false, dimmed: Bool = false) -> some View {
         HStack(spacing: 10) {
             Text(title).font(Theme.ui(15, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.7)
             Text(model.keyText(for: command, in: "browsebulk")).font(Theme.mono(11))
@@ -259,6 +251,7 @@ struct BrowseBulkPanel: View {
         .frame(maxWidth: .infinity, minHeight: 40)
         .background(RoundedRectangle(cornerRadius: 8).fill(primary ? Color.white : .clear))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(primary ? .clear : Theme.keyCapBorder))
+        .opacity(dimmed ? 0.5 : 1)
         .contentShape(Rectangle())
         .clickRuns(CommandInvocation(name: command))
     }
@@ -305,7 +298,7 @@ struct BrowseBulkStep: View {
                     }
                 }
             case .confirmEach:
-                title("Start \(form.items.count) sessions?")
+                title("Start \(form.sessionCount) sessions, one per repo?")
                 Text("That is more than \(BrowseBulk.eachCap). Start work opens for each, one after the other.")
                     .font(Theme.ui(13)).foregroundStyle(Theme.fg2)
                 HStack(spacing: 14) {

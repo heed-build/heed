@@ -266,6 +266,23 @@ public struct StartWorkForm: Sendable {
         repoCursor = repoChoices.firstIndex { $0.repo.id == id } ?? repoCursor
     }
 
+    /// Start work from several repos (Browse's one session for all the picks): all chosen, the first primary (the
+    /// agent starts in its worktree, the others are made beside it), whatever the prompt suggests later. Repos heed
+    /// does not know yet are typed ones, cloned when the work starts.
+    public mutating func choose(repos ids: [String]) {
+        var seen: [String] = []
+        for id in ids where !seen.contains(where: { $0.lowercased() == id.lowercased() }) {
+            seen.append(repos.first { $0.id.lowercased() == id.lowercased() }?.id ?? id)
+        }
+        guard !seen.isEmpty else { return }
+        setChat(false)
+        reposTouched = true
+        selectedRepos = seen
+        repoCursor = repoChoices.firstIndex { $0.repo.id == seen[0] } ?? repoCursor
+        suggestName()
+        if !nameEdited { guessedName = name }
+    }
+
     // MARK: Derived
 
     public var agent: AgentProfile? { agents[agentIndex] }

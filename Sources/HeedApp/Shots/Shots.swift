@@ -820,6 +820,21 @@ enum Shots {
     /// Browse (`gb`): an org's open items with the thread beside them, and the quick jump with a big org's warning.
     static let browse: [Shot] = [
         Shot(id: "github/browse", keys: "gb"),
+        // A fresh install: no scope chosen, so the queries run inside every org with a checkout.
+        Shot(id: "github/browse-fresh", keys: "gb", prepare: { model in
+            model.browse.scopes = []
+            model.browse.query = BrowseQuery(tokens: [.state(.open)])
+            model.browse.activeQuery = nil
+            model.browse.refilter()
+        }),
+        // Nothing checked out: the list asks for a repo first, and the counts are dashes.
+        Shot(id: "github/browse-none", keys: "gb", prepare: { model in
+            model.browse.scopes = []
+            model.browse.query = BrowseQuery(tokens: [.state(.open)])
+            model.browse.activeQuery = nil
+            model.browse.setCheckouts(BrowseCheckouts(records: []))
+            model.browse.refilter()
+        }),
         // heed's read of the item under the cursor, and the four verbs with the suggested one outlined (design 8).
         Shot(id: "github/browse-read", keys: "gb", highlight: [.browseRead, .browseWork]),
         // An item under 50% agent-ready: Chat leads, Fix is on offer with a caveat (design 9).
@@ -848,6 +863,10 @@ enum Shots {
         Shot(id: "github/browse-half-detail", size: CGSize(width: 720, height: 900), keys: "gb", prepare: { model in
             model.browse.reading = true
         }),
+        Shot(
+            id: "github/browse-half-bulk", size: CGSize(width: 720, height: 900),
+            keys: "gb<Space>j<Space>jjj<Space>"
+        ),
         // Third width (480): no rail, two-line rows, the reader pushed, the jump sheet, bulk as a bottom sheet
         // (designs 13 to 16).
         Shot(id: "github/browse-third-list", size: CGSize(width: 480, height: 900), keys: "gb"),

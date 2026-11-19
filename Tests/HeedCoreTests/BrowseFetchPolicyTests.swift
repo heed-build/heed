@@ -74,6 +74,20 @@ struct BrowseFetchPolicyTests {
     private let html = "<html><body><h1>502 Bad Gateway</h1></body></html>"
     private let gh502 = "gh: HTTP 502: Bad Gateway (https://api.github.com/graphql)"
 
+    private var checkouts: BrowseCheckouts {
+        BrowseCheckouts(records: ["globex", "initech"].map { RepoRecord(
+            repo: Repo(org: $0, name: "api"),
+            path: "/x/\($0)"
+        ) })
+    }
+
+    /// Twelve long org names: too many qualifiers for one search, so an unplaced query runs as two groups.
+    private var manyOrgs: BrowseCheckouts {
+        BrowseCheckouts(records: (10 ... 21).map {
+            RepoRecord(repo: Repo(org: "organization-number-\($0)", name: "api"), path: "/x/\($0)")
+        })
+    }
+
     private func query(_ org: String = "globex") -> BrowseQuery {
         BrowseQuery(scope: .org(org), tokens: [.state(.open)])
     }
@@ -106,7 +120,7 @@ struct BrowseFetchPolicyTests {
     ) async throws -> BrowseFetch.Result {
         try await GitHub.$executable.withValue(gh.path) {
             try await BrowseFetch.search(
-                query ?? self.query(), maxAgeDays: 60, cap: cap, now: now, memory: memory,
+                query ?? self.query(), maxAgeDays: 60, cap: cap, now: now, checkouts: checkouts, memory: memory,
                 sleep: { await sleeps.note($0) }
             )
         }
@@ -153,6 +167,91 @@ struct BrowseFetchPolicyTests {
         let calls = try (1 ... gh.callCount).map { try gh.asked($0) }
         #expect(calls.map(\.after) == [nil, "c3", "c3", "c5"])
         #expect(calls.map(\.size) == [100, 100, 50, 50])
+    }
+
+    // MARK: Groups (an unplaced query over many checked-out orgs)
+
+    private let unplaced = BrowseQuery(tokens: [.state(.open)])
+
+    private func runGroups(_ gh: FakeGh, memory: BrowseFetchMemory = BrowseFetchMemory(), sleeps: Sleeps = Sleeps())
+        async throws -> BrowseFetch.Result
+    {
+        try await GitHub.$executable.withValue(gh.path) {
+            try await BrowseFetch.search(
+                unplaced, maxAgeDays: 60, now: now, checkouts: manyOrgs, memory: memory,
+                sleep: { await sleeps.note($0) }
+            )
+        }
+    }
+
+    @Test func anUnplacedQueryOverManyOrgsRunsAsTwoGroups() throws {
+        let asked = try BrowseFetch.searches(for: unplaced, checkouts: manyOrgs, maxAgeDays: 60, now: now, sorted: true)
+        #expect(asked.texts.count == 2)
+    }
+
+    @Test func a502InTheSecondGroupIsRetriedFromItsOwnCursorAndTheFirstGroupIsIntact() async throws {
+        var gh = try FakeGh()
+        try gh.answer(page([1, 2, 3], total: 3))
+        try gh.fail(gh502)
+        try gh.answer(page([4, 5], total: 4, next: "g2c"))
+        try gh.answer(page([6, 7], total: 4))
+        let result = try await runGroups(gh)
+        #expect(result.items.map(\.number).sorted() == [1, 2, 3, 4, 5, 6, 7])
+        #expect(result.total == 7 && result.groups == 2)
+        let calls = try (1 ... gh.callCount).map { try gh.asked($0) }
+        #expect(calls.map(\.size) == [100, 100, 50, 50])
+        #expect(calls.map(\.after) == [nil, nil, nil, "g2c"])
+    }
+
+    @Test func eachGroupRemembersItsOwnSize() async throws {
+        let memory = BrowseFetchMemory()
+        var first = try FakeGh()
+        try first.answer(page([1], total: 1))
+        try first.fail(gh502)
+        try first.answer(page([2], total: 1))
+        _ = try await runGroups(first, memory: memory)
+
+        var again = try FakeGh()
+        try again.answer(page([1], total: 1))
+        try again.answer(page([2], total: 1))
+        _ = try await runGroups(again, memory: memory)
+        let sizes = try (1 ... 2).map { try again.asked($0).size }
+        #expect(sizes == [100, 50])
+    }
+
+    @Test func aGroupThatExhaustsTheLadderFailsTheWholeFetch() async throws {
+        var gh = try FakeGh()
+        try gh.answer(page([1], total: 1))
+        for _ in 0 ..< 5 {
+            try gh.fail(gh502)
+        }
+        do {
+            _ = try await runGroups(gh)
+            Issue.record("a partial list was returned")
+        } catch {
+            let text = (error as? GitHub.Failure)?.description
+            #expect(text?.hasPrefix("GitHub timed out running this search (HTTP 502)") == true)
+        }
+        #expect(gh.callCount == 6)
+    }
+
+    @Test func aCountSumsTheGroupsAndRetriesEach() async throws {
+        var gh = try FakeGh()
+        try gh.answer(page([], total: 10))
+        try gh.fail(gh502)
+        try gh.answer(page([], total: 5))
+        let total = try await GitHub.$executable.withValue(gh.path) {
+            try await BrowseFetch.count(unplaced, maxAgeDays: 60, now: now, checkouts: manyOrgs, sleep: { _ in })
+        }
+        #expect(total == 15 && gh.callCount == 3)
+    }
+
+    @Test func aSearchOutsideTheCheckoutsIsRefusedBeforeGhRuns() async throws {
+        let gh = try FakeGh()
+        await #expect(throws: BrowseFetchError.self) {
+            _ = try await run(gh, query: query("nowhere"))
+        }
+        #expect(gh.callCount == 0)
     }
 
     @Test func aDataNullAnswerIsATransientFailureToo() async throws {
@@ -392,7 +491,13 @@ struct BrowseFetchPolicyTests {
         try gh.answer(page([], total: 42))
         let sleeps = Sleeps()
         let total = try await GitHub.$executable.withValue(gh.path) {
-            try await BrowseFetch.count(query(), maxAgeDays: 60, now: now, sleep: { await sleeps.note($0) })
+            try await BrowseFetch.count(
+                query(),
+                maxAgeDays: 60,
+                now: now,
+                checkouts: checkouts,
+                sleep: { await sleeps.note($0) }
+            )
         }
         #expect(total == 42 && gh.callCount == 2)
 
@@ -403,7 +508,13 @@ struct BrowseFetchPolicyTests {
         let waits = Sleeps()
         await #expect(throws: (any Error).self) {
             try await GitHub.$executable.withValue(down.path) {
-                try await BrowseFetch.count(query(), maxAgeDays: 60, now: now, sleep: { await waits.note($0) })
+                try await BrowseFetch.count(
+                    query(),
+                    maxAgeDays: 60,
+                    now: now,
+                    checkouts: checkouts,
+                    sleep: { await waits.note($0) }
+                )
             }
         }
         let downWaits = await waits.waits
@@ -415,7 +526,7 @@ struct BrowseFetchPolicyTests {
         try gh.fail("gh: HTTP 401: Bad credentials")
         await #expect(throws: (any Error).self) {
             try await GitHub.$executable.withValue(gh.path) {
-                try await BrowseFetch.count(query(), maxAgeDays: 60, now: now, sleep: { _ in })
+                try await BrowseFetch.count(query(), maxAgeDays: 60, now: now, checkouts: checkouts, sleep: { _ in })
             }
         }
         #expect(gh.callCount == 1)

@@ -170,34 +170,28 @@ public enum BrowseFetchPolicy {
     }
 }
 
-/// The page size one search settled on, kept for the rest of the session so a search that needed 25 does not climb
-/// back to 100 on the next page or the next refresh; it starts over when the scope or the query changes.
+/// The page size each search text settled on, kept for the rest of the session so a search that needed 25 does not
+/// climb back to 100 on the next page or the next refresh. A text carries its scope, its query and its group of orgs,
+/// so another scope or query starts over and each group of an all-orgs search has its own size.
 public final class BrowseFetchMemory: @unchecked Sendable {
     public static let shared = BrowseFetchMemory()
     private let lock = NSLock()
-    private var key: String?
-    private var index = 0
+    private var rungs: [String: Int] = [:]
 
     public init() {}
 
-    /// The rung to start at for `key` (the search text, which carries the scope and the query).
+    /// The rung to start at for `key` (the search text).
     public func rung(for key: String) -> Int {
         lock.lock()
         defer { lock.unlock() }
-        if self.key != key {
-            self.key = key
-            index = 0
-        }
-        return index
+        return rungs[key] ?? 0
     }
 
     public func settle(_ rung: Int, for key: String) {
         lock.lock()
         defer { lock.unlock() }
-        if self.key != key {
-            self.key = key
-            index = 0
-        }
-        index = max(index, rung)
+        // A session that has searched this much has moved on; keep the table small.
+        if rungs.count > 200, rungs[key] == nil { rungs.removeAll() }
+        rungs[key] = max(rungs[key] ?? 0, rung)
     }
 }

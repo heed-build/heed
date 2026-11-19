@@ -159,7 +159,7 @@ struct BrowseVerbsTests {
         #expect(answer.recommended?.verb == .review)
         #expect(answer[.review].reason == "Review requested, CI green")
         #expect(answer[.fix].availability == .unavailable)
-        #expect(answer[.fix].reason == "Push a change to this PR. Not needed: CI is green.")
+        #expect(answer[.fix].reason == "Nothing to fix: CI is green.")
         #expect(answer[.chat].availability == .available)
         #expect(verbs(pull(checks: .failing, requested: ["you"]), nil)[.review]
             .reason == "Review requested, CI failing")
@@ -187,5 +187,35 @@ struct BrowseVerbsTests {
     @Test func withoutAViewerNobodyOwnsAPullRequest() {
         let item = pull(author: "you", checks: .failing)
         #expect(verbs(item, nil, viewer: nil).recommended == nil)
+    }
+
+    @Test func yourGreenPullRequestIsGetItMerged() {
+        let answer = verbs(pull(author: "you", checks: .passing), nil)
+        #expect(answer.recommended == nil)
+        #expect(answer.recommendsMerge)
+        #expect(answer.merge?.reason == "Your PR is green: get it merged")
+        #expect(answer.headline == "Your PR is green: get it merged")
+    }
+
+    @Test func getItMergedWaitsForGreenWhenChecksFailOrChangesAreRequested() {
+        let failing = verbs(pull(author: "you", checks: .failing), nil)
+        #expect(failing.merge == .init(.available, "Gets it green first, then merges it."))
+        #expect(failing.recommended?.verb == .fix)
+        #expect(!failing.recommendsMerge)
+        let asked = verbs(pull(author: "you", checks: .passing, review: .changesRequested), nil)
+        #expect(asked.merge?.availability == .available)
+    }
+
+    @Test func getItMergedIsOnOfferOnAnotherPersonsPullRequestAndNeverSuggestedThere() {
+        let answer = verbs(pull(author: "bot", checks: .passing, requested: ["you"]), nil)
+        #expect(answer.merge?.availability == .available)
+        #expect(answer.recommended?.verb == .review)
+    }
+
+    @Test func aDraftCannotBeMergedAndIssuesAndClosedPullRequestsHaveNoMerge() {
+        #expect(verbs(pull(author: "you", draft: true), nil).merge?.availability == .unavailable)
+        #expect(verbs(issue(), nil).merge == nil)
+        #expect(verbs(pull(state: .merged), nil).merge == nil)
+        #expect(verbs(pull(state: .closed), nil).merge == nil)
     }
 }

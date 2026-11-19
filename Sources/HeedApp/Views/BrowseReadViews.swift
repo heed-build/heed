@@ -326,21 +326,22 @@ struct BrowseWorkSection: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "sparkle").font(.system(size: 12)).foregroundStyle(Theme.busy)
-                Text("Work on it with an agent").font(Theme.ui(14, weight: .semibold)).fixedSize()
+                Text(isOpenPull ? "Get it green and merged" : "Work on it with an agent")
+                    .font(Theme.ui(14, weight: .semibold)).fixedSize()
                 Spacer(minLength: 12)
                 Text(verbs.headline).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2).lineLimit(2)
                     .multilineTextAlignment(.trailing)
             }
-            if compact {
-                let ordered = verbs.ordered
+            let cards = workCards(verbs)
+            if compact || isOpenPull {
                 VStack(spacing: 10) {
-                    ForEach([Array(ordered.prefix(2)), Array(ordered.dropFirst(2))], id: \.first?.verb) { pair in
-                        HStack(alignment: .top, spacing: 10) { ForEach(pair, id: \.verb) { advice in card(advice) } }
+                    ForEach([Array(cards.prefix(2)), Array(cards.dropFirst(2))], id: \.first?.id) { pair in
+                        HStack(alignment: .top, spacing: 10) { ForEach(pair, id: \.id) { card in workCard(card) } }
                     }
                 }
             } else {
                 HStack(alignment: .top, spacing: 10) {
-                    ForEach(verbs.ordered, id: \.verb) { advice in card(advice) }
+                    ForEach(cards, id: \.id) { card in workCard(card) }
                 }
             }
             HStack {
@@ -362,7 +363,60 @@ struct BrowseWorkSection: View {
         .shotRegion(.browseWork)
     }
 
+    private var isOpenPull: Bool { item.kind == .pull && item.state == .open }
+
+    /// What one button shows: the four verbs, or on an open pull request Get it green, Get it merged, Review and Chat
+    /// (the PR tracking's modes, not runs of an agent).
+    private struct WorkCard {
+        var id: String
+        var symbol: String
+        var tint: Color
+        var title: String
+        var key: String
+        var summary: String
+        var availability: BrowseAvailability
+        var reason: String
+        var command: String
+        /// How the tracking is set on this pull request now, when it is on.
+        var mode: String?
+    }
+
+    private func workCards(_ verbs: BrowseVerbs) -> [WorkCard] {
+        func verbCard(_ advice: BrowseVerbAdvice) -> WorkCard {
+            WorkCard(
+                id: advice.verb.rawValue, symbol: advice.verb.symbol, tint: advice.verb.tint, title: advice.verb.title,
+                key: advice.verb.key, summary: advice.verb.summary, availability: advice.availability,
+                reason: advice.reason, command: advice.verb.command, mode: nil
+            )
+        }
+        guard isOpenPull, let merge = verbs.merge else { return verbs.ordered.map(verbCard) }
+        let ref = PullRef(repo: item.repo, number: item.number)
+        let tracking = model.pilot(for: ref)
+        let fix = verbs[.fix]
+        let green = WorkCard(
+            id: "green", symbol: "checkmark.circle", tint: Theme.done, title: "Get it green",
+            key: model.keyText(for: "pilot.green"),
+            summary: "An agent fixes failing checks and review feedback in a worktree of its own, and heed shows you before it pushes.",
+            availability: fix.availability, reason: fix.reason, command: "pilot.green",
+            mode: tracking.green == .off ? nil : tracking.green.configName
+        )
+        let merged = WorkCard(
+            id: "merge", symbol: "arrow.triangle.merge", tint: Theme.busy, title: "Get it merged",
+            key: model.keyText(for: "pilot.merge"),
+            summary: "heed watches the PR and merges it by your rules once it is green.",
+            availability: merge.availability, reason: merge.reason, command: "pilot.merge",
+            mode: tracking.merge == .off ? nil : tracking.merge.configName
+        )
+        let rest = [verbCard(verbs[.review]), verbCard(verbs[.chat])]
+        let all = [green, merged] + rest
+        return all.filter { $0.availability == .recommended } + all.filter { $0.availability != .recommended }
+    }
+
     private var footer: String {
+        if isOpenPull {
+            return "Get it green and get it merged follow the PR in heed's tracking, so it shows in Attention and Autopilot. "
+                + "Review and Chat run in a temporary worktree that is removed when you close it."
+        }
         var text = "Runs in a temporary worktree that is removed when you close it. Anything it pushes stays on its branch."
         if !model.browseIsCloned(item.repo) {
             text = "\(item.repo.slug) is not on this Mac: a clone comes first. " + text
@@ -370,38 +424,39 @@ struct BrowseWorkSection: View {
         return text
     }
 
-    private func card(_ advice: BrowseVerbAdvice) -> some View {
-        let verb = advice.verb
-        let off = advice.availability == .unavailable
-        let recommended = advice.availability == .recommended
+    private func workCard(_ card: WorkCard) -> some View {
+        let off = card.availability == .unavailable
+        let recommended = card.availability == .recommended
         return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Image(systemName: verb.symbol).font(.system(size: 12))
-                    .foregroundStyle(off ? Theme.fg3 : verb.tint)
-                Text(verb.title).font(Theme.ui(13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.6)
+                Image(systemName: card.symbol).font(.system(size: 12))
+                    .foregroundStyle(off ? Theme.fg3 : card.tint)
+                Text(card.title).font(Theme.ui(13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.6)
                 Spacer(minLength: 2)
-                Text(verb.key).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                Text(card.key).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
                     .padding(.horizontal, 5).padding(.vertical, 1)
                     .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.keyCapBorder))
             }
             .foregroundStyle(off ? Theme.fg3 : Theme.fg)
             // What it does, unless it is on offer with a caveat, or does not fit: then why.
-            Text(off || (advice.availability == .available && advice.reason != verb.summary)
-                ? advice.reason : verb.summary)
+            Text(off || (card.availability == .available && card.reason != card.summary) ? card.reason : card.summary)
                 .font(Theme.ui(12.5)).foregroundStyle(off ? Theme.fg3 : Theme.fg2)
                 .fixedSize(horizontal: false, vertical: true)
+            if let mode = card.mode {
+                Text("on: \(mode)").font(Theme.mono(11)).foregroundStyle(card.tint)
+            }
         }
         .padding(10)
         .frame(maxWidth: .infinity, minHeight: compact ? 84 : 104, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: 8).fill(recommended ? verb.tint.opacity(0.07) : .clear))
+        .background(RoundedRectangle(cornerRadius: 8).fill(recommended ? card.tint.opacity(0.07) : .clear))
         .overlay(
             RoundedRectangle(cornerRadius: 8).strokeBorder(
-                recommended ? verb.tint : off ? Theme.line : Theme.keyCapBorder,
+                recommended ? card.tint : off ? Theme.line : Theme.keyCapBorder,
                 style: StrokeStyle(lineWidth: recommended ? 1.5 : 1, dash: off ? [4, 3] : [])
             )
         )
         .opacity(off ? 0.7 : 1)
         .contentShape(Rectangle())
-        .clickRuns(CommandInvocation(name: verb.command))
+        .clickRuns(CommandInvocation(name: card.command))
     }
 }

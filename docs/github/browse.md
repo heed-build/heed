@@ -203,7 +203,7 @@ A button that does not fit is dashed and says why.
 
 | Key | Does |
 |---|---|
-| `F` Fix | Reproduces the bug, fixes it, tests it and opens a PR. Comments on the issue. On a PR, addresses its feedback |
+| `F` Fix | Reproduces the bug, fixes it, tests it and opens a PR. Comments on the issue. On a PR it is Get it green (below) |
 | `I` Implement | Builds what the issue asks, with tests, and opens a PR that closes it |
 | `C` Chat | Asks questions, finds the cause, drafts a reply. Edits nothing |
 | `R` Review | Reads the diff, runs the tests and drafts a review for you |
@@ -223,6 +223,14 @@ A button that does not fit is dashed and says why.
 
 Implement never fits a PR, and Review is off on your own PR. An agent action works on one item: with several picked,
 `F` `I` `C` `R` say so.
+
+**On a pull request** the buttons are the PR tracking's own: **Get it green** (`zg`, and `F`), **Get it merged** (`zm`),
+Review and Chat. Get it green and Get it merged are not runs in the reader. They turn on the modes
+[get it green and get it merged](../autopilot/green-and-merged.md) already has (each press cycles off, ask, auto; the card shows the mode that is on), so the PR
+also shows in Attention and Autopilot, and heed asks before it pushes. heed suggests Get it green on your PR with
+failing checks or requested changes, and Get it merged on your PR once checks are green and nobody asks for changes.
+Get it merged is on offer on someone else's PR and waits for green first; it is off on a draft. A PR that is closed
+or merged gets Chat only.
 
 ![Fix running: its feed, the temporary worktree and the way to keep or close it](../images/shots/github/browse-run.png)
 

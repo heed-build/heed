@@ -35,6 +35,8 @@ public struct CompletionContext: Sendable {
     /// What the timeline's repo and where filters can narrow to: repo names, `local` and hosts.
     public var timelineRepos: [String] = []
     public var timelinePlaces: [String] = []
+    /// Every caller the call log has a row from (`log.callers`, `log.see`).
+    public var logCallers: [String] = []
     /// Goals that are not archived, by slug, with their titles (`goal.attach`).
     public var goals: [(id: String, title: String)] = []
     /// The selected goal's GOAL.md versions, newest first, with what changed (`goal.restore`).
@@ -150,6 +152,8 @@ public enum CommandCompletions {
         case "hunch.download", "hunch.cancel", "hunch.delete":
             HunchCatalogue.details.map { ($0.id, "\($0.details.title), \($0.details.languages)") }
         case "log.kind": CallKind.all.map { ($0.rawValue, "") }
+        case "log.callers": context.logCallers.map { ($0, "") } + [("all", "every caller")]
+        case "log.see": context.logCallers.map { ($0, "") }
         case "dashboard.range": [("7", "a week"), ("28", "four weeks"), ("84", "twelve weeks")]
         case "timeline.kind": TimelineItem.Kind.allCases.map { ($0.rawValue, "") } + [("all", "every kind")]
         case "timeline.repo": context.timelineRepos.map { ($0, "") } + [("all", "every repo")]

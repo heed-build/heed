@@ -1,6 +1,6 @@
 ---
 navigation_title: Insights
-description: What your work amounted to and what ended, with its story; a dashboard, History, the ledger, the Mindmap, standups, the agents' own OpenTelemetry and Audit.
+description: What your work amounted to and what ended, with its story; a dashboard, History, the ledger, the Mindmap, standups, the agents' own OpenTelemetry, Audit and the call log.
 ---
 
 # Insights
@@ -10,9 +10,9 @@ Insights shows what your work amounted to, and the story of each piece of work t
 ![Insights: what shipped, and the work that ended, by day](../images/shots/landing/history.png)
 
 `gh` opens Insights on its [dashboard](dashboard.md): what shipped this week, agent time set against the week before,
-your bests and the goals that moved. A strip of tabs under the title bar names every Insights view with its key and how much the view holds: Dashboard `D`, History `H`, Ledger `L`, Mindmap `M`, Standup `U`, OpenTelemetry `T` and Audit `A`. The same keys work in every view. A view's own key again returns to the dashboard, and a click on a tab opens that view.
+your bests and the goals that moved. A strip of tabs under the title bar names every Insights view with its key and how much the view holds: Dashboard `D`, History `H`, Ledger `L`, Mindmap `M`, Standup `U`, OpenTelemetry `T`, Audit `A` and Calls `C`. The same keys work in every view. A view's own key again returns to the dashboard, and a click on a tab opens that view.
 
-![Insights' tabs: Dashboard, History, Ledger, Mindmap, Standup, OpenTelemetry and Audit, each with its key](../images/shots/history/pane-tabs.png)
+![Insights' tabs: Dashboard, History, Ledger, Mindmap, Standup, OpenTelemetry, Audit and Calls, each with its key](../images/shots/history/pane-tabs.png)
 
 | View | |
 |---|---|
@@ -23,6 +23,7 @@ your bests and the goals that moved. A strip of tabs under the title bar names e
 | [Standup](standup.md) | Your own questions answered from each Mindmap, on the days you choose |
 | [OpenTelemetry](opentelemetry.md) | The agents' own spans: latency by tool, waits for your OK, cost by model, and each session's trace |
 | [Audit](audit.md) | What heed and your agents did outside this Mac, and why; the grants heed gave, and revoking one |
+| [Calls](../reference/call-log.md) | Every command and GitHub call heed made, how long each took, which were retries, and a summary per caller; also `:log` |
 
 [Reopening](reopening.md) picks a closed session up again, or starts a new one from its prompt.
 

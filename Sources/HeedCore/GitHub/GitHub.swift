@@ -582,8 +582,10 @@ public enum GitHub {
     ///
     /// Every query also asks for its `rateLimit` (cost and what remains), which the call log keeps; `operation` names
     /// it there, in place of the query text.
+    ///
+    /// `note` is kept with the call beside the variables (`CallRetry`: the page size, and which retry it was).
     static func graphql(
-        _ query: String, operation: String, variables: [String: String], caller: String
+        _ query: String, operation: String, variables: [String: String], caller: String, note: [String: String] = [:]
     ) async throws -> Data {
         var fields: [String] = []
         for (key, value) in variables.sorted(by: { $0.key < $1.key }) {
@@ -592,7 +594,8 @@ public enum GitHub {
         }
         let result = try await gh(
             ["api", "graphql", "-f", "query=\(withRateLimit(query))"] + fields, operation: "graphql \(operation)",
-            shown: ["api", "graphql", "-f", "query=@\(operation)"] + fields, variables: variables,
+            shown: ["api", "graphql", "-f", "query=@\(operation)"] + fields,
+            variables: variables.merging(note) { variable, _ in variable },
             timeout: .seconds(45), caller: caller, counts: graphqlCounts
         )
         let data = Data(result.stdout.utf8)

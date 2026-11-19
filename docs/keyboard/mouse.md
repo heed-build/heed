@@ -140,7 +140,7 @@ beside the dialog cancels. In the [resume dialog](../sessions/resume.md), a clic
 ## The call log
 
 A call in the [call log](../reference/call-log.md) copies its command (`y`), or narrows the log to its caller (`c`) or
-its agent (`a`), and widens it again.
+its agent (`a`), and widens it again. A click on a caller in the strip under today's usage narrows the log to it.
 
 ## Tabs
 

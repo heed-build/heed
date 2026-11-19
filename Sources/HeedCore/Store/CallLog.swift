@@ -353,6 +353,12 @@ public actor CallStore {
         return try CallUsage(llm: calls(llm), rateRemaining: rate?.0, rateAt: rate?.1)
     }
 
+    /// Every caller that has a row, for `log.callers`' choices.
+    public func callers() throws -> [String] {
+        try database.query("SELECT DISTINCT caller FROM calls ORDER BY caller") { $0[0].text ?? "" }
+            .filter { !$0.isEmpty }
+    }
+
     /// Rows per kind, for the measurements and the view's counts.
     public func counts() throws -> [CallKind: Int] {
         let rows = try database.query("SELECT kind, count(*) FROM calls GROUP BY kind") {

@@ -159,6 +159,7 @@ public enum MenuBar {
         "autopilot.cando": "where Autopilot opens: View › Autopilot",
         "autopilot.move": "moving Autopilot's cursor: the mouse clicks a card or a cell",
         "view.dashboard": "where Insights opens: View › Insights",
+        "log.see": "a jump from a failure (Browse's \"See the call\"), or typed",
         "view.timeline": "the timeline is History with every event: In Insights has History: every event",
         "history.timeline": "the timeline's former key; In Insights has History: every event",
         // The new-goal wizard's own keys act on the step that shows: its buttons and the status bar's hints offer them.
@@ -281,7 +282,16 @@ public enum MenuBar {
         /// The PR in front is open, or the session has an open PR.
         var openPull: Bool { facts.pull.map(\.open) ?? (hasRepo && (facts.session?.openPulls ?? 0) > 0) }
         var anyPull: Bool { facts.pull != nil || hasRepo && (facts.session?.pulls ?? 0) > 0 }
-        var historyViews: Set<String> { ["history", "ledger", "dashboard", "mindmap", "standup", "telemetry", "audit"] }
+        var historyViews: Set<String> { [
+            "history",
+            "ledger",
+            "dashboard",
+            "mindmap",
+            "standup",
+            "telemetry",
+            "audit",
+            "log",
+        ] }
 
         func item(
             _ title: String, _ name: String, _ arguments: [String] = [], enabled: Bool = true, checked: Bool = false,
@@ -428,7 +438,7 @@ public enum MenuBar {
                 view("OpenTelemetry", "history.telemetry", "telemetry"),
                 view("Audit", "history.audit", "audit"),
                 view("Goals", "view.goals", "goals"),
-                view("Call log", "view.log", "log"),
+                view("Calls (the call log)", "view.log", "log"),
                 item("Hosts", "host.open"),
                 .separator,
                 item("Filter…", "session.filter"),
@@ -484,7 +494,7 @@ public enum MenuBar {
                     ("History: where", "timeline.where"), ("History: removed worktrees", "timeline.gone"),
                     ("Dashboard: next range", "dashboard.range"), ("Ledger: summarize now", "ledger.summarize"),
                     ("Ledger: edit the summary", "ledger.edit"), ("Mindmap", "history.mindmap"),
-                    ("Standup", "history.standup"), ("Audit", "history.audit"),
+                    ("Standup", "history.standup"), ("Audit", "history.audit"), ("Calls", "history.calls"),
                 ], in: historyViews),
                 scoped("In OpenTelemetry", [
                     ("Its session's trace", "telemetry.open"), ("Next range", "telemetry.range"),
@@ -638,7 +648,7 @@ public enum MenuBar {
                 scoped("In the call log", [
                     ("Next kind", "log.kind"), ("Only failed", "log.failed"), ("Only slow", "log.slow"),
                     ("Only GitHub writes", "log.writes"), ("Only this caller", "log.caller"),
-                    ("Only this agent", "log.agent"), ("Copy the command", "log.copy"),
+                    ("Next caller", "log.callers"), ("Only this agent", "log.agent"), ("Copy the command", "log.copy"),
                 ], in: ["log"]),
             ])
         }

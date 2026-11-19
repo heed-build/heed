@@ -1461,6 +1461,11 @@ enum Shots {
         Shot(id: "log/failed", keys: ":log<CR>x"),
         Shot(id: "log/detail", keys: ":log<CR>x", crop: .logDetail),
         Shot(id: "log/llm", keys: ":log<CR>ttt"),
+        // From a failure, `log.see`: Calls on that caller, the newest failed call under the cursor, a retry marked.
+        Shot(id: "log/see-the-call", keys: ":log.see browse.search<CR>"),
+        Shot(id: "log/retry", keys: ":log.see browse.search<CR>", crop: .logDetail),
+        Shot(id: "log/callers", keys: ":log<CR>", crop: .logCallers, cropPadding: 0),
+        Shot(id: "log/caller-filter", keys: ":log<CR>:log.callers git.status<CR>"),
     ]
 
     static let keyboard: [Shot] = [

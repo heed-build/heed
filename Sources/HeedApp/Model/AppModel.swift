@@ -29,8 +29,9 @@ enum AppView: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     /// The views the title bar lists. Attention stands for PRs too (`gp` opens it on My PRs), which is still there as
-    /// `:prs`; `:inbox` and `:issues` open Attention's Everything and its issues. The call log is reached with `:log`
-    /// only. History stands for Insights: its ledger, dashboard, Mindmap and standups are tabs inside it.
+    /// `:prs`; `:inbox` and `:issues` open Attention's Everything and its issues. The call log is Insights' Calls
+    /// (`C` inside Insights, `:log` anywhere). History stands for Insights: its ledger, dashboard, Mindmap, standups,
+    /// telemetry, audit and calls are tabs inside it.
     static var tabs: [AppView] {
         allCases
             .filter {
@@ -44,7 +45,7 @@ enum AppView: String, CaseIterable, Identifiable {
 
     /// The tab that is lit while this view shows.
     var tab: AppView {
-        if [.ledger, .dashboard, .mindmap, .standup, .telemetry, .audit].contains(self) { return .history }
+        if HistoryPaneTabs.contains(rawValue) { return .history }
         if self == .trace { return .sessions }
         if isAutopilot { return .watch }
         return self
@@ -84,7 +85,7 @@ enum AppView: String, CaseIterable, Identifiable {
         case .autopilotDone: "Done"
         case .repos: "Repos"
         case .history: "History"
-        case .log: "Log"
+        case .log: "Calls"
         case .ledger: "Ledger"
         case .dashboard: "Dashboard"
         case .mindmap: "Mindmap"
@@ -3141,6 +3142,7 @@ final class AppModel {
             }
         case "view.insights", "view.history": view = .dashboard
         case "view.log": view = .log
+        case "history.calls": view = view == .log ? .dashboard : .log
         case "view.timeline": showEveryEvent()
         case "view.ledger": view = .ledger
         case "view.mindmap": view = .mindmap
@@ -3313,6 +3315,12 @@ final class AppModel {
         case "log.caller":
             let caller = callLog.selected?.caller
             callLog.change { $0.toggleCaller($0.caller == nil ? caller : nil) }
+        case "log.callers":
+            let known = callLog.callers
+            callLog.change { $0.cycleCaller(among: known, named: command.arguments.first) }
+        case "log.see":
+            view = .log
+            callLog.see(caller: command.arguments.first ?? BrowseFetch.caller)
         case "log.agent":
             let agent = callLog.selected?.agent
             callLog.change { $0.toggleAgent($0.agent == nil ? agent : nil) }
@@ -3647,6 +3655,7 @@ final class AppModel {
         let choices = historyBrowser.choices
         context.timelineRepos = choices.repos.map { String($0.split(separator: "/").last ?? "") }
         context.timelinePlaces = choices.places
+        context.logCallers = callLog.callers
         context.goals = goals.snapshot.ordered.filter { $0.status != .archived }.map { ($0.id, $0.title) }
         context.goalVersions = goals.versions.map { ($0.number, $0.note) }
         if let session = currentSession {

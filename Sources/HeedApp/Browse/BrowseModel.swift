@@ -30,7 +30,15 @@ final class BrowseModel {
     let runs = BrowseRunsModel()
     var items: [BrowseItem] = []
     /// The items the query keeps, in the sort order: what the list draws.
-    private(set) var rows: [BrowseItem] = []
+    private(set) var allRows: [BrowseItem] = []
+    /// Only the items with an agent run on them (`agentOnly`): the toggle at the right of the count. Off whenever no
+    /// run is left, so the list never shows nothing for a filter that has gone.
+    var agentOnly = false
+    /// What the list draws: `allRows`, or just those with a run on them.
+    var rows: [BrowseItem] { showsAgentOnly ? allRows.filter { runs.current(for: $0.id) != nil } : allRows }
+    /// How many of the rows have a run on them.
+    var agentCount: Int { allRows.count { runs.current(for: $0.id) != nil } }
+    var showsAgentOnly: Bool { agentOnly && agentCount > 0 }
     var queries: [SavedQuery] = []
     /// When each saved query was last run, for the quick jump's order: kept per Mac, not in the fake world.
     private(set) var queryUsed: [String: Date] = [:]
@@ -223,9 +231,9 @@ final class BrowseModel {
     /// arriving or a bulk action must not reorder the list under the cursor.
     func refilter(now: Date = Clock.now) {
         let next = BrowseFetch.refusal(for: query, checkouts: checkouts) == nil ? narrowed(query, now: now) : []
-        guard held != nil else { return rows = next }
-        let place = Dictionary(rows.enumerated().map { ($1.id, $0) }) { first, _ in first }
-        rows = next.enumerated().sorted {
+        guard held != nil else { return allRows = next }
+        let place = Dictionary(allRows.enumerated().map { ($1.id, $0) }) { first, _ in first }
+        allRows = next.enumerated().sorted {
             (place[$0.element.id] ?? Int.max, $0.offset) < (place[$1.element.id] ?? Int.max, $1.offset)
         }.map(\.element)
         recomputePending(now: now)
@@ -466,7 +474,7 @@ final class BrowseModel {
         load = .idle
         silent = false
         fresh = []
-        let gone = BrowseRefreshApply.gone(shown: rows, fetched: result.items, capped: result.capped)
+        let gone = BrowseRefreshApply.gone(shown: allRows, fetched: result.items, capped: result.capped)
         let store = store
         let kept = result.items
         Task { try? await store?.record(kept, now: Date()) }
@@ -495,7 +503,7 @@ final class BrowseModel {
 
     /// An answer under a held item: the rows on screen take their new fields at once, where they are; the rest waits.
     private func hold(_ fetched: [BrowseItem], gone: Set<String>) {
-        let shown = Set(rows.map(\.id))
+        let shown = Set(allRows.map(\.id))
         var byID = Dictionary(items.map { ($0.id, $0) }) { _, last in last }
         for item in fetched where shown.contains(item.id) {
             byID[item.id] = item
@@ -503,7 +511,7 @@ final class BrowseModel {
         items = Array(byID.values)
         held = (fetched, gone)
         let latest = Dictionary(fetched.map { ($0.id, $0) }) { _, last in last }
-        rows = rows.map { latest[$0.id] ?? $0 }
+        allRows = allRows.map { latest[$0.id] ?? $0 }
         recomputePending()
     }
 
@@ -517,8 +525,8 @@ final class BrowseModel {
         let target = narrowed(query, now: now, from: byID.values.filter { !held.gone.contains($0.id) })
         let latest = Dictionary(held.fetched.map { ($0.id, $0) }) { _, last in last }
         // Rows on screen take their fields now, so what is left is only what moves, comes or goes.
-        rows = rows.map { latest[$0.id] ?? $0 }
-        let diff = BrowseDiff.between(current: rows, fetched: target, order: sort)
+        allRows = allRows.map { latest[$0.id] ?? $0 }
+        let diff = BrowseDiff.between(current: allRows, fetched: target, order: sort)
         if diff.isStructural {
             pending = diff
         } else {
@@ -537,11 +545,11 @@ final class BrowseModel {
         items = byID.values.filter { !gone.contains($0.id) }
         forget(gone)
         let target = narrowed(query, now: Clock.now)
-        let diff = BrowseDiff.between(current: rows, fetched: target, order: sort)
+        let diff = BrowseDiff.between(current: allRows, fetched: target, order: sort)
         let outcome = BrowseRefreshApply.apply(
-            diff, to: rows, cursorID: cursor.id, cursorIndex: cursor.index, picks: cursor.picks
+            diff, to: allRows, cursorID: cursor.id, cursorIndex: cursor.index, picks: cursor.picks
         )
-        rows = outcome.rows
+        allRows = outcome.rows
         fresh = outcome.fresh
         return outcome
     }

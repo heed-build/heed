@@ -35,7 +35,8 @@ Some views have no key and no name along the top, and are reached by name:
 - `:prs`: the [Pull requests](../github/pull-requests.md) view, which Attention gathers into its My PRs tab.
   `:inbox` and `:issues` open [Attention](../github/attention.md#tabs) on Everything and on its issues, where the Inbox
   and Issues views were.
-- `:log`: the [call log](../reference/call-log.md) of every command and GitHub call Heed made.
+- `:log`: the [call log](../reference/call-log.md) of every command and GitHub call Heed made. It is Calls, a tab of
+  Insights (`C` inside Insights opens it too).
 - `:trace`: a session's [trace](../insights/opentelemetry.md#a-sessions-trace) from its agent's own OpenTelemetry,
   also `t` on a session in Sessions; `t` or `⎋` goes back.
 

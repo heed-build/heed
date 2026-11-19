@@ -28,7 +28,7 @@ enum ShotRegion: String, CaseIterable {
     case auditList, auditDetail, auditGrants
     case dashboardHeadline, dashboardTiles, dashboardShipped, dashboardBests, dashboardCalendar, dashboardAgents,
          dashboardGoals
-    case logList, logDetail, logUsage
+    case logList, logDetail, logUsage, logCallers
     case telemetryBanner, telemetryTiles, telemetryPanels, telemetrySpans, telemetryTrace, traceTiles, traceTurns,
          traceDetail
     case pilotDetail, pilotActivity

@@ -477,6 +477,11 @@ public enum Commands {
             .views
         ),
         .init(
+            "history.calls",
+            "Insights' Calls: every command, GitHub call and model run heed made, how long each took (again: back to the dashboard)",
+            .views
+        ),
+        .init(
             "audit.grants",
             "Audit: the grants heed gave for good (Always rules, trust), or the actions again",
             .selection
@@ -928,6 +933,15 @@ public enum Commands {
         .init("log.writes", "call log: only GitHub writes, or all", .selection),
         .init("log.caller", "call log: only the caller of the call under the cursor, or every caller", .selection),
         .init("log.agent", "call log: only the agent of the call under the cursor, or every agent", .selection),
+        .init(
+            "log.callers", "call log: every caller, or the next one, or one by name (p picks, again: every caller)",
+            .selection, arguments: "[all|caller]"
+        ),
+        .init(
+            "log.see",
+            "Calls on one caller's calls, the newest failed one under the cursor (from a failure: see the call)",
+            .views, arguments: "[caller]"
+        ),
         .init("log.copy", "copy the command of the call under the cursor", .selection),
         .init("github.sync", "sync GitHub now", .selection),
         .init("items.start", "start one session from the picked items", .selection),

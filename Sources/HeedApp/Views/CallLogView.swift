@@ -1,7 +1,8 @@
 import HeedCore
 import SwiftUI
 
-/// `:log`: every command heed ran and every GitHub call it made, newest first and live, with what each cost in time;
+/// Insights' Calls (`C`, `:log`): every command heed ran and every GitHub call it made, newest first and live, with
+/// what each cost in time;
 /// the call under the cursor in full on the right. Model runs (`llm`, `decide`) land here too, with their tokens and
 /// cost, and the strip above sums today's per agent.
 struct CallLogView: View {
@@ -15,6 +16,7 @@ struct CallLogView: View {
                 VStack(spacing: 0) {
                     filters(log.query)
                     UsageStrip(usage: log.usage).shotRegion(.logUsage)
+                    CallerStrip(summaries: log.summaries, picked: log.query.caller).shotRegion(.logCallers)
                     header
                     ListBody(
                         count: rows.count,
@@ -154,6 +156,7 @@ private struct CallRow: View {
             HStack(spacing: 6) {
                 if let host = call.host { HostChip(location: .host(host)).fixedSize() }
                 Text(CallLine.summary(call)).foregroundStyle(Theme.fg).lineLimit(1).truncationMode(.middle)
+                if let retry = CallRetry(call) { RetryChip(retry: retry) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Text(CallLine.took(call.duration))
@@ -167,6 +170,66 @@ private struct CallRow: View {
         .padding(.horizontal, 16)
         .frame(height: 34)
         .background(index == cursor ? Theme.bg3 : .clear)
+    }
+}
+
+/// `retry · 50/page`: a GitHub call asked again at a smaller page, or `100/page` for the first ask of a page.
+private struct RetryChip: View {
+    let retry: CallRetry
+
+    var body: some View {
+        Text(retry.chip)
+            .font(Theme.mono(10.5))
+            .foregroundStyle(retry.isRetry ? Theme.block : Theme.fg3)
+            .padding(.horizontal, 6).padding(.vertical, 1)
+            .background(Capsule().fill((retry.isRetry ? Theme.block : Theme.fg3).opacity(0.14)))
+            .fixedSize()
+            .help(retry
+                .isRetry ? "GitHub did not answer the page before; asked again, smaller" : "Nodes asked for per page")
+    }
+}
+
+/// Per caller, over the rows shown: how often it ran, how often it failed, how long it took (median and p95) and what
+/// it cost GitHub's rate limit. The worst come first; a click on one shows only its calls.
+private struct CallerStrip: View {
+    let summaries: [CallerSummary]
+    let picked: String?
+
+    var body: some View {
+        HStack(spacing: 16) {
+            SectionHeader(title: "Callers")
+            if summaries.isEmpty {
+                Text("no calls shown").foregroundStyle(Theme.fg3)
+            }
+            ForEach(summaries.prefix(3)) { item in
+                HStack(spacing: 6) {
+                    Text(item.caller).foregroundStyle(picked == item.caller ? Theme.busy : Theme.fg)
+                    Text("\(item.calls)").foregroundStyle(Theme.fg2)
+                    if item.failures > 0 {
+                        Text("\(item.failures)\u{2717}").foregroundStyle(Theme.err)
+                    }
+                    if item.retries > 0 {
+                        Text("\(item.retries)\u{21BB}").foregroundStyle(Theme.block)
+                    }
+                    Text("\(CallLine.took(item.median)) / \(CallLine.took(item.p95))").foregroundStyle(Theme.fg3)
+                    if item.rateCost > 0 { Text("\(item.rateCost) pts").foregroundStyle(Theme.fg3) }
+                }
+                .fixedSize()
+                .clickRuns(CommandInvocation(name: "log.callers", arguments: [item.caller]))
+                .help(
+                    "\(item.caller): \(item.calls) calls, \(item.failures) failed, median \(CallLine.took(item.median)), "
+                        + "p95 \(CallLine.took(item.p95))"
+                )
+            }
+            Spacer(minLength: 8)
+            if summaries.count > 3 { Text("+\(summaries.count - 3) more").foregroundStyle(Theme.fg3) }
+        }
+        .font(Theme.mono(11.5))
+        .lineLimit(1)
+        .padding(.horizontal, 20)
+        .frame(height: 32)
+        .background(Theme.bg2)
+        .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
     }
 }
 
@@ -239,7 +302,10 @@ private struct CallDetail: View {
                     fields
                     if let stderr = call.stderr { output("stderr", stderr) }
                     if let stdout = call.stdout { output("stdout", stdout) }
-                    ForEach(call.detail.sorted { $0.key < $1.key }, id: \.key) { key, value in
+                    ForEach(
+                        call.detail.filter { !CallRetry.keys.contains($0.key) }.sorted { $0.key < $1.key },
+                        id: \.key
+                    ) { key, value in
                         output(key, value)
                     }
                 }
@@ -266,6 +332,9 @@ private struct CallDetail: View {
             if let cwd = call.cwd { field("in", cwd) }
             field("took", CallLine.took(call.duration))
             field("exit", call.exitCode.map(String.init) ?? (call.failed ? "did not run" : "running"))
+            if let retry = CallRetry(call) {
+                field("page", retry.chip + (retry.isRetry ? " · attempt \(retry.attempt + 1)" : ""))
+            }
             if let items = call.items { field("items", "\(items)") }
             if let hidden = call.hidden, hidden > 0 { field("hidden", "\(hidden) withheld by SAML") }
             if let remaining = call.rateRemaining {

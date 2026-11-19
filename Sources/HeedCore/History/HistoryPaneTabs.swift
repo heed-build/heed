@@ -4,7 +4,7 @@
 public enum HistoryPaneTabs {
     public struct Tab: Hashable, Sendable, Identifiable {
         /// The view's name (`AppView`'s raw value): `history`, `ledger`, `dashboard`, `mindmap`, `standup`,
-        /// `telemetry`, `audit`.
+        /// `telemetry`, `audit`, `log` (Calls: the call log).
         public var pane: String
         public var title: String
         public var command: String
@@ -45,7 +45,11 @@ public enum HistoryPaneTabs {
         ("standup", "Standup", "history.standup"),
         ("telemetry", "OpenTelemetry", "history.telemetry"),
         ("audit", "Audit", "history.audit"),
+        ("log", "Calls", "history.calls"),
     ]
+
+    /// Whether the view named `view` (`AppView`'s raw value) is one of Insights' panes, so Insights' tab is lit.
+    public static func contains(_ view: String) -> Bool { panes.contains { $0.pane == view } }
 
     public static func tabs(counts: Counts = Counts()) -> [Tab] {
         panes.map { pane in

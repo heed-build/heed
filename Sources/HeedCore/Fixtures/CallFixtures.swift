@@ -29,7 +29,25 @@ public extension Fixtures {
                 rateRemaining: remaining, detail: variables
             )
         }
+        // Browse's search of a big org: GitHub timed out at 100 a page, then at 50, and answered at 25 (the ladder in
+        // `BrowseFetchPolicy`); the first two are marked as failed asks, the last as the retry that worked.
+        func browse(
+            _ minutes: Double, _ size: Int, attempt: Int, took: TimeInterval, failed: Bool, items: Int? = nil
+        ) -> LoggedCall {
+            let timeout = "gh: HTTP 502: Bad Gateway (https://api.github.com/graphql)"
+            return LoggedCall(
+                at: ago(minutes), kind: .github, caller: "browse.search",
+                command: "gh api graphql -f query=@browse search -f 'q=org:globex is:open sort:updated-desc'",
+                duration: took, exitCode: failed ? 1 : 0, failed: failed, stderr: failed ? timeout : nil,
+                operation: "graphql browse search", items: items, rateCost: failed ? nil : 4,
+                detail: ["q": "org:globex is:open sort:updated-desc"]
+                    .merging(CallRetry(pageSize: size, attempt: attempt).detail) { $1 }
+            )
+        }
         var rows: [LoggedCall] = [
+            browse(0.1, 25, attempt: 2, took: 2.2, failed: false, items: 25),
+            browse(0.2, 50, attempt: 1, took: 9.6, failed: true),
+            browse(0.4, 100, attempt: 0, took: 10.4, failed: true),
             github(
                 0.4, "github.sync", "graphql pullSearch",
                 "gh api graphql -f query=@pullSearch -f 'q=\(searchQuery)'", took: 1.84, items: 7, hidden: 0,

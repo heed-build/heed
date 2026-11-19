@@ -156,12 +156,15 @@ public enum BrowseFetch {
             var variables = ["q": text]
             if let cursor { variables["after"] = cursor }
             let data: Data
+            // Which ask of this page it is, for the call log: the first, or a retry after a failure.
+            var attempt = 0
             while true {
                 let step = BrowseFetchPolicy.rungs[rung]
                 do {
                     data = try await GitHub.graphql(
                         searchQuery(size: step.size, light: step.light), operation: "browse search",
-                        variables: variables, caller: caller
+                        variables: variables, caller: caller,
+                        note: CallRetry(pageSize: step.size, attempt: attempt, light: step.light).detail
                     )
                     break
                 } catch is CancellationError {
@@ -171,11 +174,13 @@ public enum BrowseFetch {
                         after: BrowseFetchPolicy.text(of: error), rung: rung, rateLimitWaited: rateLimitWaited
                     ) {
                     case let .retry(next, wait):
+                        attempt += 1
                         try await sleep(wait)
                         rung = next
                         memory.settle(rung, for: text)
                     case let .waitThenRetry(wait):
                         rateLimitWaited = true
+                        attempt += 1
                         try await sleep(wait)
                     case let .fail(message):
                         throw GitHub.Failure(description: message)

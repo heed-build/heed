@@ -678,6 +678,8 @@ struct BrowseRefreshBanner: View {
                 Image(systemName: "exclamationmark.triangle").font(.system(size: 10.5)).foregroundStyle(Theme.err)
                 Text("Could not refresh: \(why)").font(Theme.ui(12)).foregroundStyle(Theme.fg2).lineLimit(1)
                 Spacer(minLength: 8)
+                Text("See the call").font(Theme.ui(12)).foregroundStyle(Theme.busy)
+                    .clickRuns(CommandInvocation(name: "log.see", arguments: [BrowseFetch.caller]))
                 KeyHint("browse.refresh", scope: "browse") { Text("Try again").font(Theme.ui(12)) }
             }
         }

@@ -129,6 +129,7 @@ public enum DefaultKeys {
             ("r", "timeline.repo"), ("w", "timeline.where"), ("K", "timeline.kind"), ("c", "timeline.gone"),
             ("H", "history.list"), ("L", "history.ledger"), ("D", "history.dashboard"),
             ("M", "history.mindmap"), ("U", "history.standup"), ("T", "history.telemetry"), ("A", "history.audit"),
+            ("C", "history.calls"),
         ],
         // Insights' ledger (L, :ledger); L again goes back to the dashboard.
         "ledger": [
@@ -137,7 +138,7 @@ public enum DefaultKeys {
                 "history.standup"
             ),
             ("R", "history.reopen"), ("<CR>", "history.reopen"), ("S", "ledger.summarize"), ("E", "ledger.edit"),
-            ("T", "history.telemetry"), ("A", "history.audit"),
+            ("T", "history.telemetry"), ("A", "history.audit"), ("C", "history.calls"),
         ],
         // Insights' dashboard (gh, D, :dashboard), where Insights opens: j k move through what shipped, ↩ reads its PR.
         "dashboard": [
@@ -146,6 +147,7 @@ public enum DefaultKeys {
                 "history.standup"
             ),
             ("R", "history.reopen"), ("r", "dashboard.range"), ("T", "history.telemetry"), ("A", "history.audit"),
+            ("C", "history.calls"),
         ],
         // Insights' standup reports (U, :standup); U again goes back to the dashboard.
         "standup": [
@@ -155,6 +157,7 @@ public enum DefaultKeys {
                 "A",
                 "history.audit"
             ),
+            ("C", "history.calls"),
         ],
         // Insights' OpenTelemetry (T, :telemetry): j k move through the spans, ↩ opens the span's session's trace; r a
         // p
@@ -162,7 +165,10 @@ public enum DefaultKeys {
         "telemetry": [
             ("H", "history.list"), ("L", "history.ledger"), ("D", "history.dashboard"), ("M", "history.mindmap"),
             ("U", "history.standup"), ("T", "history.telemetry"), ("A", "history.audit"), ("<CR>", "telemetry.open"),
-            ("r", "telemetry.range"), ("a", "telemetry.agent"), ("p", "telemetry.repo"), ("m", "telemetry.model"),
+            ("C", "history.calls"), ("r", "telemetry.range"), ("a", "telemetry.agent"), ("p", "telemetry.repo"), (
+                "m",
+                "telemetry.model"
+            ),
             ("K", "telemetry.kind"), ("l", "telemetry.live"), ("P", "telemetry.proxy.off"), (
                 "x",
                 "telemetry.banner.hide"
@@ -174,7 +180,7 @@ public enum DefaultKeys {
         "audit": [
             ("H", "history.list"), ("L", "history.ledger"), ("D", "history.dashboard"), ("M", "history.mindmap"),
             ("U", "history.standup"), ("T", "history.telemetry"), ("A", "history.audit"), ("<Tab>", "audit.grants"),
-            ("d", "audit.revoke"), ("<CR>", "audit.session"),
+            ("C", "history.calls"), ("d", "audit.revoke"), ("<CR>", "audit.session"),
         ],
         // A session's trace (t on a session, :trace): j k turns, h l spans in the turn; t or ⎋ goes back.
         "trace": [
@@ -198,6 +204,7 @@ public enum DefaultKeys {
             ("m", "mindmap.move"), ("J", "mindmap.join"), ("S", "mindmap.name"), ("<CR>", "mindmap.open"),
             ("s", "mindmap.session"), ("]l", "mindmap.link.next"), ("[l", "mindmap.link.prev"),
             ("n", "mindmap.goal"), ("T", "history.telemetry"), ("A", "history.audit"),
+            ("C", "history.calls"),
         ],
         // Goals (gG): j k move through the goals, ⇥ to what belongs to the one under the cursor, ↩ opens.
         "goals": goals,
@@ -277,10 +284,13 @@ public enum DefaultKeys {
             ("y", "goal.ask.yes"), ("n", "goal.ask.no"), ("m", "goal.ask.move"), ("i", "goal.ask.ignore"),
             ("u", "goal.attach.undo"), ("g?", "goal.unassigned.how"), ("<Tab>", ""), ("<S-Tab>", ""),
         ]),
-        // The call log has no key of its own (:log); inside it, its filters.
+        // Insights' Calls, the call log (C, :log): inside it, its filters (c takes the caller under the cursor, p goes
+        // through every caller in turn), and the other Insights views' capitals; C again goes back to the dashboard.
         "log": [
             ("t", "log.kind"), ("x", "log.failed"), ("s", "log.slow"), ("w", "log.writes"), ("c", "log.caller"),
-            ("a", "log.agent"), ("y", "log.copy"),
+            ("p", "log.callers"), ("a", "log.agent"), ("y", "log.copy"),
+            ("H", "history.list"), ("L", "history.ledger"), ("D", "history.dashboard"), ("M", "history.mindmap"),
+            ("U", "history.standup"), ("T", "history.telemetry"), ("A", "history.audit"), ("C", "history.calls"),
         ],
         "attention": attention,
         "browse": browse,

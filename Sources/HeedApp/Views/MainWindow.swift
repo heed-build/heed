@@ -53,7 +53,10 @@ struct MainWindow: View {
                             AutopilotDoneView()
                         }
                     case .log:
-                        CallLogView()
+                        VStack(spacing: 0) {
+                            HistoryPaneBar().shotRegion(.historyPaneBar)
+                            CallLogView()
+                        }
                     case .ledger:
                         VStack(spacing: 0) {
                             HistoryPaneBar().shotRegion(.historyPaneBar)
@@ -727,6 +730,7 @@ struct StatusBar: View {
                 ("log.slow", "slow"),
                 ("log.writes", "writes"),
                 ("log.caller", "caller"),
+                ("log.callers", "callers"),
                 ("log.agent", "agent"),
                 ("log.copy", "copy"),
             ]

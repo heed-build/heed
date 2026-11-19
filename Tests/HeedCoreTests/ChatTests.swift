@@ -130,6 +130,9 @@ struct ChatTests {
         }
         #expect(names == [
             "session.agent",
+            "agent.resume",
+            "agent.resume.copy",
+            "agent.fresh",
             "session.pin",
             "session.park",
             "work.again",

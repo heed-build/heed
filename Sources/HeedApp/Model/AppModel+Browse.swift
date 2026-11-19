@@ -40,11 +40,83 @@ extension AppModel {
         refreshBrowseCheckouts()
         browse.refilter()
         if (itemCursor[.browse] ?? 0) >= browse.rows.count { itemCursor[.browse] = 0 }
-        browse.landed = { [weak self] in self?.queueAheadBrowseReads() }
-        browse.fetch()
+        browse.landed = { [weak self] in
+            guard let self else { return }
+            let last = max(browse.rows.count - 1, 0)
+            if (itemCursor[.browse] ?? 0) > last { itemCursor[.browse] = last }
+            queueAheadBrowseReads()
+        }
+        browse.holdState = { [weak self] in
+            var state = BrowseRefreshPolicy.State()
+            self?.browseHolds(into: &state)
+            return state
+        }
+        browse.cursorState = { [weak self] in
+            guard let self else { return (nil, 0, []) }
+            return (browseSelected?.id, itemCursor[.browse] ?? 0, pickedIDs(.browse))
+        }
+        browse.adopt = { [weak self] outcome in self?.browseAdopted(outcome) }
+        browseAutoRefresh(.viewSwitch)
         browse.startCounts { [weak self] in self?.view == .browse }
         browseSelectionChanged()
         queueAheadBrowseReads()
+    }
+
+    // MARK: Staying current
+
+    /// What holds the list still: an item the reader shows or a run works on, picks, a pushed reader, a sheet.
+    func browseHolds(into state: inout BrowseRefreshPolicy.State) {
+        state.cursorInReader = view == .browse && browseSelected != nil
+            && (browse.layout.showsReaderBeside || browse.reading)
+        state.picks = pickedIDs(.browse).count
+        state.readerPushed = browse.reading && !browse.layout.showsReaderBeside
+        state.runLive = browse.runs.runs.contains { $0.isLive }
+        state.overlayOpen = browse.palette != nil || browse.builder != nil || browse.orgBuilder != nil
+            || browse.jumpSheet || browse.runs.input != nil
+        state.bulkOpen = browse.bulk != nil
+    }
+
+    /// Coming back to Browse (the view, the app, the window): asks GitHub quietly for the view you are on when the last
+    /// answer is old enough. Never raises a window or takes focus.
+    func browseAutoRefresh(_ trigger: BrowseRefreshPolicy.Trigger) {
+        var state = browse.refreshState()
+        state.trigger = trigger
+        state.frontIsBrowse = view == .browse && tutor == nil
+        browseHolds(into: &state)
+        if BrowseRefreshPolicy.decide(state: state).fetch { browse.fetch(.refresh) }
+    }
+
+    /// The app coming forward and the main window regaining key, while Browse is in front.
+    func startBrowseActivation() {
+        guard !isFixture else { return }
+        let center = NotificationCenter.default
+        center
+            .addObserver(
+                forName: NSApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.browseCameBack(.appActive) }
+            }
+        center.addObserver(forName: NSWindow.didBecomeKeyNotification, object: nil, queue: .main) { [weak self] note in
+            let main = (note.object as? NSWindow)?.identifier == Self.mainWindowID
+            MainActor.assumeIsolated { if main { self?.browseCameBack(.windowKey) } }
+        }
+    }
+
+    private func browseCameBack(_ trigger: BrowseRefreshPolicy.Trigger) {
+        guard view == .browse else { return }
+        browse.configure(config.browse, viewer: github.viewer)
+        browseAutoRefresh(trigger)
+    }
+
+    /// A held diff became the list: the cursor stays on its item, the picks that still exist stay picked.
+    private func browseAdopted(_ outcome: BrowseRefreshApply.Outcome) {
+        if (itemCursor[.browse] ?? 0) != outcome.cursor { itemCursor[.browse] = outcome.cursor }
+        if !outcome.droppedPicks.isEmpty {
+            pick((picked[.browse] ?? []).subtracting(outcome.droppedPicks), in: .browse)
+        }
+        if let note = outcome.note { say(note) }
     }
 
     /// The row under the cursor changed: the thread loads once the cursor rests on it.
@@ -109,7 +181,9 @@ extension AppModel {
             browse.toggleOlder()
             browseQueryChanged()
             say(browse.query.showOlder ? "showing older items" : "back to the last \(browse.cap)")
-        case "browse.refresh": browse.fetch()
+        case "browse.refresh":
+            // A banner waits with new, gone and reordered rows: apply it, no new question to GitHub.
+            if browse.pending != nil { browse.applyPending() } else { browse.fetch() }
         case "browse.read": browseReadNow()
         case "browse.fix": browseVerb(.fix)
         case "browse.implement": browseVerb(.implement)
@@ -153,13 +227,20 @@ extension AppModel {
 
     // MARK: Quick jump (⌘K)
 
+    /// The saved queries as the jump lists them: newest used first, each with its count.
+    private var paletteQueries: [BrowsePalette.QueryRow] {
+        BrowsePalette.byRecency(browse.queries, used: browse.queryUsed).map {
+            .init(query: $0, count: browse.count(of: $0))
+        }
+    }
+
     func openBrowsePalette() {
         if view != .browse { view = .browse }
         if isFixture || tutor != nil {
             let data = Fixtures.Browse.self
             browse.palette = BrowsePalette(
                 orgs: data.orgs, listings: data.listings, records: data.records, openCounts: data.openCounts,
-                threshold: config.browse.manyRepos
+                threshold: config.browse.manyRepos, queries: paletteQueries
             )
             return
         }
@@ -186,7 +267,7 @@ extension AppModel {
         }
         browse.palette = BrowsePalette(
             orgs: orgs, listings: cache.lists.values.flatMap(\.listings), records: repos,
-            threshold: config.browse.manyRepos
+            threshold: config.browse.manyRepos, queries: paletteQueries
         )
         for org in orgs {
             browse.learnRepoCount(of: org.name)
@@ -243,6 +324,23 @@ extension AppModel {
         case let .createOrgView(org):
             browse.palette = nil
             browse.openOrgBuilder(owner: org)
+        case let .run(saved):
+            browse.palette = nil
+            browse.run(saved)
+            browseQueryChanged()
+        case let .searchGitHub(words):
+            // ⌘K is the one dialog for "get me to X or find Y": the words go to the add-filter card as typed there.
+            browse.palette = nil
+            openBrowseBuilder()
+            guard var builder = browse.builder else { return }
+            let action = builder.askWords(words)
+            browse.builder = builder
+            if case let .read(sentence) = action { readBrowseWords(sentence) }
+            if case let .apply(query) = action {
+                browse.builder = nil
+                browse.applyBuilder(query)
+                browseQueryChanged()
+            }
         }
     }
 

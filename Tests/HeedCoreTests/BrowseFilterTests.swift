@@ -123,6 +123,8 @@ struct BrowsePaletteTests {
             switch row {
             case let .org(org): org.name
             case let .repo(repo): repo.listing.repo.slug
+            case let .query(row): row.query.name
+            case let .search(text): text
             }
         }
         #expect(names == ["globex", "globex/glossary", "globex/glass-api"])
@@ -150,5 +152,63 @@ struct BrowsePaletteTests {
         _ = palette.handle(KeyStroke("Down"))
         #expect(palette.handle(KeyStroke("CR")) == .choose(.repo(Repo(org: "globex", name: "glossary"))))
         #expect(palette.handle(.escape) == .cancel)
+    }
+
+    private func withQueries() -> BrowsePalette {
+        var palette = palette()
+        palette.queries = [
+            .init(query: SavedQuery.starters[0], count: 7), .init(query: SavedQuery.starters[1], count: 3),
+        ]
+        return palette
+    }
+
+    @Test func savedQueriesComeFirstAndMatchWhatYouType() {
+        var palette = withQueries()
+        guard case let .query(first) = palette.rows[0] else {
+            Issue.record("a query leads")
+            return
+        }
+        #expect(first.count == 7 && palette.rows.count == 5)
+        type("bugs", into: &palette)
+        #expect(palette.rows == [.query(.init(query: SavedQuery.starters[1], count: 3))])
+        #expect(palette.handle(KeyStroke("CR")) == .run(SavedQuery.starters[1]))
+    }
+
+    @Test func recencyPutsTheNewestUsedFirstAndKeepsTheRestInOrder() {
+        let all = SavedQuery.starters
+        let used = [all[2].id: Date(timeIntervalSince1970: 200), all[3].id: Date(timeIntervalSince1970: 100)]
+        let ordered = BrowsePalette.byRecency(all, used: used).map(\.id)
+        #expect(ordered == [all[2].id, all[3].id, all[0].id, all[1].id])
+    }
+
+    @Test func whatMatchesNothingEndsInASearchOfGitHub() {
+        var palette = withQueries()
+        type("flaky timeout", into: &palette)
+        #expect(palette.rows == [.search("flaky timeout")])
+        #expect(palette.handle(KeyStroke("CR")) == .searchGitHub("flaky timeout"))
+    }
+
+    @Test func commandReturnSearchesEvenWhenSomethingMatched() {
+        var palette = withQueries()
+        #expect(palette.handle(KeyStroke("CR", .command)) == .none)
+        type("gl", into: &palette)
+        #expect(palette.handle(KeyStroke("CR", .command)) == .searchGitHub("gl"))
+    }
+
+    @Test func theOrderIsQueriesThenCheckedOutOrgsThenReposThenDimmedOrgsThenTheSearch() {
+        var palette = withQueries()
+        palette.orgs.append(.init(name: "glacier", checkedOut: false))
+        type("gl", into: &palette)
+        let kinds = palette.rows.map { row -> String in
+            switch row {
+            case .query: "query"
+            case let .org(org): org.checkedOut ? "org" : "dimmed"
+            case .repo: "repo"
+            case .search: "search"
+            }
+        }
+        #expect(kinds == ["org", "repo", "repo", "dimmed"])
+        type("zzz", into: &palette)
+        #expect(palette.rows == [.search("glzzz")])
     }
 }

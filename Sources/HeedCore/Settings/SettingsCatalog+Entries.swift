@@ -669,6 +669,18 @@ extension SettingsCatalog {
             since: "0.48.0"
         ) { .integer($0.browse.maxRuns) },
         global(
+            "browse.auto_refresh", .github, "Browse", "Browse: refresh when you come back",
+            "Coming back to Browse (switching to it, the app coming forward, the window regaining focus) asks GitHub "
+                + "for the view you are on again. Changes to rows you can see land at once; new, gone and reordered "
+                + "rows wait behind a banner while an item is selected.",
+            since: "0.49.0"
+        ) { .bool($0.browse.autoRefresh) },
+        global(
+            "browse.refresh_after", .github, "Browse", "Browse: refresh after",
+            "How many seconds since the last answer before coming back to Browse asks GitHub again.",
+            level: .advanced, since: "0.49.0"
+        ) { .integer($0.browse.refreshAfter) },
+        global(
             "browse.agent", .github, "Browse", "Browse: agent",
             "The agent Browse's runs use: claude, codex, opencode or gemini, over ACP. Unset, it is the helpers' agent.",
             level: .advanced, since: "0.48.0"

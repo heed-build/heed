@@ -74,14 +74,14 @@ struct ContextMenuTests {
         let menu = ContextMenus.session(facts)
         #expect(menu.first == .header("Fix it"))
         #expect(commands(menu) == [
-            "session.agent", "overlay.diff", "session.pin", "session.park", "work.again", "goal.attach", "goal.new",
-            "goal.promote", "session.close", "session.delete",
+            "session.agent", "overlay.diff", "agent.resume", "agent.resume.copy", "agent.fresh", "session.pin",
+            "session.park", "work.again", "goal.attach", "goal.new", "goal.promote", "session.close", "session.delete",
         ])
         #expect(item("session.agent", in: menu)?.title == "Type into its agent")
         // Every item acts on the session clicked.
         #expect(items(menu).allSatisfy { $0.command.target == .session("s") })
         // Sections are apart, with no separator at either end or twice.
-        #expect(menu.count { $0 == .separator } == 3)
+        #expect(menu.count { $0 == .separator } == 4)
         #expect(menu.last != .separator)
     }
 

@@ -47,8 +47,9 @@ This page is generated from the code (`mise run shots`).
 | `chat.new` `[prompt]` | `gc` | start a chat: an agent in a scratch folder or one you pick, no repo or worktree |
 | `chat.promote` |  | turn this chat into work: pick a repo, heed makes a worktree and hands the agent the chat |
 | `agent.switch` `[agent] [model] [effort]` | `gA` | hand the session to another agent: stop its agent, start that one on a handoff prompt |
-| `agent.resume` | `gu` (sessions), `gu` (sessionshelper), `gu` (sessionshelpers), `gu` (sessionsoffer), `gu` (sessionspanel), `gu` (sessionspanelchat), `gu` (sessionspanelpr), `gu` (sessionspromote) | resume the agent's conversation in a session whose agent is not running (the banner over its panes) |
-| `agent.fresh` | `gf` (sessions), `gf` (sessionshelper), `gf` (sessionshelpers), `gf` (sessionsoffer), `gf` (sessionspanel), `gf` (sessionspanelchat), `gf` (sessionspanelpr), `gf` (sessionspromote) | start the agent again from the session's original prompt, as the banner over its panes offers |
+| `agent.resume` | `gu` (sessions), `gu` (sessionshelper), `gu` (sessionshelpers), `gu` (sessionsoffer), `gu` (sessionspanel), `gu` (sessionspanelchat), `gu` (sessionspanelpr), `gu` (sessionspromote) | resume the agent's conversation in a session: its own resume, or the latest conversation in the directory when heed kept no id; greyed out while an agent runs in it |
+| `agent.resume.copy` | `gY` (sessions), `gY` (sessionshelper), `gY` (sessionshelpers), `gY` (sessionsoffer), `gY` (sessionspanel), `gY` (sessionspanelchat), `gY` (sessionspanelpr), `gY` (sessionspromote) | copy the exact command heed would run to resume this session's agent, with its injected hooks, to the clipboard |
+| `agent.fresh` | `gf` (sessions), `gf` (sessionshelper), `gf` (sessionshelpers), `gf` (sessionsoffer), `gf` (sessionspanel), `gf` (sessionspanelchat), `gf` (sessionspanelpr), `gf` (sessionspromote) | start the agent again from the session's original prompt; greyed out while an agent runs in it |
 | `agent.resume.dismiss` | `gq` (sessions), `gq` (sessionshelper), `gq` (sessionshelpers), `gq` (sessionsoffer), `gq` (sessionspanel), `gq` (sessionspanelchat), `gq` (sessionspanelpr), `gq` (sessionspromote) | hide the "agent is not running" banner for this session until heed restarts |
 | `session.reconnect` | `gk` (sessions), `gk` (sessionshelper), `gk` (sessionshelpers), `gk` (sessionsoffer), `gk` (sessionspanel), `gk` (sessionspanelchat), `gk` (sessionspanelpr), `gk` (sessionspromote) | restart the agent of a session heed can't hear (its pane has no token it can check): the pane's process ends and the agent resumes in a new terminal |
 | `view.insights` | `gh` | Insights: the dashboard first, then History, the ledger, the Mindmap and standups |
@@ -414,7 +415,7 @@ This page is generated from the code (`mise run shots`).
 | `browse.query.prev` | `[q` (browse), `[q` (browsebulk) | Browse: the previous saved query |
 | `browse.query.save` | `S` (browse) | Browse: keep the query you are on in the rail |
 | `browse.older` | `e` (browse), `e` (browsebulk) | Browse: show items older than the cap, or go back to it |
-| `browse.refresh` | `r` (browse), `r` (browsebulk) | Browse: ask GitHub again |
+| `browse.refresh` | `r` (browse), `r` (browsebulk) | Browse: refresh the list |
 | `browse.sort` | `T` (browse), `T` (browsebulk) | Browse: next sort (updated, created, comments, oldest) |
 | `browse.filter.add` | `/` (browse), `/` (browsebulk) | Browse: add a filter: pick a field, type words, or paste a GitHub query |
 | `browse.filter.remove` | `x` (browse) | Browse: take the last filter off the query |

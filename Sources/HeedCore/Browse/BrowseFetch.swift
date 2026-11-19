@@ -85,16 +85,25 @@ public enum BrowseFetch {
     comments { totalCount }
     """
 
-    static let query = """
-    query($q: String!, $after: String) { search(query: $q, type: ISSUE, first: 100, after: $after) {
-      issueCount pageInfo { hasNextPage endCursor } nodes {
-        ... on Issue { \(fields) closedByPullRequestsReferences(first: 1) { totalCount } }
-        ... on PullRequest { \(fields) isDraft reviewDecision
-          reviewRequests(first: 10) { nodes { requestedReviewer { ... on User { login } } } }
+    /// The search, `size` nodes a page. `light` leaves out what costs GitHub the most on a pull request (checks,
+    /// requested reviewers, closing references): the last rung of the ladder, see `BrowseFetchPolicy`.
+    static func searchQuery(size: Int = 100, light: Bool = false) -> String {
+        let heavy = """
+        reviewRequests(first: 10) { nodes { requestedReviewer { ... on User { login } } } }
           closingIssuesReferences(first: 1) { totalCount }
-          commits(last: 1) { nodes { commit { statusCheckRollup { state } } } } }
-    } } }
-    """
+          commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+        """
+        return """
+        query($q: String!, $after: String) { search(query: $q, type: ISSUE, first: \(size), after: $after) {
+          issueCount pageInfo { hasNextPage endCursor } nodes {
+            ... on Issue { \(fields) closedByPullRequestsReferences(first: 1) { totalCount } }
+            ... on PullRequest { \(fields) isDraft reviewDecision
+              \(light ? "" : heavy) }
+        } } }
+        """
+    }
+
+    static let query = searchQuery()
 
     /// The search text GitHub is asked: the query's string, newest update first.
     public static func searchText(_ query: BrowseQuery, maxAgeDays: Int, now: Date) -> String {
@@ -103,14 +112,21 @@ public enum BrowseFetch {
 
     /// Runs the search, following cursors until there are no more or `cap` items are in; with no scope, once per group
     /// of the checked-out orgs.
+    ///
+    /// A page GitHub fails to answer (HTTP 502/504, a timeout) is asked again from the same cursor at the next
+    /// smaller size, after a short wait; the page that answers continues from its own end cursor, so nothing is
+    /// dropped or doubled. Each group is its own search text with its own remembered size (`memory`), which never
+    /// climbs back. When a group's ladder is spent, or the failure is one asking again cannot fix, the whole fetch
+    /// throws a message a person can act on: never a partial list.
     public static func search(
-        _ query: BrowseQuery, maxAgeDays: Int, cap: Int = defaultCap, now: Date = Date(), checkouts: BrowseCheckouts
+        _ query: BrowseQuery, maxAgeDays: Int, cap: Int = defaultCap, now: Date = Date(), checkouts: BrowseCheckouts,
+        memory: BrowseFetchMemory = .shared, sleep: BrowseFetchPolicy.Sleeper = BrowseFetchPolicy.realSleep
     ) async throws -> Result {
         let asked = try searches(for: query, checkouts: checkouts, maxAgeDays: maxAgeDays, now: now, sorted: true)
         var results: [Result] = []
         for text in asked.texts {
             try Task.checkCancellation()
-            try await results.append(pages(text, cap: cap, now: now))
+            try await results.append(pages(text, cap: cap, now: now, memory: memory, sleep: sleep))
         }
         var merged = merge(results, cap: cap, now: now)
         merged.groups = asked.texts.count
@@ -119,21 +135,50 @@ public enum BrowseFetch {
     }
 
     /// One search string's pages.
-    private static func pages(_ text: String, cap: Int, now: Date) async throws -> Result {
+    private static func pages(
+        _ text: String, cap: Int, now: Date, memory: BrowseFetchMemory, sleep: BrowseFetchPolicy.Sleeper
+    ) async throws -> Result {
         var result = Result(fetchedAt: now)
         var cursor: String?
         var fetched = 0
+        var rung = memory.rung(for: text)
+        var rateLimitWaited = false
         repeat {
             var variables = ["q": text]
             if let cursor { variables["after"] = cursor }
-            let data = try await GitHub.graphql(
-                query, operation: "browse search", variables: variables, caller: caller
-            )
+            let data: Data
+            while true {
+                let step = BrowseFetchPolicy.rungs[rung]
+                do {
+                    data = try await GitHub.graphql(
+                        searchQuery(size: step.size, light: step.light), operation: "browse search",
+                        variables: variables, caller: caller
+                    )
+                    break
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    switch BrowseFetchPolicy.next(
+                        after: BrowseFetchPolicy.text(of: error), rung: rung, rateLimitWaited: rateLimitWaited
+                    ) {
+                    case let .retry(next, wait):
+                        try await sleep(wait)
+                        rung = next
+                        memory.settle(rung, for: text)
+                    case let .waitThenRetry(wait):
+                        rateLimitWaited = true
+                        try await sleep(wait)
+                    case let .fail(message):
+                        throw GitHub.Failure(description: message)
+                    }
+                }
+            }
             let page = parse(data)
             result.items += page.items
             fetched += page.items.count
             result.hidden += page.hidden
-            result.total += page.total ?? 0
+            // GitHub's count is the same on every page: the last one said is the total, not a sum.
+            result.total = page.total ?? result.total
             cursor = page.next
         } while cursor != nil && fetched < cap
         result.capped = cursor != nil || fetched > cap
@@ -145,17 +190,21 @@ public enum BrowseFetch {
     """
 
     /// How many items the query holds on GitHub, without bringing them: one small call per search (the groups' counts
-    /// add up: they are disjoint).
+    /// add up: they are disjoint). Each call is asked again after a transient failure; a caller that cannot wait for
+    /// it keeps the count it had.
     public static func count(
-        _ query: BrowseQuery, maxAgeDays: Int, now: Date = Date(), checkouts: BrowseCheckouts
+        _ query: BrowseQuery, maxAgeDays: Int, now: Date = Date(), checkouts: BrowseCheckouts,
+        sleep: BrowseFetchPolicy.Sleeper = BrowseFetchPolicy.realSleep
     ) async throws -> Int {
         let asked = try searches(for: query, checkouts: checkouts, maxAgeDays: maxAgeDays, now: now, sorted: false)
         var total = 0
         for text in asked.texts {
             try Task.checkCancellation()
-            let data = try await GitHub.graphql(
-                countQuery, operation: "browse count", variables: ["q": text], caller: "browse.count"
-            )
+            let data = try await BrowseFetchPolicy.retrying(sleep: sleep) {
+                try await GitHub.graphql(
+                    countQuery, operation: "browse count", variables: ["q": text], caller: "browse.count"
+                )
+            }
             total += parse(data).total ?? 0
         }
         return total
@@ -165,11 +214,18 @@ public enum BrowseFetch {
 
     /// The repos of an org with their language and archived state (`gh repo list`), for the builder's live count; nil
     /// when gh cannot say.
-    public static func orgRepos(owner: String) async -> [BrowseRepoInfo]? {
-        guard let result = try? await GitHub.gh(
-            BrowseRepoInfo.listArguments(owner: owner), operation: "repo list (org view)", timeout: .seconds(60),
-            caller: "browse.orgview", items: { BrowseRepoInfo.parse(Data($0.utf8))?.count }
-        ), result.succeeded else { return nil }
+    public static func orgRepos(
+        owner: String, sleep: BrowseFetchPolicy.Sleeper = BrowseFetchPolicy.realSleep
+    ) async -> [BrowseRepoInfo]? {
+        let result = try? await BrowseFetchPolicy.retrying(sleep: sleep) {
+            let result = try await GitHub.gh(
+                BrowseRepoInfo.listArguments(owner: owner), operation: "repo list (org view)", timeout: .seconds(60),
+                caller: "browse.orgview", items: { BrowseRepoInfo.parse(Data($0.utf8))?.count }
+            )
+            guard result.succeeded else { throw GitHub.Failure(description: GitHub.explain(result)) }
+            return result
+        }
+        guard let result else { return nil }
         return BrowseRepoInfo.parse(Data(result.stdout.utf8))
     }
 
@@ -236,7 +292,9 @@ public enum BrowseFetch {
             createdAt: GitHub.date(node["createdAt"] as? String), updatedAt: GitHub.date(node["updatedAt"] as? String),
             hasLinkedPull: linked > 0, isDraft: node["isDraft"] as? Bool ?? false, checks: checks,
             review: (node["reviewDecision"] as? String).flatMap(ReviewDecision.init(rawValue:)),
-            requestedReviewers: pull ? ((node["reviewRequests"] as? [String: Any])?["nodes"] as? [Any] ?? [])
+            // A light page did not ask: no answer is not "nobody was asked".
+            requestedReviewers: pull && node["reviewRequests"] != nil
+                ? ((node["reviewRequests"] as? [String: Any])?["nodes"] as? [Any] ?? [])
                 .compactMap {
                     (($0 as? [String: Any])?["requestedReviewer"] as? [String: Any])?["login"] as? String
                 } : nil
@@ -250,10 +308,15 @@ public enum BrowseFetch {
     """
 
     /// How many repos `owner` has, for the guidance on big orgs; nil when GitHub does not say.
-    public static func repoCount(owner: String) async -> Int? {
-        guard let data = try? await GitHub.graphql(
-            repoCountQuery, operation: "browse repo count", variables: ["login": owner], caller: caller
-        ) else { return nil }
+    public static func repoCount(
+        owner: String,
+        sleep: BrowseFetchPolicy.Sleeper = BrowseFetchPolicy.realSleep
+    ) async -> Int? {
+        guard let data = try? await BrowseFetchPolicy.retrying(sleep: sleep, {
+            try await GitHub.graphql(
+                repoCountQuery, operation: "browse repo count", variables: ["login": owner], caller: caller
+            )
+        }) else { return nil }
         return parseRepoCount(data)
     }
 

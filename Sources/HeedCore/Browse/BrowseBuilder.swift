@@ -626,6 +626,15 @@ public struct BrowseBuilder: Sendable {
         return .none
     }
 
+    /// Hands words to the words-to-tokens flow as if they were typed and sent with ↩ (the quick jump's "Search GitHub
+    /// for …"), even when they name a field: the model reads them, or with it off they search as text.
+    public mutating func askWords(_ words: String) -> Action {
+        input = EditableText(words)
+        reading = .idle
+        tokens = []
+        return enterWords()
+    }
+
     /// Enter on words: ask the model, apply what it understood, or (the model is off) search the words as text.
     private mutating func enterWords() -> Action {
         switch reading {

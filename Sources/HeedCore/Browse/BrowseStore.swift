@@ -101,6 +101,18 @@ public actor BrowseStore {
         }
     }
 
+    /// Drops cached items GitHub no longer lists for a view (closed, moved away).
+    public func forget(ids: [String]) throws {
+        guard !ids.isEmpty else { return }
+        try database.transaction {
+            let delete = try database.prepare("DELETE FROM items WHERE id = ?1")
+            for id in ids {
+                try delete.bind([.text(id)])
+                try delete.run()
+            }
+        }
+    }
+
     /// The cached items, newest update first. A row that no longer decodes is skipped, not an error for the rest.
     public func items(now: Date = Date()) throws -> [BrowseItem] {
         try database.query(

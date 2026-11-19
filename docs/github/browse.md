@@ -66,9 +66,14 @@ says what a scope is:
 
 ### Quick jump
 
-`⌘K` opens the jump: type to find an org or account, or a repo of one. Orgs list their repo count. Matching repos
-follow (six at most) with *cloned ✓* or *not cloned* and how many items are open. `↩` goes there. A repo that is not
-cloned still browses: only starting an agent on it asks to clone first.
+`⌘K` opens the jump, the one dialog for "get me to X" and "find Y". Type to find a saved query, an org or account, or a
+repo of one. Saved queries lead, the ones you ran last first, each with its count; `↩` runs one. Orgs list their repo
+count. Matching repos follow (six at most) with *cloned ✓* or *not cloned* and how many items are open. `↩` goes there.
+A repo that is not cloned still browses: only starting an agent on it asks to clone first.
+
+When what you typed matches none of them, the last row is **Search GitHub for “…”**, and `⌘↩` picks it at any time.
+The words go to the add-filter card, so the model reads them into filters first (*Understood as*), or, with `[llm]`
+off, they search as text. `⌘F` and `/` work as before.
 
 ![The quick jump: an org with 1,240 repos, two matching repos, and the offer of a view of its own](../images/shots/github/browse-scope.png)
 
@@ -101,6 +106,34 @@ it. Browse searches items updated in the last 3 months (`max_age_days`). `e` lif
 items.
 
 `T` cycles the sort: updated, created, comments, oldest. `⌘F` narrows the rows by words over titles, repos and labels.
+
+## Staying current
+
+Browse asks GitHub again for the view you are on when you come back to it, so the list is not as old as your last
+look. Three things count as coming back: switching to Browse, the app coming to the front while Browse is the view,
+and the window regaining focus. Each asks only when the last answer for that same scope and query is older than
+`refresh_after` seconds (a minute), never while an earlier ask is still running, and it waits longer after each
+failure. Heed never raises a window or takes focus for it.
+
+The ask is quiet: no spinner, only *updated 2m ago* at the end of the line over the list. What came back lands in two
+parts:
+
+- **Rows you can see change in place, at once.** A new comment count, label, title, state, check or review changes on
+  its row and nowhere else, even while an item is open. A row that was touched keeps its place until you refresh.
+- **New, gone and reordered rows wait while you hold an item.** When the item under the cursor is in the reader, items
+  are picked, the reader is pushed, a run is working, or a sheet or form is open, a slim banner appears over the list,
+  such as *3 new · 1 gone · 5 reordered*. `r` (or a click on **Refresh**) applies it without asking GitHub again. The
+  cursor stays on its item, picks stay picked, and the new rows get a blue dot until the next answer. When the item
+  under the cursor is gone, the cursor moves to the nearest row and heed says so. Picked items that are gone are
+  dropped and counted. With nothing held, the list takes the answer at once.
+
+![The banner over the list: rows that came, went and moved while an item is open](../images/shots/github/browse-refresh-banner.png)
+
+When an ask fails, a banner says *Could not refresh* and why, and `r` tries again; the list you had stays as it was.
+Offline, the cached list stays untouched.
+
+Two settings: `auto_refresh` turns this off (entering Browse then still asks, as it did), and `refresh_after` is the
+seconds an answer stays fresh.
 
 ## Filtering
 
@@ -315,7 +348,7 @@ Where you are, what you picked and the query survive a resize.
 | `N` `D` | `browse.query.rename` `browse.query.delete` | Rename (and change glyph and tint), or remove, the saved query you are on |
 | `]Q` `[Q` | `browse.query.down` `browse.query.up` | Move the saved query down or up the rail |
 | `e` | `browse.older` | Show older items, or go back to the cap |
-| `r` | `browse.refresh` | Ask GitHub again |
+| `r` | `browse.refresh` | Apply the banner's new rows, or ask GitHub again |
 | `T` | `browse.sort` | Next sort |
 | `⌘F` | `session.filter` | Narrow the rows by words |
 | `space` `v` `a` | | Pick one, pick a range, pick all |
@@ -353,6 +386,8 @@ With items picked:
 | `reads` | `"ahead"` | `"ahead"` reads the top rows and the item under the cursor, `"open"` only that item, `"off"` only when you press `U` |
 | `read_ahead` | `20` | How many rows from the top of the view are read ahead. `0` reads none |
 | `max_runs` | `3` | How many agent runs may work at once (0 to 20). `0` sets no limit |
+| `auto_refresh` | `true` | Coming back to Browse asks GitHub again. `false` leaves it to `r` (entering Browse still asks) |
+| `refresh_after` | `60` | Seconds an answer stays fresh before coming back asks again (5 to 3600) |
 | `agent` | unset | The agent Browse's runs use: `claude`, `codex`, `opencode` or `gemini`. Unset, it is `[helpers] agent` |
 
 Reads follow `[llm]`: its switch, its daily limits and its back-off. See [Model calls](../agents/model-calls.md) and
@@ -360,9 +395,15 @@ the [configuration reference](../configuration/reference.md).
 
 ## What Browse does not do
 
-- **It fetches when you ask, not on a timer.** A list can be as old as your last look: `r` asks again, and the line
-  over the list says when GitHub is being asked.
+- **It fetches when you come back or ask, not on a timer.** A list you leave open and watch does not change by
+  itself: coming back to it (see Staying current) or `r` asks again, and the line over the list says how old it is.
 - **It brings in at most 300 items per search.** A longer result is filtered, not read: narrow the query.
+- **GitHub can time out on a very large search.** When it answers HTTP 502 or 504, Browse asks the same page again in
+  smaller pages (100, then 50, 25 and 10, then ten without the checks and requested reviewers, which then show as
+  unknown), waiting a moment between tries, and keeps the smaller size for that scope and query. If every size fails it
+  says so and keeps the list on screen: narrow the search to a repo, a label or a shorter age. A secondary rate limit is
+  waited out once, up to 30 seconds. Browse does not retry what a retry cannot fix: a sign-in or SAML problem, or a
+  query GitHub refuses.
 - **An org view is a filter GitHub applies,** language and archived. It has no topic or team filter, because GitHub's
   issue search has none, and it keeps no list of repos.
 - **Projects are a filter you type, not a scope.** Reading Project titles needs a GitHub token scope heed's default

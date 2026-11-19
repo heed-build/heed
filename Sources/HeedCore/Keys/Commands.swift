@@ -84,12 +84,19 @@ public enum Commands {
         ),
         .init(
             "agent.resume",
-            "resume the agent's conversation in a session whose agent is not running (the banner over its panes)",
+            "resume the agent's conversation in a session: its own resume, or the latest conversation in the directory "
+                + "when heed kept no id; greyed out while an agent runs in it",
+            .move
+        ),
+        .init(
+            "agent.resume.copy",
+            "copy the exact command heed would run to resume this session's agent, with its injected hooks, to the "
+                + "clipboard",
             .move
         ),
         .init(
             "agent.fresh",
-            "start the agent again from the session's original prompt, as the banner over its panes offers",
+            "start the agent again from the session's original prompt; greyed out while an agent runs in it",
             .move
         ),
         .init(
@@ -948,7 +955,7 @@ public enum Commands {
         .init("browse.query.prev", "Browse: the previous saved query", .selection),
         .init("browse.query.save", "Browse: keep the query you are on in the rail", .selection),
         .init("browse.older", "Browse: show items older than the cap, or go back to it", .selection),
-        .init("browse.refresh", "Browse: ask GitHub again", .selection),
+        .init("browse.refresh", "Browse: refresh the list", .selection),
         .init("browse.sort", "Browse: next sort (updated, created, comments, oldest)", .selection),
         .init(
             "browse.filter.add",

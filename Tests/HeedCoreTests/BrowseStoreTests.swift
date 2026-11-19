@@ -28,6 +28,14 @@ import Testing
         #expect(back[0].labels == ["bug"] && back[0].title.display == "Item 1")
     }
 
+    @Test func forgettingDropsOnlyTheItemsNamed() async throws {
+        let (store, _) = try store()
+        try await store.record([item(1), item(2, updated: 50), item(3, updated: 90)], now: now)
+        try await store.forget(ids: ["acme/docs#2", "acme/docs#9"])
+        try await store.forget(ids: [])
+        #expect(try await store.items(now: now).map(\.number) == [1, 3])
+    }
+
     @Test func aRowThatNoLongerDecodesIsSkipped() async throws {
         let (store, file) = try store()
         try await store.record([item(1), item(2, updated: 50)], now: now)

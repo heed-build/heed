@@ -497,3 +497,32 @@ struct DiffKeysTests {
         #expect(Commands.spec("diff.commit")?.arguments != nil)
     }
 }
+
+struct BrowseHoldsNoInsertTests {
+    /// Heed's menu and its commands switch views without a key, so a session you were typing into leaves INSERT
+    /// behind. Browse has no terminal: ⌘K there reached nothing.
+    @Test func switchingToBrowseFromInsertGoesBackToNormalAndCommandKOpensTheJump() {
+        let built = Keymaps.build()
+        var engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
+        engine.enter(.insert)
+        let inInsert = engine.handle(KeyStroke("k", .command))
+        #expect(inInsert == .terminal)
+        let left = engine.scopeChanged(to: "browse")
+        #expect(left)
+        #expect(engine.mode == .normal)
+        guard case let .run(invocation) = engine.handle(KeyStroke("k", .command)) else {
+            Issue.record("⌘K in Browse ran nothing")
+            return
+        }
+        #expect(invocation.name == "browse.scope")
+    }
+
+    @Test func viewsWithTerminalsKeepInsert() {
+        let built = Keymaps.build()
+        var engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
+        engine.enter(.insert)
+        let left = engine.scopeChanged(to: "sessions")
+        #expect(!left)
+        #expect(engine.mode == .insert)
+    }
+}

@@ -67,6 +67,7 @@ struct BrowseView: View {
         VStack(spacing: 0) {
             if layout == .third { BrowseCompactHeader() } else { BrowseHeader() }
             BrowseCount()
+            BrowseRefreshBanner(compact: layout == .third)
             if let refusal = model.browse.refusal {
                 BrowseRefusalView(refusal: refusal)
             } else {
@@ -581,6 +582,7 @@ struct BrowseCount: View {
                     .help(BrowseNumber.exact(total))
             }
             Text(capped ? "open · last \(browse.cap)" : "open").font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+                .lineLimit(1)
             if browse.settings.maxAgeDays > 0, !browse.query.hasOwnActivity {
                 Text(browse.query.showOlder ? "Back to \(browse.cap) ▸" : "Show older ▸")
                     .font(Theme.ui(12.5)).foregroundStyle(Theme.busy)
@@ -588,21 +590,91 @@ struct BrowseCount: View {
                     .tap { model.perform(CommandInvocation(name: "browse.older")) }
             }
             Spacer()
-            switch browse.load {
-            case .loading: Text("asking GitHub…").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-            case _ where browse.refusal != nil: EmptyView()
-            case let .failed(why): Text(why).font(Theme.ui(12)).foregroundStyle(Theme.err).lineLimit(1)
-            case .idle:
-                if let meta = browse.meta, meta.groupsTotal > meta.groups {
-                    Text(
-                        "first \(meta.groups) of \(meta.groupsTotal) org groups; narrow with \(model.keyText(for: "browse.scope", in: "browse"))"
-                    )
-                    .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-                }
+            // A refresh on its own is quiet: no "asking GitHub", only how old the list is.
+            if browse.refusal != nil {
+                EmptyView()
+            } else if browse.load == .loading, !browse.silent {
+                Text("asking GitHub…").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+            } else if let meta = browse.meta, meta.groupsTotal > meta.groups {
+                Text(
+                    "first \(meta.groups) of \(meta.groupsTotal) org groups; narrow with \(model.keyText(for: "browse.scope", in: "browse"))"
+                )
+                .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+            } else if let at = browse.meta?.fetchedAt {
+                BrowseUpdatedAgo(at: at)
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 9)
         .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+    }
+}
+
+/// `updated 2m ago`, counting on while the list is open.
+struct BrowseUpdatedAgo: View {
+    let at: Date
+
+    var body: some View {
+        if ShotMode.active {
+            text(now: Clock.now)
+        } else {
+            TimelineView(.periodic(from: .now, by: 20)) { context in text(now: context.date) }
+        }
+    }
+
+    private func text(now: Date) -> some View {
+        Text(verbatim: "updated \(Self.ago(at, now: now))").font(Theme.ui(12)).foregroundStyle(Theme.fg3).lineLimit(1)
+    }
+
+    static func ago(_ date: Date, now: Date) -> String {
+        let seconds = max(now.timeIntervalSince(date), 0)
+        if seconds < 45 { return "just now" }
+        return "\(shortAge(date, now: now)) ago"
+    }
+}
+
+/// Over the list: what a refresh found that waits for you (new, gone and reordered rows, held while an item is
+/// open), or why a refresh failed. One slim line; `r` applies or tries again.
+struct BrowseRefreshBanner: View {
+    @Environment(AppModel.self) private var model
+    var compact = false
+
+    var body: some View {
+        let browse = model.browse
+        if let diff = browse.pending {
+            line {
+                Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 10.5, weight: .semibold))
+                    .foregroundStyle(Theme.busy)
+                pip(diff.added.count, "new", Theme.busy)
+                pip(diff.removed.count, "gone", Theme.err)
+                pip(diff.moved.count, "reordered", Theme.fg3)
+                Spacer(minLength: 8)
+                KeyHint("browse.refresh", scope: "browse") { Text("Refresh").font(Theme.ui(12)) }
+            }
+        } else if case let .failed(why) = browse.load {
+            line {
+                Image(systemName: "exclamationmark.triangle").font(.system(size: 10.5)).foregroundStyle(Theme.err)
+                Text("Could not refresh: \(why)").font(Theme.ui(12)).foregroundStyle(Theme.fg2).lineLimit(1)
+                Spacer(minLength: 8)
+                KeyHint("browse.refresh", scope: "browse") { Text("Try again").font(Theme.ui(12)) }
+            }
+        }
+    }
+
+    private func line(@ViewBuilder _ content: () -> some View) -> some View {
+        HStack(spacing: 10, content: content)
+            .padding(.horizontal, 16).frame(height: compact ? 26 : 28)
+            .background(Theme.bg2)
+            .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+    }
+
+    @ViewBuilder private func pip(_ count: Int, _ word: String, _ tint: Color) -> some View {
+        if count > 0 {
+            HStack(spacing: 5) {
+                Circle().fill(tint).frame(width: 6, height: 6)
+                Text(verbatim: "\(count)").font(Theme.mono(11.5, weight: .semibold)).foregroundStyle(Theme.fg)
+                Text(word).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+            }.fixedSize()
+        }
     }
 }
 
@@ -674,8 +746,22 @@ struct BrowseRow: View {
         }
         .padding(.leading, 8).padding(.trailing, 16).padding(.vertical, 9)
         .overlay(alignment: .leading) { if index == cursor { Theme.busy.frame(width: 2) } }
+        .overlay(alignment: .topLeading) { BrowseFreshPip(id: item.id) }
         .background(isPicked ? Theme.block.opacity(0.16) : index == cursor ? Theme.bg3 : .clear)
         .overlay(alignment: .bottom) { Theme.line.opacity(0.6).frame(height: 1) }
+    }
+}
+
+/// The blue dot on a row a refresh just brought, until the next answer.
+struct BrowseFreshPip: View {
+    @Environment(AppModel.self) private var model
+    let id: String
+
+    var body: some View {
+        if model.browse.fresh.contains(id) {
+            Circle().fill(Theme.busy).frame(width: 6, height: 6).padding(.leading, 6).padding(.top, 8)
+                .help("new since the last refresh")
+        }
     }
 }
 
@@ -788,28 +874,20 @@ struct BrowsePaletteView: View {
                     Image(systemName: "magnifyingglass").foregroundStyle(Theme.fg2)
                     CaretText(input: palette.input).font(Theme.ui(15))
                     Spacer()
-                    Text("org or repo").font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
+                    Text("jump or search").font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
                 }
                 .padding(.horizontal, 18).padding(.vertical, 14)
                 Theme.line.frame(height: 1)
-                VStack(alignment: .leading, spacing: 0) {
-                    section("Orgs and accounts")
-                    ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
-                        if case let .org(org) = row { orgRow(org, selected: index == palette.cursor) }
+                if rows.count > Self.scrollsAbove {
+                    // Long lists scroll instead of running off the window.
+                    ScrollViewReader { proxy in
+                        ScrollView { content(rows) }
+                            .frame(maxHeight: 560)
+                            .onChange(of: palette.cursor) { _, cursor in proxy.scrollTo(cursor) }
                     }
-                    if rows.contains(where: { if case .repo = $0 { true } else { false } }) {
-                        section("Repos matching “\(palette.query)”")
-                        ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
-                            if case let .repo(repo) = row { repoRow(repo, selected: index == palette.cursor) }
-                        }
-                    }
-                    if case let .createOrgView(count)? = palette.guidance,
-                       case let .org(org)? = rows[safeRow: palette.cursor]
-                    {
-                        guidance(org: org.name, repos: count)
-                    }
+                } else {
+                    content(rows)
                 }
-                .padding(.bottom, 12)
             }
             .frame(width: 700)
             .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bg2))
@@ -820,13 +898,86 @@ struct BrowsePaletteView: View {
         }
     }
 
+    /// More rows than this scroll.
+    private static let scrollsAbove = 10
+
+    private func content(_ rows: [BrowsePalette.Row]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if rows.contains(where: { if case .query = $0 { true } else { false } }) {
+                section("Saved queries")
+                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                    if case let .query(saved) = row {
+                        queryRow(saved, selected: index == palette.cursor).id(index)
+                    }
+                }
+            }
+            if rows.contains(where: { if case let .org(org) = $0 { org.checkedOut } else { false } }) {
+                section("Orgs and accounts")
+            }
+            orgRows(rows, checkedOut: true)
+            if rows.contains(where: { if case .repo = $0 { true } else { false } }) {
+                section("Repos matching “\(palette.query)”")
+                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                    if case let .repo(repo) = row {
+                        repoRow(repo, selected: index == palette.cursor).id(index)
+                    }
+                }
+            }
+            orgRows(rows, checkedOut: false)
+            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                if case let .search(text) = row {
+                    searchRow(text, selected: index == palette.cursor).id(index)
+                }
+            }
+            if case let .createOrgView(count)? = palette.guidance,
+               case let .org(org)? = rows[safeRow: palette.cursor]
+            {
+                guidance(org: org.name, repos: count)
+            }
+        }
+        .padding(.bottom, 12)
+    }
+
     private func section(_ title: String) -> some View {
         Text(title.uppercased()).font(Theme.mono(10.5, weight: .semibold)).tracking(1).foregroundStyle(Theme.fg3)
             .padding(.horizontal, 18).padding(.top, 14).padding(.bottom, 6)
     }
 
+    private func orgRows(_ rows: [BrowsePalette.Row], checkedOut: Bool) -> some View {
+        ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+            if case let .org(org) = row, org.checkedOut == checkedOut {
+                orgRow(org, selected: index == palette.cursor).id(index)
+            }
+        }
+    }
+
+    private func queryRow(_ row: BrowsePalette.QueryRow, selected: Bool) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: row.query.glyph.symbol).font(.system(size: 13)).foregroundStyle(row.query.tint.color)
+                .frame(width: 22, height: 22)
+            Text(row.query.name).font(Theme.ui(13.5, weight: .semibold))
+            Spacer()
+            if let count = row.count { Text("\(count)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg2) }
+            if selected { Text("↩").font(Theme.mono(10)).foregroundStyle(Theme.fg3) }
+        }
+        .padding(.horizontal, 18).padding(.vertical, 7)
+        .background(selected ? Theme.bg3 : .clear)
+    }
+
+    private func searchRow(_ text: String, selected: Bool) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "magnifyingglass").font(.system(size: 13)).foregroundStyle(Theme.busy)
+                .frame(width: 22, height: 22)
+            Text("Search GitHub for “\(text)”").font(Theme.ui(13.5, weight: .semibold)).lineLimit(1)
+            Spacer()
+            if selected { Text("↩").font(Theme.mono(10)).foregroundStyle(Theme.fg3) }
+        }
+        .padding(.horizontal, 18).padding(.vertical, 7)
+        .background(selected ? Theme.bg3 : .clear)
+    }
+
     private func orgRow(_ org: BrowsePalette.Org, selected: Bool) -> some View {
-        let big = org.repoCount
+        let big = org.checkedOut && org.repoCount
             .map { BrowseGuidance.advice(repoCount: $0, threshold: palette.threshold) != .browse } ?? false
         return HStack(spacing: 12) {
             Text(String(org.name.prefix(1)).uppercased()).font(.system(size: 11, weight: .bold))
@@ -841,12 +992,14 @@ struct BrowsePaletteView: View {
                 )
                 .font(Theme.ui(13)).foregroundStyle(Theme.block)
             } else {
-                Text(detail(org)).font(Theme.ui(13)).foregroundStyle(Theme.fg2)
+                Text(org.checkedOut ? detail(org) : "not checked out: clone a repo first").font(Theme.ui(13))
+                    .foregroundStyle(Theme.fg2)
             }
             Spacer()
             if selected { Text("↩").font(Theme.mono(10)).foregroundStyle(Theme.fg3) }
         }
         .padding(.horizontal, 18).padding(.vertical, 7)
+        .opacity(org.checkedOut ? 1 : 0.55)
         .background(selected ? Theme.bg3 : .clear)
     }
 

@@ -453,8 +453,8 @@ public enum MenuBar {
                     ("Make a view of this org…", "browse.view.new"), ("Pick every item", "browse.select.all"),
                 ], in: ["browse", "browsebulk"]),
                 scoped("In Browse with items picked", [
-                    ("One session for the related ones", "browse.bulk.session"),
-                    ("A session for each", "browse.bulk.each"), ("A goal from all", "browse.bulk.goal"),
+                    ("One session for all the picks", "browse.bulk.session"),
+                    ("One session per repo", "browse.bulk.each"), ("A goal from all", "browse.bulk.goal"),
                     ("Label all…", "browse.bulk.label"), ("Assign all to me", "browse.bulk.assign"),
                     ("Comment on all…", "browse.bulk.comment"), ("Close all as…", "browse.bulk.close"),
                 ], in: ["browsebulk"]),

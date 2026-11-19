@@ -179,10 +179,10 @@ public enum AttentionFeed {
 public enum AttentionFilter: String, CaseIterable, Hashable, Sendable {
     /// The raw values are what `view.attention` and `attention.filter` take: `gp` is `view.attention mine`. The
     /// names before the tabs (`needs`, `tagged`, `inbox`) still work (`named`).
-    case forYou = "foryou", reviews, mentions, myPRs = "mine", agents, everything = "all", muted, ci, issues
+    case forYou = "foryou", reviews, mentions, assigned, myPRs = "mine", agents, everything = "all", muted, ci, issues
 
     /// The tabs over the list, in order; `t` steps through them and Muted.
-    public static let tabs: [AttentionFilter] = [.forYou, .reviews, .mentions, .myPRs, .agents, .everything]
+    public static let tabs: [AttentionFilter] = [.forYou, .reviews, .mentions, .assigned, .myPRs, .agents, .everything]
     /// What `t` steps through: the tabs, then Muted.
     public static let cycle: [AttentionFilter] = tabs + [.muted]
 
@@ -206,6 +206,7 @@ public enum AttentionFilter: String, CaseIterable, Hashable, Sendable {
         case .forYou: "For you"
         case .reviews: "Reviews"
         case .mentions: "Mentions"
+        case .assigned: "Assigned"
         case .myPRs: "My PRs"
         case .agents: "Agents"
         case .everything: "Everything"
@@ -223,6 +224,7 @@ public enum AttentionFilter: String, CaseIterable, Hashable, Sendable {
         case .forYou: item.wantsYou || item.reasons.contains(where: \.before)
         case .reviews: item.reasons.contains(.reviewRequested)
         case .mentions: !item.reasons.isDisjoint(with: [.mentioned, .teamMention, .mentionedBefore])
+        case .assigned: !item.reasons.isDisjoint(with: [.assigned, .assignedBefore])
         case .myPRs: item.reasons.contains(.yourPR)
         case .agents: item.kind == .agent
         case .everything: true

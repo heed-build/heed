@@ -222,7 +222,8 @@ private struct SectionRow: View {
     }
 }
 
-/// The tabs over the list: For you, Reviews, Mentions, My PRs, Agents, Everything, each with its count; Muted after
+/// The tabs over the list: For you, Reviews, Mentions, Assigned, My PRs, Agents, Everything, each with its count; Muted
+/// after
 /// them, quieter; CI or Issues while one of those is open (`view.attention ci`, `gi`).
 private struct AttentionTabs: View {
     @Environment(AppModel.self) private var model

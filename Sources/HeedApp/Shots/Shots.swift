@@ -881,6 +881,10 @@ enum Shots {
         Shot(id: "github/browse-half-detail", size: CGSize(width: 720, height: 900), keys: "gb", prepare: { model in
             model.browse.reading = true
         }),
+        Shot(
+            id: "github/browse-half-bulk", size: CGSize(width: 720, height: 900),
+            keys: "gb<Space>j<Space>jjj<Space>"
+        ),
         // Third width (480): no rail, two-line rows, the reader pushed, the jump sheet, bulk as a bottom sheet
         // (designs 13 to 16).
         Shot(id: "github/browse-third-list", size: CGSize(width: 480, height: 900), keys: "gb"),

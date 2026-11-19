@@ -56,8 +56,8 @@ final class BrowseModel {
     var orgBuilder: BrowseOrgBuilder?
     /// A GitHub bulk action on the picked items, on its step (typing, confirm, report).
     var bulk: BrowseBulkForm?
-    /// The Start work prompts a "session for each" has left to open, one as each form closes.
-    var eachQueue: [String] = []
+    /// The Start work forms a "session per repo" has left to open, one as each form closes.
+    var eachQueue: [BrowseEachSession] = []
     /// The layout Browse is drawn in, set by its view from the width it has, so commands can follow it.
     var layout = BrowseLayout.wide
     /// Half and third widths: the reader is pushed over the list (↩), and esc goes back to the list.
@@ -506,4 +506,10 @@ final class BrowseModel {
             self?.palette?.setRepoCount(count, of: owner)
         }
     }
+}
+
+/// One of the Start work forms a "session per repo" opens: the repo and the prompt for its picks.
+struct BrowseEachSession: Equatable {
+    var repo: String
+    var prompt: String
 }

@@ -1007,7 +1007,7 @@ public enum Commands {
         .init("browse.select.all", "Browse: pick every item in the view (again: none)", .selection),
         .init(
             "browse.bulk.session",
-            "Browse, with items picked: one session for the related ones, its prompt listing each issue with a Closes line",
+            "Browse, with items picked: one session for all of them, in every repo they are in, its prompt listing each issue with a Closes line",
             .selection
         ),
         .init(
@@ -1017,7 +1017,7 @@ public enum Commands {
         ),
         .init(
             "browse.bulk.each",
-            "Browse, with items picked: one session for each (asks first above \(BrowseBulk.eachCap))",
+            "Browse, with items picked: one session per repo (asks first above \(BrowseBulk.eachCap))",
             .selection
         ),
         .init(

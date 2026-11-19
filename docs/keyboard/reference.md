@@ -436,9 +436,9 @@ This page is generated from the code (`mise run shots`).
 | `browse.run.review.edit` | `E` (browse), `E` (browsebulk) | Browse: ask the agent to change the review it drafted before you post it |
 | `browse.run.review.discard` | `X` (browse), `X` (browsebulk) | Browse: throw the drafted review away; nothing is posted |
 | `browse.select.all` | `a` (browse), `a` (browsebulk) | Browse: pick every item in the view (again: none) |
-| `browse.bulk.session` | `s` (browsebulk) | Browse, with items picked: one session for the related ones, its prompt listing each issue with a Closes line |
+| `browse.bulk.session` | `s` (browsebulk) | Browse, with items picked: one session for all of them, in every repo they are in, its prompt listing each issue with a Closes line |
 | `browse.bulk.goal` | `G` (browsebulk) | Browse, with items picked: a goal from all of them, planned with you first |
-| `browse.bulk.each` | `S` (browsebulk) | Browse, with items picked: one session for each (asks first above 5) |
+| `browse.bulk.each` | `S` (browsebulk) | Browse, with items picked: one session per repo (asks first above 5) |
 | `browse.bulk.label` | `1` (browsebulk) | Browse, with items picked: add labels to all on GitHub, after a confirm step |
 | `browse.bulk.assign` | `A` (browsebulk) | Browse, with items picked: assign all to you on GitHub, after a confirm step |
 | `browse.bulk.comment` | `c` (browsebulk) | Browse, with items picked: comment on all on GitHub, after a confirm step |

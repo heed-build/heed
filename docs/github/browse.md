@@ -241,12 +241,36 @@ clears. With two items picked, the reader becomes a bulk panel.
 ![Four bugs picked: heed's note, and what to do with them](../images/shots/github/browse-bulk.png)
 
 heed's note names what it noticed: issues of one repo and one class that share a label or a title word. It does this
-from titles and labels, without asking a model, and never groups pull requests.
+from titles and labels, without asking a model, and never groups pull requests. The note is a suggestion: it words the
+prompt and never changes the choices below.
 
-- **One session for the related** (`s`): one worktree, one branch, one PR. heed writes the prompt from the issues, with
-  a `Closes` line for each. When heed finds no group, the button reads *One session for all N* and `s` still starts one session with every pick in the prompt; the prompt says they may be unrelated, promises no single pull request, and asks for one pull request per issue.
+With two items picked or more, the panel always offers the same two sessions, whatever the repos and whatever heed
+noticed:
+
+- **One session for all N** (`s`, the default and the outlined card): one session with every pick in its prompt. Each
+  line names its repo, and each issue gets a `Closes` line. When the picks are in one repo, that is one worktree, one
+  branch and one PR. When heed found no group, the prompt says the items may be unrelated and asks for one PR per issue.
+- **One session per repo** (`S`): one Start work form for each repo, one after the other, each with the prompt for that
+  repo's picks. Above five repos, heed asks first. When all the picks are in one repo this card is dimmed and says
+  *All N are in org/repo*: there is nothing to split.
+
+### A session over several repos
+
+When the picks are in more than one repo, `s` opens Start work with all of those repos chosen, the one with the most
+picks first (the first picked on a tie). A repo that is not on this Mac yet is cloned when the work starts, as a repo
+typed into Start work is. The session gets:
+
+- one worktree in each repo, all on the same branch name, made together;
+- the agent in the first repo's worktree, with a shell tab for each of the others;
+- a line at the end of its prompt naming the other worktrees and their paths, and, for Claude Code and Codex, their
+  paths as extra directories (`--add-dir`), so reading and editing them is not outside the agent's reach;
+- a prompt that lists each item with its repo, asks for one PR per repo (a PR cannot span repos), and has the
+  `Closes org/repo#n` lines grouped by repo.
+
+heed also notices a session that works in a second repo and offers to grow it into a goal (see
+[Goals](../goals/index.md#from-a-session)).
+
 - **A goal from all** (`G`): heed plans it with you first, and each item goes on the goal.
-- **A session for each** (`S`): one worktree per item. Above five, heed asks first.
 - **On GitHub:** **Label** (`1`), **Assign to me** (`A`), **Comment on all** (`c`) and **Close as...** (`x`: completed
   or not planned). Each opens a confirm step that lists exactly what changes on each item, and what it leaves alone
   and why. Nothing is written before you confirm. A write that fails does not stop the rest, and a report says what
@@ -266,6 +290,8 @@ Browse draws itself from the width of its own area, so a window in a split behav
 ![Half width: the icon rail and the list](../images/shots/github/browse-half-list.png)
 
 ![Half width: the reader pushed over the list](../images/shots/github/browse-half-detail.png)
+
+![Half width: picked items and their actions in a bottom sheet](../images/shots/github/browse-half-bulk.png)
 
 ![Third width: two-line rows, and the scope chip over them](../images/shots/github/browse-third-list.png)
 
@@ -309,8 +335,8 @@ With items picked:
 
 | Key | Command | Does |
 |---|---|---|
-| `s` | `browse.bulk.session` | One session for the related items |
-| `S` | `browse.bulk.each` | A session for each |
+| `s` | `browse.bulk.session` | One session for all the picks, in every repo they are in |
+| `S` | `browse.bulk.each` | One session per repo |
 | `G` | `browse.bulk.goal` | A goal from all |
 | `1` | `browse.bulk.label` | Label them on GitHub |
 | `A` | `browse.bulk.assign` | Assign them to you on GitHub |

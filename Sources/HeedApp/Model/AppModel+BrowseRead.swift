@@ -181,6 +181,8 @@ extension AppModel {
         }
         let advice = browseVerbs(item)[verb]
         guard advice.availability != .unavailable else { return say("\(verb.title): \(advice.reason)") }
+        // On a pull request Fix is Get it green: the PR tracking's own mode, not a run of its own.
+        if verb == .fix, item.kind == .pull { return perform(CommandInvocation(name: "pilot.green")) }
         startBrowseRun(verb, item: item)
     }
 

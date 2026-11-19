@@ -817,6 +817,26 @@ enum Shots {
         model.applyConfig(source: "[pilot]\ngreen_instructions = \"Resolve the threads you addressed.\"\n")
     }
 
+    /// A refresh that found new, gone and reordered rows while an item is open: the banner's diff, with no answer
+    /// behind it.
+    @MainActor static func previewRefresh(_ model: AppModel) {
+        let shown = model.browse.rows
+        guard let first = shown.first, shown.count > 8 else { return }
+        var fetched = Array(shown.dropLast(1))
+        fetched.removeAll { $0.id == shown[6].id }
+        fetched[4].updatedAt = first.updatedAt.addingTimeInterval(60)
+        fetched[5].updatedAt = first.updatedAt.addingTimeInterval(30)
+        for number in [9101, 9102, 9103] {
+            let item = BrowseItem(
+                repo: first.repo, number: number, title: ExternalText(
+                    "Fresh report \(number)", source: .issueTitle, author: .unknown
+                ), updatedAt: first.updatedAt.addingTimeInterval(Double(number - 9000))
+            )
+            fetched.append(item)
+        }
+        model.browse.previewPending(BrowseDiff.between(current: shown, fetched: fetched, order: .updated))
+    }
+
     /// Browse (`gb`): an org's open items with the thread beside them, and the quick jump with a big org's warning.
     static let browse: [Shot] = [
         Shot(id: "github/browse", keys: "gb"),
@@ -840,6 +860,19 @@ enum Shots {
         Shot(id: "github/browse-review-draft", keys: "gbjjjjjj", highlight: [.browseRun], prepare: { model in
             model.browse.runs.runs = [browseRun(412, .review, phase: .done(.endTurn))]
         }),
+        // A refresh while an item is open: new, gone and reordered rows wait behind the banner (the rows on screen
+        // already took their new fields).
+        Shot(id: "github/browse-refresh-banner", keys: "gb", prepare: { model in
+            Shots.previewRefresh(model)
+        }),
+        Shot(
+            id: "github/browse-refresh-banner-third",
+            size: CGSize(width: 480, height: 900),
+            keys: "gb",
+            prepare: { model in
+                Shots.previewRefresh(model)
+            }
+        ),
         Shot(id: "github/browse-scope", keys: "gb<D-k>gl"),
         // Four items picked: the reader is the bulk panel (design 4).
         Shot(id: "github/browse-bulk", keys: "gb<Space>j<Space>jjj<Space>jjjj<Space>"),

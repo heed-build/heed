@@ -6,6 +6,7 @@ public struct BrowseSettings: Equatable, Sendable {
     public static let defaultMaxAgeDays = 90
     public static let defaultReadAhead = 20
     public static let defaultMaxRuns = 3
+    public static let defaultRefreshAfter = 60
     public var maxAgeDays: Int
     /// An org with more repos than this is offered a view of its own before everything (0 never asks).
     public var manyRepos: Int
@@ -19,12 +20,19 @@ public struct BrowseSettings: Equatable, Sendable {
     public var maxRuns: Int
     /// `agent`: the agent Browse's runs use instead of `[helpers] agent`; nil: the helpers' choice.
     public var agent: String?
+    /// `auto_refresh`: coming back to Browse (the view, the app, the window) asks GitHub for the view you are on again.
+    public var autoRefresh: Bool
+    /// `refresh_after`: seconds since the last answer before coming back asks again.
+    public var refreshAfter: Int
 
     public init(
         maxAgeDays: Int = BrowseSettings.defaultMaxAgeDays, manyRepos: Int = BrowseGuidance.defaultThreshold,
         reads: AttentionSummaryMode = .ahead, readAhead: Int = BrowseSettings.defaultReadAhead,
-        maxRuns: Int = BrowseSettings.defaultMaxRuns, agent: String? = nil
+        maxRuns: Int = BrowseSettings.defaultMaxRuns, agent: String? = nil, autoRefresh: Bool = true,
+        refreshAfter: Int = BrowseSettings.defaultRefreshAfter
     ) {
+        self.autoRefresh = autoRefresh
+        self.refreshAfter = refreshAfter
         self.maxRuns = maxRuns
         self.agent = agent
         self.maxAgeDays = maxAgeDays

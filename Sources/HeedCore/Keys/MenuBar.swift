@@ -455,7 +455,7 @@ public enum MenuBar {
                     ("Jump to an org or repo…", "browse.scope"), ("Next scope", "browse.scope.next"),
                     ("Previous scope", "browse.scope.prev"), ("Next saved query", "browse.query.next"),
                     ("Previous saved query", "browse.query.prev"), ("Keep this query", "browse.query.save"),
-                    ("Show older", "browse.older"), ("Ask GitHub again", "browse.refresh"), ("Sort", "browse.sort"),
+                    ("Show older", "browse.older"), ("Refresh", "browse.refresh"), ("Sort", "browse.sort"),
                     ("Add a filter…", "browse.filter.add"), ("Remove the last filter", "browse.filter.remove"),
                     ("Rename this query…", "browse.query.rename"), ("Remove this query", "browse.query.delete"),
                     ("Move this query up", "browse.query.up"), ("Move this query down", "browse.query.down"),

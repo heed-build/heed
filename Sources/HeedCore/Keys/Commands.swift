@@ -955,7 +955,7 @@ public enum Commands {
         .init("browse.query.prev", "Browse: the previous saved query", .selection),
         .init("browse.query.save", "Browse: keep the query you are on in the rail", .selection),
         .init("browse.older", "Browse: show items older than the cap, or go back to it", .selection),
-        .init("browse.refresh", "Browse: ask GitHub again", .selection),
+        .init("browse.refresh", "Browse: refresh the list", .selection),
         .init("browse.sort", "Browse: next sort (updated, created, comments, oldest)", .selection),
         .init(
             "browse.filter.add",

@@ -82,12 +82,18 @@ public struct BrowseFilter: Hashable, Sendable {
 
     /// The items the query keeps, in `sort` order.
     public func apply(to items: [BrowseItem], sort: BrowseSort = .updated, now: Date) -> [BrowseItem] {
-        let kept = items.filter { matches($0, now: now) }
-        return switch sort {
-        case .updated: kept.sorted { ($0.updatedAt, $1.id) > ($1.updatedAt, $0.id) }
-        case .created: kept.sorted { ($0.createdAt, $1.id) > ($1.createdAt, $0.id) }
-        case .comments: kept.sorted { ($0.comments, $0.updatedAt) > ($1.comments, $1.updatedAt) }
-        case .oldest: kept.sorted { ($0.updatedAt, $0.id) < ($1.updatedAt, $1.id) }
+        sort.sorted(items.filter { matches($0, now: now) })
+    }
+}
+
+public extension BrowseSort {
+    /// `items` in this order; ties fall to the id, so the order is the same every time.
+    func sorted(_ items: [BrowseItem]) -> [BrowseItem] {
+        switch self {
+        case .updated: items.sorted { ($0.updatedAt, $1.id) > ($1.updatedAt, $0.id) }
+        case .created: items.sorted { ($0.createdAt, $1.id) > ($1.createdAt, $0.id) }
+        case .comments: items.sorted { ($0.comments, $0.updatedAt, $1.id) > ($1.comments, $1.updatedAt, $0.id) }
+        case .oldest: items.sorted { ($0.updatedAt, $0.id) < ($1.updatedAt, $1.id) }
         }
     }
 }

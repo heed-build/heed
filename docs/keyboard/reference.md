@@ -414,7 +414,7 @@ This page is generated from the code (`mise run shots`).
 | `browse.query.prev` | `[q` (browse), `[q` (browsebulk) | Browse: the previous saved query |
 | `browse.query.save` | `S` (browse) | Browse: keep the query you are on in the rail |
 | `browse.older` | `e` (browse), `e` (browsebulk) | Browse: show items older than the cap, or go back to it |
-| `browse.refresh` | `r` (browse), `r` (browsebulk) | Browse: ask GitHub again |
+| `browse.refresh` | `r` (browse), `r` (browsebulk) | Browse: refresh the list |
 | `browse.sort` | `T` (browse), `T` (browsebulk) | Browse: next sort (updated, created, comments, oldest) |
 | `browse.filter.add` | `/` (browse), `/` (browsebulk) | Browse: add a filter: pick a field, type words, or paste a GitHub query |
 | `browse.filter.remove` | `x` (browse) | Browse: take the last filter off the query |

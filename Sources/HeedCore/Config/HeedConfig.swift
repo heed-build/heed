@@ -823,6 +823,9 @@ public enum ConfigLoader {
                 ))
             }
         }
+        if let flag = bool(["browse", "auto_refresh"]) { config.browse.autoRefresh = flag }
+        if let seconds = integer(["browse", "refresh_after"], range: 5 ... 3600) { config.browse.refreshAfter = seconds
+        }
         if let text = string(["browse", "agent"]) {
             config.browse.agent = text.isEmpty ? nil : text
         }
@@ -1345,6 +1348,11 @@ public enum ConfigLoader {
     # How many agent runs (Fix, Implement, Chat, Review on an item) may work at once. Each runs in a temporary worktree and
     # counts against [helpers] spend_cap. 0 sets no limit.
     max_runs = 3
+    # Coming back to Browse (switching to it, the app coming forward, the window regaining focus) asks GitHub for the
+    # view you are on again, when the last answer is older than refresh_after seconds. Changes to rows you can see
+    # land at once; new, gone and reordered rows wait behind a banner while an item is selected (r applies it).
+    auto_refresh = true
+    refresh_after = 60
     # The agent Browse's runs use: claude, codex, opencode or gemini. Unset, it is [helpers] agent.
     # agent = "claude"
 

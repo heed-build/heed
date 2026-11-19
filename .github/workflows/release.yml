@@ -112,6 +112,9 @@ jobs:
           done
 
       - uses: ./.github/actions/setup
+        with:
+          # main's release build (ci's release-build job) saves this cache; ci's build job saves the debug one.
+          cache: release
 
       - name: Test
         if: steps.ci.outputs.tested == 'no'

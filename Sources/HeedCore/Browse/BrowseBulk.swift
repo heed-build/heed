@@ -125,11 +125,99 @@ public struct BrowseReport: Equatable, Sendable {
     }
 }
 
+/// The picks that are in one repo, in the order picked.
+public struct BrowseRepoPicks: Equatable, Sendable {
+    public var repo: Repo
+    public var items: [BrowseItem]
+}
+
+/// The two ways to start sessions from picked items: one session for all of them (the default, whatever the repos),
+/// or one per repo. Decided from the picks alone; heed's grouping only words the note and the prompt, it never
+/// narrows or changes these.
+public struct BrowseSessionChoices: Equatable, Sendable {
+    public struct Choice: Equatable, Sendable {
+        public var title: String
+        public var detail: String
+        /// False when the choice would be the other one (all picks in one repo): shown dimmed, says why.
+        public var available: Bool
+    }
+
+    public var one: Choice
+    public var perRepo: Choice
+    /// How many Start work forms `perRepo` opens.
+    public var perRepoCount: Int
+}
+
 public enum BrowseBulk {
     /// More than this many sessions at once asks first.
     public static let eachCap = 5
 
     public static func eachNeedsConfirm(_ count: Int) -> Bool { count > eachCap }
+
+    /// The picks grouped by repo, repos in the order they first appear.
+    public static func byRepo(_ items: [BrowseItem]) -> [BrowseRepoPicks] {
+        var groups: [BrowseRepoPicks] = []
+        for item in items {
+            if let index = groups.firstIndex(where: { $0.repo.slug == item.repo.slug }) {
+                groups[index].items.append(item)
+            } else {
+                groups.append(BrowseRepoPicks(repo: item.repo, items: [item]))
+            }
+        }
+        return groups
+    }
+
+    /// The repo one session for all starts in: the one with the most picks, the first picked on a tie. The other
+    /// repos' worktrees come with it.
+    public static func primaryRepo(_ items: [BrowseItem]) -> Repo? {
+        var best: BrowseRepoPicks?
+        for group in byRepo(items) where group.items.count > (best?.items.count ?? 0) {
+            best = group
+        }
+        return best?.repo
+    }
+
+    /// The repos of the picks, the primary one first, then the others as they were picked.
+    public static func reposPrimaryFirst(_ items: [BrowseItem]) -> [Repo] {
+        let all = byRepo(items).map(\.repo)
+        guard let primary = primaryRepo(items) else { return all }
+        return [primary] + all.filter { $0.slug != primary.slug }
+    }
+
+    /// `One session for all 4` and `One session per repo`, with what each does.
+    public static func sessionChoices(for items: [BrowseItem]) -> BrowseSessionChoices {
+        let groups = byRepo(items)
+        let count = items.count
+        let one: BrowseSessionChoices.Choice
+        let per: BrowseSessionChoices.Choice
+        if groups.count > 1 {
+            let primary = primaryRepo(items)?.name ?? ""
+            one = .init(
+                title: "One session for all \(count)",
+                detail: "One session with a worktree in each of the \(groups.count) repos and one pull request per repo. "
+                    + "It starts in \(primary) and is told where the others are.",
+                available: true
+            )
+            per = .init(
+                title: "One session per repo",
+                detail: "\(groups.count) sessions, one for each of \(groups.map(\.repo.name).joined(separator: ", "))"
+                    + (eachNeedsConfirm(groups.count) ? ": heed asks first." : "."),
+                available: true
+            )
+        } else {
+            one = .init(
+                title: "One session for all \(count)",
+                detail: "One worktree, one branch, one pull request. heed writes the prompt from the \(count) items.",
+                available: true
+            )
+            per = .init(
+                title: "One session per repo",
+                detail: "All \(count) are in \(groups.first?.repo.slug ?? ""): one session is the only split.",
+                available: false
+            )
+        }
+        return BrowseSessionChoices(one: one, perRepo: per, perRepoCount: groups.count)
+    }
 
     /// What `action` would do to each of `items`: nothing is written to build it.
     public static func plan(_ action: BrowseBulkAction, items: [BrowseItem]) -> BrowsePlan {

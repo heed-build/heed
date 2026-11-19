@@ -36,6 +36,32 @@ private func type(_ text: String, into form: inout StartWorkForm) {
     }
 }
 
+struct StartWorkSeveralReposTests {
+    @Test func browseChoosesSeveralReposWithTheFirstPrimaryAndTheyReachThePlan() {
+        var start = form("Work on these together")
+        start.choose(repos: ["acme/mobile", "acme/infra", "acme/mobile"])
+        #expect(start.selectedRepos == ["acme/mobile", "acme/infra"])
+        #expect(start.plan.repos.map(\.repo.name) == ["mobile", "infra"])
+        // Typing later does not undo the choice.
+        type(" now", into: &start)
+        #expect(start.selectedRepos == ["acme/mobile", "acme/infra"])
+    }
+
+    @Test func aRepoHeedDoesNotKnowIsKeptAsATypedOneToClone() {
+        var start = form("p")
+        start.choose(repos: ["acme/mobile", "acme/newcomer"])
+        #expect(start.typedRepos == ["acme/newcomer"])
+        #expect(start.plan.repos.map(\.repo.name) == ["mobile"])
+    }
+
+    @Test func choosingNothingChangesNothing() {
+        var start = form("p")
+        let before = start.selectedRepos
+        start.choose(repos: [])
+        #expect(start.selectedRepos == before)
+    }
+}
+
 struct StartWorkRepoAdviceTests {
     @Test func theModelsPickGoesOnTopWithWhyAndKeepsEveryOtherChip() throws {
         var start = form("look why deploys are slow")

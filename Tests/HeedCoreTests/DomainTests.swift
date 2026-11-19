@@ -142,9 +142,21 @@ struct StartWorkTests {
         #expect(layout.tabs.count == 2)
         let panes = layout.tabs[0].tree.panes
         #expect(panes.map(\.role) == [.agent, .shell])
-        #expect(panes[0].command?.posix == "claude p")
+        // A session in two repos tells its agent where the second worktree is, and lets claude read it.
+        let told = panes[0].command?.posix ?? ""
+        #expect(told.hasPrefix("claude --add-dir /wt/two/n "))
+        #expect(told.contains("This session works in 2 repos") && told.contains("- o/two: /wt/two/n"))
         #expect(layout.tabs[0].focused == panes[0].id)
         #expect(layout.tabs[1].tree.panes[0].directory == "/wt/two/n")
+    }
+
+    @Test func oneRepoSessionsAreNotToldAboutOthers() {
+        let record = RepoRecord(repo: repo, path: "/r1")
+        let plan = StartWorkPlan(prompt: "p", repos: [record], name: "n", agent: AgentProfile.builtIn[0])
+        let session = Session(title: "t", repos: [repo], branch: "n", agent: "claude", state: .init(.idle))
+        let worktree = Worktree(repo: repo, path: "/wt/n", branch: "n", head: "", isMain: false)
+        let panes = StartWork.layout(for: plan, session: session, worktrees: [worktree]).tabs[0].tree.panes
+        #expect(panes[0].command?.posix == "claude p")
     }
 
     @Test func guessesKeepHostsApartAndSayWhereARepoIs() {

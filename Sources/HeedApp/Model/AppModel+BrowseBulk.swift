@@ -1,7 +1,7 @@
 import AppKit
 import HeedCore
 
-/// Browse with more than one item picked: one session for the related ones, a goal from all, a session each, and
+/// Browse with more than one item picked: one session for all the picks, one per repo, a goal from all, and
 /// GitHub writes to all of them. What is decided is `HeedCore`'s (`BrowseGrouping`, `BrowseBulk`, `BrowseBulkForm`);
 /// this runs them. The agent verbs are for one item.
 extension AppModel {
@@ -11,7 +11,7 @@ extension AppModel {
         return browse.rows.filter { ids.contains($0.id) }
     }
 
-    /// heed's grouping of the picked items (nothing when none hang together).
+    /// heed's grouping of the picked items (nothing when none hang together): a note, never a narrowing.
     var browseBulkGroup: BrowseGroup? { BrowseGrouping.suggest(browseBulkItems, reads: browse.reads) }
 
     func performBrowseBulk(_ command: CommandInvocation) {
@@ -38,20 +38,35 @@ extension AppModel {
 
     // MARK: Sessions
 
-    /// `s`: one session for the related group heed noticed (the picks narrow to it), else for all the picks. Start
-    /// work opens with the prompt: each issue and its `Closes` line.
+    /// `s`: one session for all the picks, in every repo they are in. Start work opens with the prompt (each issue with
+    /// its repo and `Closes` line) and all the repos chosen, the one with most picks first.
     private func browseBulkSession() {
         let items = browseBulkItems
         guard items.count >= 2 else { return say("pick two items or more: space picks, v a range, a all") }
-        if let group = BrowseGrouping.suggest(items, reads: browse.reads) { pick(Set(group.ids), in: .browse) }
         perform(CommandInvocation(name: "items.start"))
     }
 
-    /// `S`: a Start work for each item, one after the other; more than five asks first.
+    /// The repos Start work opens with for `ids` picked in Browse: each once, the primary first; empty for one repo
+    /// (the form guesses it as it does for one item).
+    func browseSessionRepos(_ ids: [String]) -> [String] {
+        let items = browse.rows.filter { ids.contains($0.id) }
+        let found = BrowseBulk.reposPrimaryFirst(items)
+        guard found.count > 1 else { return [] }
+        return found.map { repo in
+            repos.first { $0.repo.slug == repo.slug && $0.location.isLocal }?.id ?? repo.slug
+        }
+    }
+
+    /// `S`: one session per repo, a Start work form for each, one after the other; more than five asks first. Picks
+    /// in one repo have nothing to split.
     private func browseBulkEach() {
         let items = browseBulkItems
         guard items.count >= 2 else { return say("pick two items or more: space picks, v a range, a all") }
-        if BrowseBulk.eachNeedsConfirm(items.count) {
+        let groups = BrowseBulk.byRepo(items)
+        guard groups.count > 1 else {
+            return say("all \(items.count) are in \(groups[0].repo.slug): one session (s) is the only split")
+        }
+        if BrowseBulk.eachNeedsConfirm(groups.count) {
             browse.bulk = BrowseBulkForm(each: items, viewer: browseViewer)
         } else {
             startEach(items)
@@ -59,29 +74,36 @@ extension AppModel {
     }
 
     private func startEach(_ items: [BrowseItem]) {
-        let prompts = items.map { item -> String in
-            if let verb = browseVerbs(item).recommended?.verb {
-                return BrowseWorkPrompts.prompt(verb, item: item).text
-            }
-            return BrowseWorkPrompts.told("", item: item).text
+        let groups = BrowseBulk.byRepo(items)
+        let prompts = groups.map { group in
+            BrowseWorkPrompts.together(
+                group.items, related: BrowseGrouping.suggest(group.items, reads: browse.reads) != nil,
+                instructions: startInstructions([group.repo])
+            ).text
         }
-        guard let first = items.first else { return }
+        guard let first = groups.first else { return }
         clearPicks()
-        browse.eachQueue = Array(prompts.dropFirst())
-        say("\(items.count) sessions: this is the first, the rest open as each closes")
+        browse.eachQueue = Array(zip(groups, prompts).dropFirst().map { group, prompt in
+            BrowseEachSession(repo: group.repo.slug, prompt: prompt)
+        })
+        say("\(groups.count) sessions, one per repo: this is the first, the rest open as each closes")
         openStartWork(
             prompt: prompts[0],
-            context: StartContext(repos: [first.repo.slug], label: "\(first.repo.name)#\(first.number)")
+            context: StartContext(repos: [first.repo.slug], label: first.repo.name),
+            repos: [repos.first { $0.repo.slug == first.repo.slug && $0.location.isLocal }?.id ?? first.repo.slug]
         )
     }
 
-    /// A Start work form closed: the next of a "session for each" opens.
+    /// A Start work form closed: the next of a "session per repo" opens.
     func browseEachNext() {
         guard !browse.eachQueue.isEmpty, startWork == nil else { return }
-        let prompt = browse.eachQueue.removeFirst()
+        let next = browse.eachQueue.removeFirst()
         let rest = browse.eachQueue.count
         say(rest == 0 ? "the last of the sessions" : "next session: \(rest) more after it")
-        openStartWork(prompt: prompt, fromCursor: false)
+        openStartWork(
+            prompt: next.prompt, fromCursor: false,
+            repos: [repos.first { $0.repo.slug == next.repo && $0.location.isLocal }?.id ?? next.repo]
+        )
     }
 
     // MARK: A goal

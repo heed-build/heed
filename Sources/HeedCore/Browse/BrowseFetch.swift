@@ -232,7 +232,10 @@ public enum BrowseFetch {
     """
 
     /// How many repos `owner` has, for the guidance on big orgs; nil when GitHub does not say.
-    public static func repoCount(owner: String, sleep: BrowseFetchPolicy.Sleeper = BrowseFetchPolicy.realSleep) async -> Int? {
+    public static func repoCount(
+        owner: String,
+        sleep: BrowseFetchPolicy.Sleeper = BrowseFetchPolicy.realSleep
+    ) async -> Int? {
         guard let data = try? await BrowseFetchPolicy.retrying(sleep: sleep, {
             try await GitHub.graphql(
                 repoCountQuery, operation: "browse repo count", variables: ["login": owner], caller: caller

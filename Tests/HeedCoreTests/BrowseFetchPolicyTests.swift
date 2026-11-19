@@ -58,7 +58,8 @@ private struct FakeGh {
     }
 
     var callCount: Int { (try? String(contentsOf: dir.appendingPathComponent("count"), encoding: .utf8))
-        .flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) } ?? 0 }
+        .flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) } ?? 0
+    }
 }
 
 /// Collects the waits a retry asked for, without waiting.
@@ -174,12 +175,15 @@ struct BrowseFetchPolicyTests {
 
     @Test func aSearchThatKeepsFailingGivesUpWithAMessageAfterTheLadder() async throws {
         var gh = try FakeGh()
-        for _ in 0 ..< 5 { try gh.fail(gh502) }
+        for _ in 0 ..< 5 {
+            try gh.fail(gh502)
+        }
         // A sixth call would find no answer scripted and exit 99, which is not transient: the cap on retries is
         // what these five calls prove.
         let sleeps = Sleeps()
         let text = await message(gh, sleeps: sleeps)
-        #expect(text == "GitHub timed out running this search (HTTP 502). Narrow it: a repo, a label, or a shorter age, then try again.")
+        #expect(text ==
+            "GitHub timed out running this search (HTTP 502). Narrow it: a repo, a label, or a shorter age, then try again.")
         #expect(gh.callCount == 5)
         #expect(await sleeps.waits == [.milliseconds(500), .seconds(1), .seconds(2), .seconds(2)])
         let sizes = try (1 ... 5).map { try gh.asked($0).size }
@@ -188,7 +192,9 @@ struct BrowseFetchPolicyTests {
 
     @Test func aGatewayPageOfHTMLNeverReachesThePerson() async throws {
         var gh = try FakeGh()
-        for _ in 0 ..< 5 { try gh.fail("", stdout: html) }
+        for _ in 0 ..< 5 {
+            try gh.fail("", stdout: html)
+        }
         let text = try #require(await message(gh))
         #expect(text.hasPrefix("GitHub timed out running this search"))
         #expect(!text.contains("<") && !text.contains("{"))
@@ -198,13 +204,19 @@ struct BrowseFetchPolicyTests {
 
     @Test(arguments: [
         ("gh: To use GitHub CLI, run: gh auth login", "gh is not signed in (gh auth login)"),
-        ("gh: HTTP 403: Resource protected by organization SAML enforcement",
-         "gh: HTTP 403: Resource protected by organization SAML enforcement"),
+        (
+            "gh: HTTP 403: Resource protected by organization SAML enforcement",
+            "gh: HTTP 403: Resource protected by organization SAML enforcement"
+        ),
         ("gh: HTTP 401: Bad credentials", "gh: HTTP 401: Bad credentials"),
-        ("gh: Could not resolve to an Organization with the login of 'nope'.",
-         "gh: Could not resolve to an Organization with the login of 'nope'."),
-        ("gh: Field 'nope' doesn't exist on type 'PullRequest'",
-         "gh: Field 'nope' doesn't exist on type 'PullRequest'"),
+        (
+            "gh: Could not resolve to an Organization with the login of 'nope'.",
+            "gh: Could not resolve to an Organization with the login of 'nope'."
+        ),
+        (
+            "gh: Field 'nope' doesn't exist on type 'PullRequest'",
+            "gh: Field 'nope' doesn't exist on type 'PullRequest'"
+        ),
     ])
     func aPermanentFailureIsNotRetried(_ failure: String, _ shown: String) async throws {
         var gh = try FakeGh()
@@ -247,7 +259,8 @@ struct BrowseFetchPolicyTests {
     @Test func theSecondaryRateLimitIsItsOwnKind() {
         let text = "You have exceeded a secondary rate limit. Please wait a few minutes before you try again."
         #expect(BrowseFetchPolicy.classify(text) == .rateLimited(wait: nil))
-        #expect(BrowseFetchPolicy.classify("was submitted too quickly. retry-after: 7") == .rateLimited(wait: .seconds(7)))
+        #expect(BrowseFetchPolicy
+            .classify("was submitted too quickly. retry-after: 7") == .rateLimited(wait: .seconds(7)))
     }
 
     @Test func theLadderIsOrderedAndEndsLight() {
@@ -330,7 +343,9 @@ struct BrowseFetchPolicyTests {
 
     @Test func theLastRungAsksForNoChecksAndTheChecksShowAsUnknown() async throws {
         var gh = try FakeGh()
-        for _ in 0 ..< 4 { try gh.fail(gh502) }
+        for _ in 0 ..< 4 {
+            try gh.fail(gh502)
+        }
         try gh.answer(page([1, 2], total: 2, light: true))
         let result = try await run(gh)
         let last = try gh.asked(5)
@@ -382,7 +397,9 @@ struct BrowseFetchPolicyTests {
         #expect(total == 42 && gh.callCount == 2)
 
         var down = try FakeGh()
-        for _ in 0 ..< 4 { try down.fail(gh502) }
+        for _ in 0 ..< 4 {
+            try down.fail(gh502)
+        }
         let waits = Sleeps()
         await #expect(throws: (any Error).self) {
             try await GitHub.$executable.withValue(down.path) {
@@ -433,10 +450,15 @@ struct BrowseFetchPolicyTests {
 
     @Test func explainNeverReturnsAGatewayPage() {
         let html = ProcessResult(status: 1, stdout: html, stderr: "")
-        #expect(GitHub.explain(html) == "GitHub did not answer in time" || GitHub.explain(html).hasPrefix("GitHub did not answer"))
+        #expect(GitHub.explain(html) == "GitHub did not answer in time" || GitHub.explain(html)
+            .hasPrefix("GitHub did not answer"))
         let gh = ProcessResult(status: 1, stdout: "", stderr: gh502)
         #expect(GitHub.explain(gh) == "GitHub did not answer (HTTP 502)")
-        let json = ProcessResult(status: 1, stdout: #"{"message":"Something went wrong while executing your query."}"#, stderr: "")
+        let json = ProcessResult(
+            status: 1,
+            stdout: #"{"message":"Something went wrong while executing your query."}"#,
+            stderr: ""
+        )
         #expect(!GitHub.explain(json).contains("{"))
     }
 }

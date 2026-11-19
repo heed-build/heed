@@ -17,7 +17,7 @@ public enum BrowseFetchPolicy {
     /// that still times out at ten is worth one try without them (the checks then show as unknown, never as passing).
     public static let rungs: [Rung] = [
         Rung(size: 100, light: false), Rung(size: 50, light: false), Rung(size: 25, light: false),
-        Rung(size: 10, light: false), Rung(size: 10, light: true)
+        Rung(size: 10, light: false), Rung(size: 10, light: true),
     ]
 
     /// The wait before the retry that follows the failure at rung `index`: 0.5 s, 1 s, 2 s, then 2 s.
@@ -53,22 +53,27 @@ public enum BrowseFetchPolicy {
             "gh auth login", "not logged", "not signed in", "http 401", "http 403", "http 404", "saml",
             "could not resolve", "bad credentials", "requires authentication", "resource not accessible",
             "gh is not installed", "could not start", "parse error", "validation failed", "unprocessable",
-            "field '", "doesn't exist on type"
+            "field '", "doesn't exist on type",
         ]
         if permanent.contains(where: lower.contains) { return .permanent }
         let code = httpCode(in: text)
         if let code, [502, 503, 504].contains(code) { return .transient(code: code) }
         let transient = [
-            "bad gateway", "did not answer", "service unavailable", "gateway time-out", "gateway timeout", "timeout", "timed out",
+            "bad gateway", "did not answer", "service unavailable", "gateway time-out", "gateway timeout", "timeout",
+            "timed out",
             "something went wrong while executing your query", "unexpected eof", ": eof", "connection reset",
-            "connection refused", "broken pipe", "i/o timeout", "no such host", "tls handshake"
+            "connection refused", "broken pipe", "i/o timeout", "no such host", "tls handshake",
         ]
         return transient.contains(where: lower.contains) ? .transient(code: nil) : .permanent
     }
 
     /// The HTTP status a failure names (`HTTP 502`, `502 Bad Gateway`), if any.
     public static func httpCode(in text: String) -> Int? {
-        for pattern in [#"HTTP[ /]\d\.?\d? (\d{3})"#, #"HTTP (\d{3})"#, #"\b(50[234]) (?:Bad Gateway|Service Unavailable|Gateway)"#] {
+        for pattern in [
+            #"HTTP[ /]\d\.?\d? (\d{3})"#,
+            #"HTTP (\d{3})"#,
+            #"\b(50[234]) (?:Bad Gateway|Service Unavailable|Gateway)"#,
+        ] {
             if let match = text.range(of: pattern, options: [.regularExpression, .caseInsensitive]),
                let digits = text[match].range(of: #"\d{3}"#, options: .regularExpression),
                let code = Int(text[match][digits])

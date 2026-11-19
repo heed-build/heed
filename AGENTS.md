@@ -28,6 +28,9 @@
   runs some tests and `-- --skip-build` reuses the build. It does not compile the app: run `mise run check` after
   touching `Sources/HeedApp`. `mise run test` and `mise run lint` before committing. Core logic goes in `HeedCore` with tests; the app layer
   stays thin.
+- CI builds are incremental: `scripts/pin-mtimes.sh` (run by the setup action) stamps each tracked file from its content,
+  because Swift Build rebuilds an input whose modification time changed and a fresh checkout changes all of them. Main
+  saves `.build` (the newest two per job are kept, `scripts/prune-caches.sh`) and pull requests restore it.
 - Text other people wrote (PR and issue text, comments, checks) is `ExternalText`, and what leaves heed for an agent
   is a `Prompt` (`Sources/HeedCore/Domain/Prompt.swift`). `mise run text-check` fails when either is
   interpolated into a plain String; run it after changing a prompt. CI reads the warnings of its own builds (the test

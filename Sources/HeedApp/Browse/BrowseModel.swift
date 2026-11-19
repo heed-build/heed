@@ -279,7 +279,7 @@ final class BrowseModel {
         var kept = BrowseFilter(
             query: query, viewer: viewer, maxAgeDays: settings.maxAgeDays, reads: reads, checkouts: checkouts
         )
-            .apply(to: pool ?? visible(query), sort: sort, now: now)
+        .apply(to: pool ?? visible(query), sort: sort, now: now)
         let words = search.trimmingCharacters(in: .whitespaces)
         if !words.isEmpty {
             let parts = words.split(separator: " ").map(String.init)
@@ -339,7 +339,8 @@ final class BrowseModel {
         let asked = BrowseQuery(scope: scope, tokens: [.state(.open)])
         guard BrowseFetch.refusal(for: asked, checkouts: checkouts) == nil else { return nil }
         return scopeTotals[scope.id] ?? BrowseFilter.count(
-            asked, in: items, viewer: viewer, maxAgeDays: settings.maxAgeDays, now: now, reads: reads, checkouts: checkouts
+            asked, in: items, viewer: viewer, maxAgeDays: settings.maxAgeDays, now: now, reads: reads,
+            checkouts: checkouts
         )
     }
 
@@ -351,7 +352,8 @@ final class BrowseModel {
         if !saved.query.localTokens.isEmpty, reads.isEmpty, !fixture { return nil }
         // A query with heed's own filters has more than GitHub's total: the cache's count, narrowed by the reads.
         return (saved.query.localTokens.isEmpty || fixture ? queryTotals[saved.id] : nil) ?? BrowseFilter.count(
-            asked, in: visible(asked), viewer: viewer, maxAgeDays: settings.maxAgeDays, now: now, reads: reads, checkouts: checkouts
+            asked, in: visible(asked), viewer: viewer, maxAgeDays: settings.maxAgeDays, now: now, reads: reads,
+            checkouts: checkouts
         )
     }
 

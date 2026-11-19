@@ -75,13 +75,18 @@ struct BrowseRailScopesTests {
     }
 
     @Test func anOrgWithNoCheckoutHasNoChevronAndNothingUnderItEvenWhenExpanded() {
-        let rows = BrowseRailScopes.rows(pinned: [.org("initech")], checkouts: checkouts([:]), expanded: ["initech"]).rows
+        let rows = BrowseRailScopes.rows(pinned: [.org("initech")], checkouts: checkouts([:]), expanded: ["initech"])
+            .rows
         #expect(rows.map(\.scope.id) == ["org:initech"])
         #expect(!rows[0].expandable && !rows[0].expanded)
     }
 
     @Test func theExpandedSetIsReadCaseInsensitively() {
-        let rows = BrowseRailScopes.rows(pinned: [], checkouts: checkouts(["Acme": 1]), expanded: [BrowseRailScopes.key("Acme")])
+        let rows = BrowseRailScopes.rows(
+            pinned: [],
+            checkouts: checkouts(["Acme": 1]),
+            expanded: [BrowseRailScopes.key("Acme")]
+        )
         #expect(rows.rows.map(\.scope.id) == ["org:acme", "own:acme", "repo:acme/r1"])
     }
 }

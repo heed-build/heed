@@ -201,7 +201,8 @@ public extension Fixtures {
         /// What the rail counts, as GitHub's searches would answer.
         public static let scopeTotals: [String: Int] = [
             BrowseScope.org("acme").id: 212, BrowseScope.repo(acmeDocs).id: 83, BrowseScope.repo(acmeIngest).id: 40,
-            BrowseScope.repo(acmeMarkgraph).id: 21, BrowseScope.org("globex").id: 64, BrowseScope.ownRepos("acme").id: 131,
+            BrowseScope.repo(acmeMarkgraph).id: 21, BrowseScope.org("globex").id: 64,
+            BrowseScope.ownRepos("acme").id: 131,
         ]
 
         public static let queries: [SavedQuery] = [

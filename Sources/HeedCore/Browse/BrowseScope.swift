@@ -80,7 +80,8 @@ public enum BrowseScope: Hashable, Sendable, Codable, Identifiable {
         case let .project(_, _, title): item.projects.contains { $0.caseInsensitiveCompare(title) == .orderedSame }
         case let .view(view): view.contains(item.repo)
         case let .ownRepos(org):
-            checkouts?.org(org)?.repos.contains { $0.slug.caseInsensitiveCompare(item.repo.slug) == .orderedSame } ?? false
+            checkouts?.org(org)?.repos
+                .contains { $0.slug.caseInsensitiveCompare(item.repo.slug) == .orderedSame } ?? false
         }
     }
 }

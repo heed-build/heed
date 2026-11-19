@@ -149,7 +149,8 @@ extension AppModel {
         case "browse.scope.next": browse.nextScope(by: 1); browseQueryChanged()
         case "browse.scope.prev": browse.nextScope(by: -1); browseQueryChanged()
         case "browse.scope.toggle":
-            guard let owner = browse.scope?.owner else { return say("pick an org first: \(keyText(for: "browse.scope", in: "browse"))") }
+            guard let owner = browse.scope?.owner
+            else { return say("pick an org first: \(keyText(for: "browse.scope", in: "browse"))") }
             browse.toggleExpansion(of: owner)
         case "browse.query.next": browse.nextQuery(by: 1); browseQueryChanged()
         case "browse.query.prev": browse.nextQuery(by: -1); browseQueryChanged()

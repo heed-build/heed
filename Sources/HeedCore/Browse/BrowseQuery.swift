@@ -146,8 +146,8 @@ public struct BrowseQuery: Hashable, Sendable, Codable {
     public func isCapped(maxAgeDays: Int) -> Bool { !showOlder && maxAgeDays > 0 && !hasOwnActivity }
 
     /// The GitHub search string, with `updated:>=` capped at `maxAgeDays` unless the query shows older items.
-    /// An org's own repos scope renders as the `repo:` qualifiers of `checkouts` (all of them: `BrowseFetch` splits them
-    /// into searches that fit); without checkouts it names nothing.
+    /// An org's own repos scope renders as the `repo:` qualifiers of `checkouts`, all of them (`BrowseFetch` splits
+    /// them into searches that fit); without checkouts it names nothing.
     public func rendered(maxAgeDays: Int, now: Date, checkouts: BrowseCheckouts? = nil) -> String {
         var parts: [String] = []
         if case let .ownRepos(org)? = scope {

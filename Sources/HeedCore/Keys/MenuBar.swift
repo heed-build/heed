@@ -298,6 +298,14 @@ public enum MenuBar {
             offered(title, name, in: sessionOffers, target: sessionTarget, otherwise: otherwise, checked: checked)
         }
 
+        /// As the session's right-click menu has it, title included: a greyed item says why in its text.
+        func offeredTitle(_ title: String, _ name: String) -> MenuEntry {
+            guard let offer = sessionOffers.first(where: { $0.command.name == name }) else {
+                return item(title, name, enabled: false, target: sessionTarget)
+            }
+            return .item(offer)
+        }
+
         /// As the right-click menu of the PR in front has it, or else the session's (which acts on all its PRs).
         func pull(_ title: String, _ name: String, otherwise: Bool = false) -> MenuEntry {
             offered(title, name, in: pullOffers + sessionOffers, target: pullTarget, otherwise: otherwise)
@@ -357,8 +365,9 @@ public enum MenuBar {
                 : .submenu("Hand off to…", ContextMenus.handoffItems(agents, target: sessionTarget ?? .session("")))
             return Menu("Session", [
                 session("Type into its agent", "session.agent"),
-                session("Resume its agent", "agent.resume"),
-                session("Start its agent fresh", "agent.fresh"),
+                offeredTitle("Resume its agent", "agent.resume"),
+                offeredTitle("Copy resume command", "agent.resume.copy"),
+                offeredTitle("Start its agent fresh", "agent.fresh"),
                 session("Restart to reconnect", "session.reconnect"),
                 item("Type into the focused pane", "mode.insert", enabled: facts.panes > 0),
                 .separator,

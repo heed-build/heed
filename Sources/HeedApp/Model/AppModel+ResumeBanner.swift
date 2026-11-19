@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import HeedCore
 
@@ -83,33 +84,87 @@ extension AppModel {
         return currentSession
     }
 
+    /// What the menus and keys do for a session now (`ResumePlan`).
+    func resumeDecision(_ purpose: ResumePlan.Purpose, for session: Session) -> ResumePlan.Decision {
+        ResumePlan.decide(
+            purpose, session: session, layout: layouts[session.id], agent: settings.agent(session.agent),
+            presence: agentPresence, conversationOnDisk: conversationChecks[session.id].onDisk
+        )
+    }
+
+    /// Why the session's resume items are greyed out, for its menus; nil when they can run.
+    func resumeBlocked(_ purpose: ResumePlan.Purpose, for session: Session) -> String? {
+        resumeDecision(purpose, for: session).reason
+    }
+
     /// `agent.resume` and `agent.fresh`: the same code as the launch dialog's, for one session, now. Resume continues
-    /// the agent's conversation; if the agent has lost it, this says so and starts fresh from the original prompt, as
-    /// the dialog does. Fresh always starts again from the prompt.
+    /// the agent's conversation: with the banner's offer that is `Resume.candidate` (a conversation the agent lost
+    /// starts fresh from the original prompt, as the dialog does); without it, a forced resume of the kept id, or of
+    /// the latest conversation in the directory when none was kept. Never while an agent runs in the session: that
+    /// only says so. Fresh always starts again from the prompt.
     func resumeAgent(_ target: CommandTarget?, fresh: Bool) {
         guard let session = bannerSession(target) else { return flash = "no session to resume" }
-        guard resumeOffer(for: session) != nil else {
-            return flash = "\(session.title): its agent is running, or has no conversation to resume"
-        }
+        let decision = resumeDecision(fresh ? .fresh : .resume, for: session)
+        if let reason = decision.reason { return flash = "\(session.title): \(reason)" }
         guard !isFixture else { return flash = "fixture: no IO" }
         let domain = currentDomain, settings = settings, integration = integration
-        Task { @MainActor in
-            let candidate = await Task.detached(priority: .userInitiated) {
-                Resume.candidate(for: session, domain: domain, settings: settings, integration: integration) {
-                    fresh ? false : Self.agentHasConversation($0, in: domain)
-                }
-            }.value
-            guard let candidate else { return flash = "\(session.title) has no pane to start \(session.agent) in" }
+        switch decision {
+        case .nothingToResume:
+            flash = "\(session.agent) has no conversation id kept here and no \"latest\" form: "
+                + "\(keyText(for: "agent.fresh", asIn: "sessions")) starts it fresh"
+        case .forcedResume, .forcedLatest:
+            guard let command = ResumePlan.command(
+                decision,
+                session: session,
+                settings: settings,
+                integration: integration
+            )
+            else { return flash = "\(session.title) has no pane to start \(session.agent) in" }
             resumeBannerDismissed.remove(session.id)
-            resumeSessions([candidate])
-            if candidate.startsFresh {
-                if !fresh { conversationChecks.set(session.id, exists: false) }
-                flash = fresh ? "\(session.agent) started fresh in \(session.title)"
-                    : "\(session.agent) no longer has that conversation: started fresh from the original prompt"
-            } else {
-                flash = "resumed \(session.agent)'s conversation in \(session.title)"
+            resumeSessions([ResumeCandidate(session: session, mode: .resumeOnly, command: command, paneCount: 1)])
+            flash = decision == .forcedLatest
+                ? "continuing \(session.agent)'s latest conversation in this directory (heed kept no id)"
+                : "resumed \(session.agent)'s kept id; heed did not find the conversation, the agent says if it is gone"
+        default:
+            Task { @MainActor in
+                let candidate = await Task.detached(priority: .userInitiated) {
+                    Resume.candidate(for: session, domain: domain, settings: settings, integration: integration) {
+                        fresh ? false : Self.agentHasConversation($0, in: domain)
+                    }
+                }.value
+                guard let candidate else { return flash = "\(session.title) has no pane to start \(session.agent) in" }
+                resumeBannerDismissed.remove(session.id)
+                resumeSessions([candidate])
+                if candidate.startsFresh {
+                    if !fresh { conversationChecks.set(session.id, exists: false) }
+                    flash = fresh ? "\(session.agent) started fresh in \(session.title)"
+                        : "\(session.agent) no longer has that conversation: started fresh from the original prompt"
+                } else {
+                    flash = "resumed \(session.agent)'s conversation in \(session.title)"
+                }
             }
         }
+    }
+
+    /// `agent.resume.copy`: the line `agent.resume` would run, on the clipboard (`ResumeCopy`). Allowed while the agent
+    /// runs, since it only copies text.
+    func copyResumeCommand(_ target: CommandTarget?) {
+        guard let session = bannerSession(target) else { return flash = "no session to copy a resume command for" }
+        let decision = resumeDecision(.copy, for: session)
+        if let reason = decision.reason { return flash = "\(session.title): \(reason)" }
+        guard let command = ResumePlan.command(decision, session: session, settings: settings, integration: integration)
+        else {
+            return flash = "\(session.agent) has no conversation id kept here and no \"latest\" form: nothing to copy"
+        }
+        let directory = layouts[session.id].flatMap { layout in
+            agentPane(in: layout)
+                .flatMap { _, id in layout.tabs.flatMap(\.tree.panes).first { $0.id == id }?.directory }
+        }
+        let line = ResumeCopy.line(command: command, directory: directory, shell: PaneShell.login())
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(line.text, forType: .string)
+        let left = line.excluded.isEmpty ? "" : " (left off: \(line.excluded.joined(separator: ", ")))"
+        flash = "copied: \(line.text)\(left)"
     }
 
     /// `agent.resume.dismiss`: the banner goes until heed restarts. The keys and menu items still resume.

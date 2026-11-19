@@ -132,6 +132,27 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
         return ShellCommand(environment: Self.assignments(environment), words: words)
     }
 
+    /// The arguments that continue the latest conversation in the directory the agent starts in, for a session whose
+    /// agent session id heed never kept. Checked against each CLI's `--help` on 2026-11-19: claude `--continue`,
+    /// codex `resume --last`, opencode `--continue`, pi `--continue`. gemini and cursor-agent were not installed to
+    /// check, so they have none here. Only the built-in names have one: a custom agent has no way to say it.
+    public var latestArguments: String? {
+        switch name {
+        case "claude", "opencode", "pi": "--continue"
+        case "codex": "resume --last"
+        default: nil
+        }
+    }
+
+    /// The command line that continues the latest conversation in the directory, or nil when this agent has no such
+    /// form (`latestArguments`). Built as `resumeCommand` is, so every injected argument is the same.
+    public func latestCommand(extraArguments: [String] = [], environment: [String: String] = [:]) -> ShellCommand? {
+        guard let latestArguments, resumeArguments != nil else { return nil }
+        let words: [ShellCommand.Word] = [.raw(command)] + extraArguments.map(ShellCommand.Word.text)
+            + [.raw(latestArguments)]
+        return ShellCommand(environment: Self.assignments(environment), words: words)
+    }
+
     private static func assignments(_ environment: [String: String]) -> [ShellCommand.Assignment] {
         environment.sorted { $0.key < $1.key }.map { ShellCommand.Assignment($0.key, .text($0.value)) }
     }

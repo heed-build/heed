@@ -12,6 +12,11 @@ what heed will post. heed pushes or posts nothing until you say so, or until the
 
 Your sessions stay real terminals. Helpers are what heed runs itself.
 
+**Requirement.** Helpers, and the [Fix, Implement, Chat and Review runs in Browse](../github/browse.md#fix-implement-chat-review),
+reach their agent over ACP. Claude's own command line does not speak ACP, so heed needs the ACP project's adapter,
+`npm install -g @agentclientprotocol/claude-agent-acp`, on your login shell's `PATH`. [Which agent](#which-agent) lists
+the adapter for each agent. Sessions you start yourself never need it.
+
 ## How heed talks to them
 
 Helpers speak the [Agent Client Protocol](https://agentclientprotocol.com) (ACP), version 1: JSON-RPC over the agent's

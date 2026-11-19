@@ -74,9 +74,9 @@ struct WhatsNewTests {
     /// rendered threads and 0.37 the settings redesign.
     @Test func theNewestVersionHasBrowse() {
         let newest = WhatsNew.items(since: nil, upTo: WhatsNew.newest.description).features.map(\.title)
-        #expect(WhatsNew.newest.description == "0.47.0")
+        #expect(WhatsNew.newest.description == "0.48.0")
         #expect(newest == ["Browse"])
-        #expect(WhatsNew.items(since: "0.46.0", upTo: "0.47.0").settings.map(\.id).contains("browse.reads"))
+        #expect(WhatsNew.items(since: "0.47.0", upTo: "0.48.0").settings.map(\.id).contains("browse.reads"))
         let threads = WhatsNew.items(since: "0.38.0", upTo: "0.39.0").features.map(\.title)
         #expect(threads == [
             "Catch up on a thread", "Threads read like GitHub", "Attention says what it has", "Attention, split",

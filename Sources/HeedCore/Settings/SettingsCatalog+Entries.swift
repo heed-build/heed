@@ -641,37 +641,37 @@ extension SettingsCatalog {
             "browse.max_age_days", .github, "Browse", "Browse: oldest item",
             "Browse searches for GitHub items updated within this many days; Show older lifts it for one view. 0 "
                 + "shows everything.",
-            level: .advanced, since: "0.47.0"
+            level: .advanced, since: "0.48.0"
         ) { .integer($0.browse.maxAgeDays) },
         global(
             "browse.many_repos", .github, "Browse", "Browse: many repos",
             "An org with more repos than this is offered a view of its own before Browse lists everything in it. 0 "
                 + "never asks.",
-            level: .advanced, since: "0.47.0"
+            level: .advanced, since: "0.48.0"
         ) { .integer($0.browse.manyRepos) },
         global(
             "browse.reads", .github, "Browse", "Browse: heed's read",
             "heed reads items (class, size, how agent-ready, a TL;DR) with a cheap model call, kept on this Mac and "
                 + "never written to GitHub. Ahead: the top rows of the view and the item under the cursor; On open: "
                 + "only the item under the cursor; Off: only when you ask.",
-            since: "0.47.0"
+            since: "0.48.0"
         ) { .text($0.browse.reads.rawValue) },
         global(
             "browse.read_ahead", .github, "Browse", "Browse: rows read ahead",
             "How many rows from the top of the view heed reads ahead of time, within the daily cap of model calls. 0 "
                 + "reads none ahead.",
-            level: .advanced, since: "0.47.0"
+            level: .advanced, since: "0.48.0"
         ) { .integer($0.browse.readAhead) },
         global(
             "browse.max_runs", .github, "Browse", "Browse: runs at once",
             "How many agent runs (Fix, Implement, Chat, Review) may work at once. Each runs in a temporary worktree and "
                 + "counts against the helpers' spend cap. 0 sets no limit.",
-            since: "0.47.0"
+            since: "0.48.0"
         ) { .integer($0.browse.maxRuns) },
         global(
             "browse.agent", .github, "Browse", "Browse: agent",
             "The agent Browse's runs use: claude, codex, opencode or gemini, over ACP. Unset, it is the helpers' agent.",
-            level: .advanced, since: "0.47.0"
+            level: .advanced, since: "0.48.0"
         ) { .text($0.browse.agent ?? "") },
     ]
 

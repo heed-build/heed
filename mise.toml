@@ -29,11 +29,15 @@ depends = ["build"]
 run = "open $BUILD_DIR/Heed.app"
 
 [tasks.test]
-description = "Swift Testing suite"
-run = "swift test --quiet"
+description = "Swift Testing suite, built without the app (-- --skip-build to reuse the build, -- --filter Name for some)"
+run = "scripts/test.sh"
+
+[tasks.check]
+description = "Compile the app (HeedApp, the helper, MLX, Ghostty) without running anything; `test` does not build them"
+run = "swift build"
 
 [tasks.text-check]
-description = "Fail when other people's text or a Prompt is interpolated into a plain String (rebuilds heed's sources; CI runs it)"
+description = "Fail when other people's text or a Prompt is interpolated into a plain String (CI reads the warnings of its builds; locally it builds in .build/text-check)"
 run = "scripts/text-check.sh"
 
 [tasks.live]

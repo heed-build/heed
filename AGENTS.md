@@ -24,11 +24,14 @@
 - `mise run bench` (`HEED_BENCH=1`) runs `Tests/HeedCoreTests/Bench`: timings, in an optimized build, one at a time. A test in
   the suite never asserts a duration (the suite runs in parallel on loaded machines); it checks what a cost comes from
   (reads, sizes, counts) and the timing goes to a bench.
-- `mise run test` and `mise run lint` before committing. Core logic goes in `HeedCore` with tests; the app layer
+- `mise run test` builds only HeedCore and its tests (no app, MLX, Sparkle or Ghostty), so it is the fast loop; `-- --filter Name`
+  runs some tests and `-- --skip-build` reuses the build. It does not compile the app: run `mise run check` after
+  touching `Sources/HeedApp`. `mise run test` and `mise run lint` before committing. Core logic goes in `HeedCore` with tests; the app layer
   stays thin.
 - Text other people wrote (PR and issue text, comments, checks) is `ExternalText`, and what leaves heed for an agent
-  is a `Prompt` (`Sources/HeedCore/Domain/Prompt.swift`). `mise run text-check` (CI runs it) fails when either is
-  interpolated into a plain String; run it after changing a prompt.
+  is a `Prompt` (`Sources/HeedCore/Domain/Prompt.swift`). `mise run text-check` fails when either is
+  interpolated into a plain String; run it after changing a prompt. CI reads the warnings of its own builds (the test
+  build and the release build), so nothing is compiled twice; locally it builds in `.build/text-check`.
 - Never block the main actor: no `Process.waitUntilExit`, file or network IO on it.
 - All libghostty calls live in `Sources/HeedTerminal`.
 - Keys: add a command to `Commands.all`, bind it in `DefaultKeys`, handle it in `AppModel.perform`. Never handle a key

@@ -596,7 +596,10 @@ public enum GitHub {
             timeout: .seconds(45), caller: caller, counts: graphqlCounts
         )
         let data = Data(result.stdout.utf8)
-        if !result.succeeded, (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["data"] == nil {
+        // `"data": null` is no answer either: GitHub puts a timeout there, with the error beside it.
+        if !result.succeeded,
+           !((try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["data"] is [String: Any])
+        {
             throw Failure(description: Self.explain(result))
         }
         return data
@@ -672,6 +675,10 @@ public enum GitHub {
         if text.contains("gh auth login") || text
             .contains("not logged") { return "gh is not signed in (gh auth login)" }
         if text.contains("could not start") { return "gh is not installed" }
+        // A 502 or a timeout is never shown as the HTML or JSON GitHub answered with.
+        if case let .transient(code) = BrowseFetchPolicy.classify(text) {
+            return "GitHub did not answer" + (code.map { " (HTTP \($0))" } ?? " in time")
+        }
         return text.split(separator: "\n").first.map(String.init) ?? "gh failed (exit \(result.status))"
     }
 

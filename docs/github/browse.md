@@ -312,6 +312,12 @@ the [configuration reference](../configuration/reference.md).
 - **It fetches when you ask, not on a timer.** A list can be as old as your last look: `r` asks again, and the line
   over the list says when GitHub is being asked.
 - **It brings in at most 300 items per search.** A longer result is filtered, not read: narrow the query.
+- **GitHub can time out on a very large search.** When it answers HTTP 502 or 504, Browse asks the same page again in
+  smaller pages (100, then 50, 25 and 10, then ten without the checks and requested reviewers, which then show as
+  unknown), waiting a moment between tries, and keeps the smaller size for that scope and query. If every size fails it
+  says so and keeps the list on screen: narrow the search to a repo, a label or a shorter age. A secondary rate limit is
+  waited out once, up to 30 seconds. Browse does not retry what a retry cannot fix: a sign-in or SAML problem, or a
+  query GitHub refuses.
 - **An org view is a filter GitHub applies,** language and archived. It has no topic or team filter, because GitHub's
   issue search has none, and it keeps no list of repos.
 - **Projects are a filter you type, not a scope.** Reading Project titles needs a GitHub token scope heed's default

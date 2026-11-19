@@ -10,12 +10,19 @@ public struct BrowsePalette: Sendable {
         public var openCount: Int?
         /// Your own account rather than an org.
         public var personal: Bool
+        /// Whether a repo of it is checked out. An org that is not is dimmed, shown only when typed, and picking it
+        /// says
+        /// to clone first instead of searching it.
+        public var checkedOut: Bool
 
-        public init(name: String, repoCount: Int? = nil, openCount: Int? = nil, personal: Bool = false) {
+        public init(
+            name: String, repoCount: Int? = nil, openCount: Int? = nil, personal: Bool = false, checkedOut: Bool = true
+        ) {
             self.name = name
             self.repoCount = repoCount
             self.openCount = openCount
             self.personal = personal
+            self.checkedOut = checkedOut
         }
     }
 
@@ -66,7 +73,9 @@ public struct BrowsePalette: Sendable {
     /// something is typed.
     public var rows: [Row] {
         let words = query.lowercased()
-        let matchedOrgs = orgs.filter { words.isEmpty || $0.name.lowercased().contains(words) }
+        // Orgs with a checkout always; the others only once something typed matches them.
+        let matches = orgs.filter { org in words.isEmpty ? org.checkedOut : org.name.lowercased().contains(words) }
+        let matchedOrgs = matches.filter(\.checkedOut) + matches.filter { !$0.checkedOut }
         var rows = matchedOrgs.map { Row.org($0) }
         if !words.isEmpty {
             let repos = listings.filter { $0.repo.slug.lowercased().contains(words) }.prefix(Self.repoLimit)
@@ -82,7 +91,7 @@ public struct BrowsePalette: Sendable {
 
     /// What the highlighted org's repo count says to do: nil for a repo row.
     public var guidance: BrowseGuidance? {
-        guard case let .org(org)? = rows[safe: cursor] else { return nil }
+        guard case let .org(org)? = rows[safe: cursor], org.checkedOut else { return nil }
         return org.repoCount.map { BrowseGuidance.advice(repoCount: $0, threshold: threshold) }
     }
 
@@ -101,6 +110,7 @@ public struct BrowsePalette: Sendable {
             guard let row = rows[safe: cursor] else { return .none }
             switch row {
             case let .org(org):
+                if !org.checkedOut { return .choose(.org(org.name)) }
                 if case .createOrgView = guidance { return .createOrgView(org.name) }
                 return .choose(.org(org.name))
             case let .repo(repo): return .choose(.repo(repo.listing.repo))

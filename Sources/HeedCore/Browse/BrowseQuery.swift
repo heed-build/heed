@@ -94,6 +94,47 @@ public struct BrowseQuery: Hashable, Sendable, Codable {
     public var githubTokens: [BrowseToken] { tokens.filter { !$0.isLocal } }
     public var localTokens: [BrowseToken] { tokens.filter(\.isLocal) }
 
+    /// Raw qualifiers that name a place.
+    private static let placeQualifiers: Set<String> = ["org", "repo", "project", "user"]
+
+    /// The place a raw token names (`repo:a/b`, `org:a`, `user:a`, `project:a/3`); nil for any other, a negated one
+    /// (it excludes) and an empty value.
+    static func rawPlace(_ text: String) -> BrowsePlace? {
+        guard !text.hasPrefix("-"), let colon = text.firstIndex(of: ":") else { return nil }
+        let key = text[..<colon].lowercased()
+        let value = unquote(String(text[text.index(after: colon)...]))
+        guard !value.isEmpty, placeQualifiers.contains(key) else { return nil }
+        return BrowsePlace.parse(value, isRepo: key == "repo")
+    }
+
+    /// Every place the query names: its scope and any org, repo, Project or raw place token.
+    public var places: [BrowsePlace] {
+        var found: [BrowsePlace] = []
+        switch scope {
+        case let .org(org): found.append(BrowsePlace(owner: org))
+        case let .repo(repo): found.append(BrowsePlace(owner: repo.org, repo: repo.slug))
+        case let .project(owner, _, _): found.append(BrowsePlace(owner: owner))
+        case let .view(view): found.append(BrowsePlace(owner: view.owner))
+        case nil: break
+        }
+        for token in tokens {
+            switch token {
+            case let .repo(value) where !value.isEmpty: found.append(.parse(value, isRepo: true))
+            case let .org(value) where !value.isEmpty: found.append(.parse(value, isRepo: false))
+            case let .project(value) where !value.isEmpty: found.append(.parse(value, isRepo: false))
+            case let .raw(text): if let place = Self.rawPlace(text) { found.append(place) }
+            default: break
+            }
+        }
+        return found
+    }
+
+    /// Whether the query names a place of its own, so the default scope does not apply and no scope is added to it.
+    public var hasOwnPlace: Bool { !places.isEmpty }
+
+    /// Whether the query says where to look. One that does not runs inside what is checked out (the default scope).
+    public var isBounded: Bool { hasOwnPlace }
+
     /// Whether the query carries its own `updated:` token, so the cap does not apply.
     public var hasOwnActivity: Bool {
         tokens.contains { if case .activity = $0 { true } else { false } }

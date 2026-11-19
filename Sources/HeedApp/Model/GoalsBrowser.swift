@@ -108,7 +108,11 @@ final class GoalsBrowser {
     /// The fake world laid into the in-memory store; what is laid over it waits for this.
     @ObservationIgnored var fixtureLoad: Task<Void, Never>?
 
-    private(set) var snapshot = GoalSnapshot.empty
+    private(set) var snapshot = GoalSnapshot.empty {
+        didSet { onSnapshot?() }
+    }
+    /// Told when the snapshot changes (Browse's goal marks follow it).
+    @ObservationIgnored var onSnapshot: (() -> Void)?
     /// The goals the list shows, in order, narrowed by `/`.
     private(set) var rows: [HeedGoal] = []
     private(set) var cursor = 0

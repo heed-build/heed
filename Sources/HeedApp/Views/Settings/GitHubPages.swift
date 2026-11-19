@@ -40,6 +40,15 @@ struct GitHubPage: View {
                     step: 1
                 )
             }
+            SettingRow("browse.auto_refresh") {
+                ConfigSwitch(path: ["browse", "auto_refresh"], isOn: model.config.browse.autoRefresh)
+            }
+            SettingRow("browse.refresh_after", unit: "s") {
+                NumberField(
+                    path: ["browse", "refresh_after"], value: model.config.browse.refreshAfter, unit: "s",
+                    range: 5 ... 3600, step: 15
+                )
+            }
             SettingRow("browse.agent") {
                 ConfigTextField(
                     path: ["browse", "agent"], value: model.config.browse.agent ?? "", placeholder: "claude",

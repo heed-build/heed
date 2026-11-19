@@ -145,6 +145,7 @@ struct BrowseCompactRow: View {
         }
         .padding(.leading, picked.isEmpty ? 14 : 12).padding(.trailing, 14).padding(.vertical, 9)
         .overlay(alignment: .leading) { if index == cursor { Theme.busy.frame(width: 2) } }
+        .overlay(alignment: .topLeading) { BrowseFreshPip(id: item.id) }
         .background(isPicked ? Theme.block.opacity(0.16) : index == cursor ? Theme.bg3 : .clear)
         .overlay(alignment: .bottom) { Theme.line.opacity(0.6).frame(height: 1) }
     }

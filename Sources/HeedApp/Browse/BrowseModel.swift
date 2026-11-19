@@ -70,6 +70,24 @@ final class BrowseModel {
     private(set) var settings = BrowseSettings()
     private(set) var viewer: String?
     let fixture: Bool
+    /// What an answer changes in the list that waits for you (new, gone and reordered rows), while an item is held.
+    private(set) var pending: BrowseDiff?
+    /// The rows the last automatic refresh brought: marked until the next answer lands.
+    private(set) var fresh: Set<String> = []
+    /// The refresh in flight asks quietly: no spinner, no "asking GitHub".
+    private(set) var silent = false
+    /// When each scope and query was last answered, and how many fetches failed in a row, the last one when.
+    @ObservationIgnored private var answered: [BrowseQuery: Date] = [:]
+    @ObservationIgnored private var failures = 0
+    @ObservationIgnored private var failedAt: Date?
+    /// The held answer: what GitHub listed, and the rows it no longer lists.
+    @ObservationIgnored private var held: (fetched: [BrowseItem], gone: Set<String>)?
+    /// What the list is held by (the cursor, the picks, the reader, a run, a sheet): set by the app model.
+    @ObservationIgnored var holdState: (() -> BrowseRefreshPolicy.State)?
+    /// Where the cursor and the picks are, so a held diff keeps them.
+    @ObservationIgnored var cursorState: (() -> (id: String?, index: Int, picks: Set<String>))?
+    /// The cursor and the picks after a held diff was applied.
+    @ObservationIgnored var adopt: ((BrowseRefreshApply.Outcome) -> Void)?
     /// What happens once a fetch landed: the ahead reads of the view.
     @ObservationIgnored var landed: (() -> Void)?
     @ObservationIgnored private var fetchTask: Task<Void, Never>?
@@ -142,12 +160,22 @@ final class BrowseModel {
 
     // MARK: What the list shows
 
-    func refilter(now: Date = Clock.now) { rows = narrowed(query, now: now) }
+    /// Draws the cache narrowed by the query. While an answer is held, the rows keep the places they have: a read
+    /// arriving or a bulk action must not reorder the list under the cursor.
+    func refilter(now: Date = Clock.now) {
+        let next = narrowed(query, now: now)
+        guard held != nil else { return rows = next }
+        let place = Dictionary(rows.enumerated().map { ($1.id, $0) }) { first, _ in first }
+        rows = next.enumerated().sorted {
+            (place[$0.element.id] ?? Int.max, $0.offset) < (place[$1.element.id] ?? Int.max, $1.offset)
+        }.map(\.element)
+        recomputePending(now: now)
+    }
 
     /// The items `query` keeps, in the sort order, and the search words (`/` in the list) over them.
-    private func narrowed(_ query: BrowseQuery, now: Date) -> [BrowseItem] {
+    private func narrowed(_ query: BrowseQuery, now: Date, from pool: [BrowseItem]? = nil) -> [BrowseItem] {
         var kept = BrowseFilter(query: query, viewer: viewer, maxAgeDays: settings.maxAgeDays, reads: reads)
-            .apply(to: items, sort: sort, now: now)
+            .apply(to: pool ?? items, sort: sort, now: now)
         let words = search.trimmingCharacters(in: .whitespaces)
         if !words.isEmpty {
             let parts = words.split(separator: " ").map(String.init)
@@ -190,12 +218,14 @@ final class BrowseModel {
 
     func setSearch(_ text: String) {
         search = text
+        discardPending()
         refilter()
     }
 
     func cycleSort() {
         let all = BrowseSort.allCases
         sort = all[(all.firstIndex(of: sort)! + 1) % all.count]
+        discardPending()
         refilter()
     }
 
@@ -273,6 +303,7 @@ final class BrowseModel {
     }
 
     func changed() {
+        discardPending()
         refilter()
         remember()
         fetch()
@@ -288,47 +319,182 @@ final class BrowseModel {
 
     // MARK: Asking GitHub
 
+    /// How an answer meets the list.
+    enum Landing {
+        /// You asked (a new scope or query, `r`): the list becomes the answer.
+        case replace
+        /// Coming back asked: rows you can see change in place, and new, gone and reordered rows wait when an item is
+        /// held.
+        case refresh
+    }
+
     /// Asks GitHub for the query, off the main actor. What the cache held stays on screen until the answer lands; a
     /// failure leaves it and says why. Never in the fake world.
-    func fetch() {
+    func fetch(_ landing: Landing = .replace) {
         guard !fixture, started, query.scope != nil || !query.tokens.isEmpty else { return }
         fetchTask?.cancel()
         let asked = query
         let days = settings.maxAgeDays
         load = .loading
+        silent = landing == .refresh
         fetchTask = Task { [weak self] in
             do {
                 let result = try await BrowseFetch.search(asked, maxAgeDays: days)
                 guard !Task.isCancelled, let self else { return }
-                land(result, for: asked)
+                land(result, for: asked, landing)
             } catch is CancellationError {
                 return
             } catch {
                 guard !Task.isCancelled, let self else { return }
+                failures += 1
+                failedAt = Date()
+                silent = false
                 load = .failed((error as? GitHub.Failure)?.description ?? error.localizedDescription)
             }
         }
     }
 
-    private func land(_ result: BrowseFetch.Result, for asked: BrowseQuery) {
+    /// What the refresh policy reads of this model: how old the last answer for this scope and query is, whether a
+    /// fetch runs, how the last ones went.
+    func refreshState(now: Date = Date()) -> BrowseRefreshPolicy.State {
+        var state = BrowseRefreshPolicy.State()
+        state.autoRefresh = settings.autoRefresh
+        state.refreshAfter = settings.refreshAfter
+        state.age = answered[query].map { now.timeIntervalSince($0) }
+        state.inFlight = load == .loading
+        state.failures = failures
+        state.sinceFailure = failedAt.map { now.timeIntervalSince($0) }
+        state.fixture = fixture || !started
+        state.hasQuery = query.scope != nil || !query.tokens.isEmpty
+        return state
+    }
+
+    private func land(_ result: BrowseFetch.Result, for asked: BrowseQuery, _ landing: Landing) {
         guard asked == query else { return }
-        var byID = Dictionary(items.map { ($0.id, $0) }) { _, last in last }
-        for item in result.items {
-            byID[item.id] = item
-        }
-        items = Array(byID.values)
         meta = Meta(total: result.total, capped: result.capped, hidden: result.hidden, fetchedAt: result.fetchedAt)
+        answered[asked] = result.fetchedAt
+        failures = 0
+        failedAt = nil
         if let scope = asked.scope, asked.tokens == [.state(.open)] { scopeTotals[scope.id] = result.total }
         if let id = activeQuery, asked.localTokens.isEmpty {
             queryTotals[id] = result.total
             countedAt[id] = Date()
         }
         load = .idle
-        refilter()
-        landed?()
+        silent = false
+        fresh = []
+        let gone = BrowseRefreshApply.gone(shown: rows, fetched: result.items, capped: result.capped)
         let store = store
         let kept = result.items
         Task { try? await store?.record(kept, now: Date()) }
+        let holding = landing == .refresh && (holdState?().holds ?? false)
+        if holding {
+            hold(result.items, gone: gone)
+        } else if landing == .refresh, let cursor = cursorState?() {
+            // Nothing is held: the list becomes the answer, the cursor staying on its item.
+            held = nil
+            pending = nil
+            let outcome = replace(with: result.items, gone: gone, cursor: cursor)
+            adopt?(outcome)
+        } else {
+            held = nil
+            pending = nil
+            var byID = Dictionary(items.map { ($0.id, $0) }) { _, last in last }
+            for item in result.items {
+                byID[item.id] = item
+            }
+            items = byID.values.filter { !gone.contains($0.id) }
+            forget(gone)
+            refilter()
+        }
+        landed?()
+    }
+
+    /// An answer under a held item: the rows on screen take their new fields at once, where they are; the rest waits.
+    private func hold(_ fetched: [BrowseItem], gone: Set<String>) {
+        let shown = Set(rows.map(\.id))
+        var byID = Dictionary(items.map { ($0.id, $0) }) { _, last in last }
+        for item in fetched where shown.contains(item.id) {
+            byID[item.id] = item
+        }
+        items = Array(byID.values)
+        held = (fetched, gone)
+        let latest = Dictionary(fetched.map { ($0.id, $0) }) { _, last in last }
+        rows = rows.map { latest[$0.id] ?? $0 }
+        recomputePending()
+    }
+
+    /// The list a held answer would make, against what is on screen.
+    private func recomputePending(now: Date = Clock.now) {
+        guard let held else { return pending = nil }
+        var byID = Dictionary(items.map { ($0.id, $0) }) { _, last in last }
+        for item in held.fetched {
+            byID[item.id] = item
+        }
+        let target = narrowed(query, now: now, from: byID.values.filter { !held.gone.contains($0.id) })
+        let latest = Dictionary(held.fetched.map { ($0.id, $0) }) { _, last in last }
+        // Rows on screen take their fields now, so what is left is only what moves, comes or goes.
+        rows = rows.map { latest[$0.id] ?? $0 }
+        let diff = BrowseDiff.between(current: rows, fetched: target, order: sort)
+        if diff.isStructural {
+            pending = diff
+        } else {
+            pending = nil
+            self.held = nil
+        }
+    }
+
+    private func replace(
+        with fetched: [BrowseItem], gone: Set<String>, cursor: (id: String?, index: Int, picks: Set<String>)
+    ) -> BrowseRefreshApply.Outcome {
+        var byID = Dictionary(items.map { ($0.id, $0) }) { _, last in last }
+        for item in fetched {
+            byID[item.id] = item
+        }
+        items = byID.values.filter { !gone.contains($0.id) }
+        forget(gone)
+        let target = narrowed(query, now: Clock.now)
+        let diff = BrowseDiff.between(current: rows, fetched: target, order: sort)
+        let outcome = BrowseRefreshApply.apply(
+            diff, to: rows, cursorID: cursor.id, cursorIndex: cursor.index, picks: cursor.picks
+        )
+        rows = outcome.rows
+        fresh = outcome.fresh
+        return outcome
+    }
+
+    /// Makes the held answer the list (`r` on the banner): the cursor stays on its item, the picks that still exist
+    /// stay picked.
+    func applyPending() {
+        guard let held, let cursor = cursorState?() else { return }
+        recomputePending()
+        guard pending != nil else { return }
+        var byID = Dictionary(items.map { ($0.id, $0) }) { _, last in last }
+        for item in held.fetched {
+            byID[item.id] = item
+        }
+        items = byID.values.filter { !held.gone.contains($0.id) }
+        forget(held.gone)
+        self.held = nil
+        pending = nil
+        let outcome = replace(with: [], gone: [], cursor: cursor)
+        adopt?(outcome)
+    }
+
+    /// The fake world's: a held diff drawn as given (the shots and previews), with no answer behind it.
+    func previewPending(_ diff: BrowseDiff?) { pending = diff }
+
+    private func discardPending() {
+        held = nil
+        pending = nil
+        fresh = []
+    }
+
+    /// Drops rows GitHub no longer lists from the cache, so a restart does not bring them back.
+    private func forget(_ ids: Set<String>) {
+        guard !ids.isEmpty else { return }
+        let store = store
+        Task { try? await store?.forget(ids: Array(ids)) }
     }
 
     /// How many repos an org has, asked once for the guidance on big ones.

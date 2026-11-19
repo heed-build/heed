@@ -67,6 +67,7 @@ struct BrowseView: View {
         VStack(spacing: 0) {
             if layout == .third { BrowseCompactHeader() } else { BrowseHeader() }
             BrowseCount()
+            BrowseRefreshBanner(compact: layout == .third)
             ListBody(
                 count: rows.count,
                 cursor: cursor,
@@ -516,6 +517,7 @@ struct BrowseCount: View {
             Text("\(browse.query.localTokens.isEmpty ? browse.meta?.total ?? browse.rows.count : browse.rows.count)")
                 .font(Theme.ui(12.5, weight: .semibold))
             Text(capped ? "open · last \(browse.cap)" : "open").font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+                .lineLimit(1)
             if browse.settings.maxAgeDays > 0, !browse.query.hasOwnActivity {
                 Text(browse.query.showOlder ? "Back to \(browse.cap) ▸" : "Show older ▸")
                     .font(Theme.ui(12.5)).foregroundStyle(Theme.busy)
@@ -523,14 +525,84 @@ struct BrowseCount: View {
                     .tap { model.perform(CommandInvocation(name: "browse.older")) }
             }
             Spacer()
-            switch browse.load {
-            case .loading: Text("asking GitHub…").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-            case let .failed(why): Text(why).font(Theme.ui(12)).foregroundStyle(Theme.err).lineLimit(1)
-            case .idle: EmptyView()
+            // A refresh on its own is quiet: no "asking GitHub", only how old the list is.
+            if browse.load == .loading, !browse.silent {
+                Text("asking GitHub…").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+            } else if let at = browse.meta?.fetchedAt {
+                BrowseUpdatedAgo(at: at)
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 9)
         .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+    }
+}
+
+/// `updated 2m ago`, counting on while the list is open.
+struct BrowseUpdatedAgo: View {
+    let at: Date
+
+    var body: some View {
+        if ShotMode.active {
+            text(now: Clock.now)
+        } else {
+            TimelineView(.periodic(from: .now, by: 20)) { context in text(now: context.date) }
+        }
+    }
+
+    private func text(now: Date) -> some View {
+        Text(verbatim: "updated \(Self.ago(at, now: now))").font(Theme.ui(12)).foregroundStyle(Theme.fg3).lineLimit(1)
+    }
+
+    static func ago(_ date: Date, now: Date) -> String {
+        let seconds = max(now.timeIntervalSince(date), 0)
+        if seconds < 45 { return "just now" }
+        return "\(shortAge(date, now: now)) ago"
+    }
+}
+
+/// Over the list: what a refresh found that waits for you (new, gone and reordered rows, held while an item is
+/// open), or why a refresh failed. One slim line; `r` applies or tries again.
+struct BrowseRefreshBanner: View {
+    @Environment(AppModel.self) private var model
+    var compact = false
+
+    var body: some View {
+        let browse = model.browse
+        if let diff = browse.pending {
+            line {
+                Image(systemName: "arrow.triangle.2.circlepath").font(.system(size: 10.5, weight: .semibold))
+                    .foregroundStyle(Theme.busy)
+                pip(diff.added.count, "new", Theme.busy)
+                pip(diff.removed.count, "gone", Theme.err)
+                pip(diff.moved.count, "reordered", Theme.fg3)
+                Spacer(minLength: 8)
+                KeyHint("browse.refresh", scope: "browse") { Text("Refresh").font(Theme.ui(12)) }
+            }
+        } else if case let .failed(why) = browse.load {
+            line {
+                Image(systemName: "exclamationmark.triangle").font(.system(size: 10.5)).foregroundStyle(Theme.err)
+                Text("Could not refresh: \(why)").font(Theme.ui(12)).foregroundStyle(Theme.fg2).lineLimit(1)
+                Spacer(minLength: 8)
+                KeyHint("browse.refresh", scope: "browse") { Text("Try again").font(Theme.ui(12)) }
+            }
+        }
+    }
+
+    private func line(@ViewBuilder _ content: () -> some View) -> some View {
+        HStack(spacing: 10, content: content)
+            .padding(.horizontal, 16).frame(height: compact ? 26 : 28)
+            .background(Theme.bg2)
+            .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+    }
+
+    @ViewBuilder private func pip(_ count: Int, _ word: String, _ tint: Color) -> some View {
+        if count > 0 {
+            HStack(spacing: 5) {
+                Circle().fill(tint).frame(width: 6, height: 6)
+                Text(verbatim: "\(count)").font(Theme.mono(11.5, weight: .semibold)).foregroundStyle(Theme.fg)
+                Text(word).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+            }.fixedSize()
+        }
     }
 }
 
@@ -602,8 +674,22 @@ struct BrowseRow: View {
         }
         .padding(.leading, 8).padding(.trailing, 16).padding(.vertical, 9)
         .overlay(alignment: .leading) { if index == cursor { Theme.busy.frame(width: 2) } }
+        .overlay(alignment: .topLeading) { BrowseFreshPip(id: item.id) }
         .background(isPicked ? Theme.block.opacity(0.16) : index == cursor ? Theme.bg3 : .clear)
         .overlay(alignment: .bottom) { Theme.line.opacity(0.6).frame(height: 1) }
+    }
+}
+
+/// The blue dot on a row a refresh just brought, until the next answer.
+struct BrowseFreshPip: View {
+    @Environment(AppModel.self) private var model
+    let id: String
+
+    var body: some View {
+        if model.browse.fresh.contains(id) {
+            Circle().fill(Theme.busy).frame(width: 6, height: 6).padding(.leading, 6).padding(.top, 8)
+                .help("new since the last refresh")
+        }
     }
 }
 

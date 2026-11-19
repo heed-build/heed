@@ -848,6 +848,7 @@ final class AppModel {
         await offerResume(domain: cached)
         checkConversations()
         startAwayTracking()
+        startBrowseActivation()
         startNudges()
         startGitHubSync()
         startScreenReading()

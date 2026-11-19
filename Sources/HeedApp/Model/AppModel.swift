@@ -6138,6 +6138,11 @@ final class AppModel {
         case .prs:
             let byID = Dictionary(pullRows.map { ($0.id, $0.ref) }) { first, _ in first }
             return actionIDs(.prs).compactMap { byID[$0] }
+        case .browse:
+            // The open pull requests among the picked rows, or the one under the cursor.
+            let ids = Set(actionIDs(.browse))
+            return browse.rows.filter { ids.contains($0.id) && $0.kind == .pull && $0.state == .open }
+                .map { PullRef(repo: $0.repo, number: $0.number) }
         case .sessions:
             return (currentSession?.trackedPRs ?? []).filter(isOpen)
         case .attention:

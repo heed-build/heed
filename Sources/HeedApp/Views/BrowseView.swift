@@ -778,12 +778,14 @@ struct BrowseReader: View {
     var body: some View {
         let run = model.browse.runs.current(for: item.id)
         if let run, run.phase != .needsClone, run.phase != .cloning || !run.worktree.isEmpty {
-            // A run is on the item: the title and what it says, then the run, which takes the rest of the reader.
-            VStack(alignment: .leading, spacing: 0) {
-                header
-                    .padding(.horizontal, 28).padding(.top, 22).padding(.bottom, 14)
-                    .frame(maxWidth: 900, alignment: .leading)
-                BrowseRunPanel(run: run).frame(maxWidth: 900)
+            // A run is on the item: a horizontal split. The issue or PR stays readable on top, the run takes the
+            // rest below it, so what the agent is working on is never hidden by what it does.
+            GeometryReader { geometry in
+                VStack(spacing: 0) {
+                    thread(actions: false).frame(height: max(geometry.size.height * Self.threadShare, 140)).clipped()
+                    Theme.line.frame(height: 1)
+                    BrowseRunPanel(run: run).frame(maxWidth: 900).frame(maxWidth: .infinity)
+                }
             }
         } else {
             let work = if let run { AnyView(BrowseCloneCard(run: run).frame(maxWidth: 900)) } else {
@@ -804,17 +806,12 @@ struct BrowseReader: View {
         }
     }
 
-    private var header: some View {
-        let conversation = model.conversation(item.repo, item.number)
-        return ThreadHeader(
-            repo: item.repo, kind: item.kind == .pull ? .pr : .issue, number: item.number,
-            title: conversation?.title ?? item.title.display,
-            author: conversation?.author?.login ?? item.author,
-            openedAt: conversation?.createdAt ?? item.createdAt, chips: chips
-        )
-    }
+    /// The share of the reader the thread keeps while a run is on the item.
+    static let threadShare: CGFloat = 0.38
 
-    private var thread: some View {
+    private var thread: some View { thread(actions: true) }
+
+    private func thread(actions: Bool) -> some View {
         let conversation = model.conversation(item.repo, item.number)
         let key = ThreadConversation.key(repo: item.repo, number: item.number)
         return Scrolling {
@@ -826,7 +823,7 @@ struct BrowseReader: View {
                     openedAt: conversation?.createdAt ?? item.createdAt, chips: chips
                 )
                 BrowseReadCard(item: item)
-                if model.browse.layout != .wide { BrowseItemActions(item: item, compact: compact) }
+                if actions, model.browse.layout != .wide { BrowseItemActions(item: item, compact: compact) }
                 if let conversation {
                     ThreadConversationView(conversation: conversation, seenAt: nil)
                 } else if let error = model.threads[key]?.error {

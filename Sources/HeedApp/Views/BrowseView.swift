@@ -248,6 +248,8 @@ struct Scrolling<Content: View>: View {
 }
 
 struct BrowseRail: View {
+    /// The repos with nothing open stay out of the rail unless asked for.
+    @State private var showEmptyRepos = false
     @Environment(AppModel.self) private var model
     let compact: Bool
 
@@ -272,7 +274,13 @@ struct BrowseRail: View {
                 }
                 allCheckoutsRow
                 let rail = railScopes
-                ForEach(rail.rows) { row in scopeRow(row.scope, indent: row.indent) }
+                let shown = showEmptyRepos
+                    ? (rows: rail.rows, hidden: 0)
+                    : BrowseRailScopes.hidingEmpty(
+                        rail.rows, count: { model.browse.count(of: $0) }, keeping: model.browse.scope
+                    )
+                ForEach(shown.rows) { row in scopeRow(row.scope, indent: row.indent) }
+                if shown.hidden > 0 || showEmptyRepos { emptyReposRow(shown.hidden) }
                 if rail.more > 0 { moreRow(rail.more) }
                 if rail.rows.isEmpty {
                     Text("Nothing is checked out yet: Add or clone a repo.").font(Theme.ui(12))
@@ -412,6 +420,17 @@ struct BrowseRail: View {
                 .frame(width: 20, height: 20)
                 .background(Circle().fill(Theme.done.opacity(0.18)))
         }
+    }
+
+    /// The repos with nothing open are left out of the rail; this row says how many and brings them back.
+    private func emptyReposRow(_ hidden: Int) -> some View {
+        Text(showEmptyRepos ? "hide repos with nothing open" : "\(hidden) with nothing open: show")
+            .font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
+            .padding(.leading, compact ? 0 : 50).padding(.vertical, 5)
+            .frame(maxWidth: .infinity, alignment: compact ? .center : .leading)
+            .opacity(compact ? 0 : 1)
+            .contentShape(Rectangle())
+            .tap { showEmptyRepos.toggle() }
     }
 
     private func moreRow(_ count: Int) -> some View {

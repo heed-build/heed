@@ -245,6 +245,14 @@ struct BrowseBuilderTests {
         #expect(picked.context.wordsOff == "model calls are off")
     }
 
+    @Test func wordsHandedOverFromTheQuickJumpAreReadEvenWhenTheyNameAField() {
+        var picked = builder()
+        #expect(picked.askWords("labels that rot") == .read("labels that rot"))
+        var off = builder(off: "model calls are off")
+        guard case let .apply(query) = off.askWords("labels that rot") else { Issue.record("not applied"); return }
+        #expect(query.tokens.last == .text("labels that rot"))
+    }
+
     @Test func commandReturnSearchesWordsAsTextWithoutAskingTheModel() {
         var picked = builder()
         type("anchors", into: &picked)

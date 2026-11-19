@@ -29,9 +29,15 @@ extension AppModel {
 
     var browseRecords: [RepoRecord] { isFixture ? Fixtures.Browse.records : repos }
 
+    /// Browse works inside what is checked out: the orgs of `repos`, as they are now.
+    func refreshBrowseCheckouts() {
+        browse.setCheckouts(BrowseCheckouts(records: browseRecords))
+    }
+
     /// Into Browse: the cached list draws at once, GitHub is asked for a fresh one.
     func enteredBrowse() {
         browse.configure(config.browse, viewer: github.viewer)
+        refreshBrowseCheckouts()
         browse.refilter()
         if (itemCursor[.browse] ?? 0) >= browse.rows.count { itemCursor[.browse] = 0 }
         browse.landed = { [weak self] in self?.queueAheadBrowseReads() }
@@ -55,6 +61,7 @@ extension AppModel {
 
     func performBrowse(_ command: CommandInvocation) {
         browse.configure(config.browse, viewer: github.viewer)
+        refreshBrowseCheckouts()
         switch command.name {
         case "view.browse": view = .browse
         case "browse.open":
@@ -159,17 +166,21 @@ extension AppModel {
         let cache = repoListCache ?? RepoListCache.load()
         repoListCache = cache
         let listed = AddRepoForm.orgs(records: repos, listed: cache.orgs, viewer: github.viewer)
-        var orgs = listed.map { name in
+        let checkouts = browse.checkouts
+        // Every checked-out org is listed, with or without a GitHub list; the others only as typed text matches.
+        let names = checkouts.orgNames + listed.filter { !checkouts.contains(org: $0) }
+        var orgs = names.map { name in
             BrowsePalette.Org(
                 name: name,
-                repoCount: browse.repoCounts[name.lowercased()] ?? cache.lists[name]?.listings.count
+                repoCount: browse.repoCounts[name.lowercased()] ?? cache.lists[name]?.listings.count,
+                checkedOut: checkouts.contains(org: name)
             )
         }
         if let viewer = github.viewer {
             orgs.insert(
                 .init(
                     name: viewer, repoCount: browse.repoCounts[viewer.lowercased()] ?? cache.lists[""]?.listings.count,
-                    personal: true
+                    personal: true, checkedOut: checkouts.contains(org: viewer)
                 ), at: 0
             )
         }
@@ -190,7 +201,7 @@ extension AppModel {
             let orgs = await GitHub.orgs(caller: "browse.scope")
             guard let self else { return }
             for org in orgs where !known.contains(org) {
-                browse.palette?.orgs.append(.init(name: org))
+                browse.palette?.orgs.append(.init(name: org, checkedOut: browse.checkouts.contains(org: org)))
                 browse.learnRepoCount(of: org)
             }
             for owner in known + orgs.filter({ !known.contains($0) })

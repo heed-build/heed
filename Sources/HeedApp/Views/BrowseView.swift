@@ -67,20 +67,24 @@ struct BrowseView: View {
         VStack(spacing: 0) {
             if layout == .third { BrowseCompactHeader() } else { BrowseHeader() }
             BrowseCount()
-            ListBody(
-                count: rows.count,
-                cursor: cursor,
-                ids: rows.map(\.id),
-                empty: emptyText,
-                hintView: .browse
-            ) { index in
-                if layout == .third {
-                    BrowseCompactRow(item: rows[index], index: index, cursor: cursor, picked: picked)
-                } else {
-                    BrowseRow(
-                        item: rows[index], index: index, cursor: cursor, isPicked: picked.contains(rows[index].id),
-                        anyPicked: !picked.isEmpty, narrow: layout == .half
-                    )
+            if let refusal = model.browse.refusal {
+                BrowseRefusalView(refusal: refusal)
+            } else {
+                ListBody(
+                    count: rows.count,
+                    cursor: cursor,
+                    ids: rows.map(\.id),
+                    empty: emptyText,
+                    hintView: .browse
+                ) { index in
+                    if layout == .third {
+                        BrowseCompactRow(item: rows[index], index: index, cursor: cursor, picked: picked)
+                    } else {
+                        BrowseRow(
+                            item: rows[index], index: index, cursor: cursor, isPicked: picked.contains(rows[index].id),
+                            anyPicked: !picked.isEmpty, narrow: layout == .half
+                        )
+                    }
                 }
             }
             if layout != .wide, picked.count >= 2 { BrowseBulkPanel(sheet: true) }
@@ -90,12 +94,55 @@ struct BrowseView: View {
     private var emptyText: String {
         let browse = model.browse
         if !model.filter(for: .browse).isEmpty { return "Nothing matches /\(model.filter(for: .browse))." }
-        if browse.scope == nil, browse.query.tokens.isEmpty {
-            return "Pick an org or a repo with \(model.keyText(for: "browse.scope", in: "browse"))."
-        }
         if case let .failed(why) = browse.load { return "GitHub did not answer: \(why)" }
         if browse.load == .loading { return "Asking GitHub…" }
         return "Nothing here in the last \(browse.cap). \(model.keyText(for: "browse.older", in: "browse")) shows older items."
+    }
+}
+
+// MARK: Refusals
+
+/// The list when Browse would not search: an org that is not checked out, or nothing checked out at all. Read only,
+/// nothing is fetched, and no error banner: it says what to do.
+struct BrowseRefusalView: View {
+    @Environment(AppModel.self) private var model
+    let refusal: BrowseFetchError
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "externaldrive.badge.plus").font(.system(size: 26)).foregroundStyle(Theme.fg3)
+            switch refusal {
+            case .unbounded:
+                Text("Check out a repo first").font(Theme.ui(15, weight: .semibold))
+                Text("Browse searches the orgs and repos you have checked out.")
+                    .font(Theme.ui(13)).foregroundStyle(Theme.fg2)
+                button("Add or clone") { model.perform(CommandInvocation(name: "repo.add")) }
+            case let .notCheckedOut(name):
+                Text("\(name) isn't checked out").font(Theme.ui(15, weight: .semibold))
+                Text(
+                    "Browse searches orgs and repos you have checked out. Clone it (Add or clone), then it shows up here."
+                )
+                .font(Theme.ui(13)).foregroundStyle(Theme.fg2).multilineTextAlignment(.center)
+                button("Clone \(name)") { model.openAddRepo(prefill: name) }
+                HStack(spacing: 6) {
+                    Text(model.keyText(for: "browse.scope", in: "browse")).font(Theme.mono(10))
+                        .foregroundStyle(Theme.fg3)
+                        .padding(.horizontal, 5).overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.line))
+                    Text("picks an org you have checked out").font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
+                }
+                .contentShape(Rectangle())
+                .tap { model.perform(CommandInvocation(name: "browse.scope")) }
+            }
+        }
+        .padding(28).frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func button(_ title: String, _ action: @escaping () -> Void) -> some View {
+        Text(title).font(Theme.ui(13, weight: .semibold)).foregroundStyle(Theme.ink)
+            .padding(.horizontal, 12).padding(.vertical, 6)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Theme.busy))
+            .contentShape(Rectangle())
+            .tap(action)
     }
 }
 
@@ -222,12 +269,13 @@ struct BrowseRail: View {
                         .padding(.horizontal, 5).padding(.vertical, 1)
                         .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.line))
                 }
-                ForEach(scopeRows, id: \.id) { row in
-                    scopeRow(row.scope, indent: row.indent)
-                    if let more = row.more { moreRow(more) }
-                }
-                if browse.scopes.isEmpty {
-                    Text("⌘K finds an org or a repo.").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                allCheckoutsRow
+                let rail = railScopes
+                ForEach(rail.rows) { row in scopeRow(row.scope, indent: row.indent) }
+                if rail.more > 0 { moreRow(rail.more) }
+                if rail.rows.isEmpty {
+                    Text("Nothing is checked out yet: Add or clone a repo.").font(Theme.ui(12))
+                        .foregroundStyle(Theme.fg3)
                         .padding(.horizontal, 14).padding(.top, 4)
                 }
             }
@@ -276,7 +324,8 @@ struct BrowseRail: View {
                     Circle().fill(Theme.busy).frame(width: 6, height: 6)
                 }
                 Spacer(minLength: 4)
-                Text("\(browse.count(of: saved))").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                Text(verbatim: browse.count(of: saved).map(BrowseNumber.compact) ?? "–").font(Theme.mono(11))
+                    .foregroundStyle(Theme.fg3).help(browse.count(of: saved).map(BrowseNumber.exact) ?? "not searched")
             }
         }
         .padding(.horizontal, compact ? 0 : 14).padding(.vertical, 6)
@@ -286,45 +335,36 @@ struct BrowseRail: View {
         .tap { model.browse.run(saved); model.browseOpenedQuery() }
     }
 
-    struct ScopeRow {
-        var scope: BrowseScope
-        var indent: Bool
-        var more: Int?
-        var id: String { scope.id }
+    private var railScopes: BrowseRailScopes.Result {
+        BrowseRailScopes.rows(
+            pinned: model.browse.scopes, checkouts: model.browse.checkouts, current: model.browse.scope
+        )
     }
 
-    /// Orgs first with their repos indented under them, then Projects.
-    private var scopeRows: [ScopeRow] {
-        let scopes = model.browse.scopes
-        var rows: [ScopeRow] = []
-        var placed = Set<String>()
-        for case let .org(org) in scopes {
-            let repos = scopes
-                .filter { if case let .repo(repo) = $0 { repo.org.lowercased() == org.lowercased() } else { false } }
-            let total = model.browse.repoCounts[org.lowercased()]
-            rows.append(ScopeRow(
-                scope: .org(org),
-                indent: false,
-                more: total.map { $0 - repos.count }.flatMap { $0 > 0 ? $0 : nil }.flatMap { repos.isEmpty ? nil : $0 }
-            ))
-            placed.insert(BrowseScope.org(org).id)
-            // The more-row sits under the repos, not the org.
-            rows[rows.count - 1].more = nil
-            for repo in repos {
-                rows.append(ScopeRow(scope: repo, indent: true, more: nil))
-                placed.insert(repo.id)
+    /// No scope: the queries run inside every org with a checkout.
+    private var allCheckoutsRow: some View {
+        let browse = model.browse
+        let active = browse.scope == nil
+        return HStack(spacing: 10) {
+            Image(systemName: "square.stack.3d.up").font(.system(size: 11, weight: .bold)).foregroundStyle(Theme.fg)
+                .frame(width: 20, height: 20)
+                .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(
+                    Theme.fg2,
+                    style: StrokeStyle(lineWidth: 1.2, dash: [2, 2])
+                ))
+            if !compact {
+                Text("All checkouts").font(Theme.ui(13.5)).foregroundStyle(Theme.fg).lineLimit(1)
+                Spacer(minLength: 4)
+                Text(browse.checkouts.orgs.count == 1 ? "1 org" : "\(browse.checkouts.orgs.count) orgs")
+                    .font(Theme.mono(11)).foregroundStyle(Theme.fg3)
             }
-            if let last = rows.indices.last, let total, !repos.isEmpty,
-               total > repos.count { rows[last].more = total - repos.count }
         }
-        for scope in scopes where !placed.contains(scope.id) {
-            rows.append(ScopeRow(
-                scope: scope,
-                indent: false,
-                more: nil
-            ))
-        }
-        return rows
+        .padding(.horizontal, compact ? 0 : 14).padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: compact ? .center : .leading)
+        .background(active ? Theme.bg3 : .clear)
+        .contentShape(Rectangle())
+        .help("Every org you have checked out a repo of")
+        .tap { model.browse.go(to: nil); model.browseOpenedQuery() }
     }
 
     private func scopeRow(_ scope: BrowseScope, indent: Bool) -> some View {
@@ -337,12 +377,15 @@ struct BrowseRail: View {
                 Text(scope.title).font(Theme.ui(indent ? 13 : 13.5)).foregroundStyle(indent ? Theme.fg2 : Theme.fg)
                     .lineLimit(1)
                 Spacer(minLength: 4)
-                Text("\(browse.count(of: scope))").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                Text(verbatim: browse.count(of: scope).map(BrowseNumber.compact) ?? "–").font(Theme.mono(11))
+                    .foregroundStyle(Theme.fg3)
+                    .help(browse.count(of: scope).map(BrowseNumber.exact) ?? "not checked out")
             }
         }
         .padding(.horizontal, compact ? 0 : 14).padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: compact ? .center : .leading)
         .background(active ? Theme.bg3 : .clear)
+        .opacity(browse.count(of: scope) == nil ? 0.55 : 1)
         .contentShape(Rectangle())
         .tap { model.browse.go(to: scope); model.browseOpenedQuery() }
     }
@@ -371,7 +414,8 @@ struct BrowseRail: View {
     }
 
     private func moreRow(_ count: Int) -> some View {
-        Text("+ \(count) more repos…").font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
+        Text("+ \(count) more: \(model.keyText(for: "browse.scope", in: "browse"))").font(Theme.ui(12.5))
+            .foregroundStyle(Theme.fg3)
             .padding(.leading, compact ? 0 : 50).padding(.vertical, 5)
             .frame(maxWidth: .infinity, alignment: compact ? .center : .leading)
             .opacity(compact ? 0 : 1)
@@ -390,7 +434,7 @@ struct BrowseHeader: View {
         let browse = model.browse
         let query = browse.query
         FlowLayout(spacing: 8) {
-            if let scope = query.scope { scopeChip(scope) }
+            if let scope = query.scope { scopeChip(scope) } else if !query.hasOwnPlace { allCheckoutsChip }
             chip("Type", typeText(query))
             ForEach(Array(query.tokens.enumerated()), id: \.offset) { index, token in
                 if let text = tokenChip(token) { chip(text.0, text.1, removable: index) }
@@ -415,6 +459,21 @@ struct BrowseHeader: View {
         .padding(.horizontal, 14).padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+    }
+
+    /// No scope: the query runs inside every org with a checkout.
+    private var allCheckoutsChip: some View {
+        let orgs = model.browse.checkouts.orgs.count
+        return HStack(spacing: 6) {
+            Image(systemName: "square.stack.3d.up").font(.system(size: 10, weight: .bold)).foregroundStyle(Theme.fg2)
+            Text("All checkouts").font(Theme.ui(12.5, weight: .semibold))
+            Text(orgs == 1 ? "1 org" : "\(orgs) orgs").font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.chip))
+        .help(
+            "Browse searches the orgs you have checked out. \(model.keyText(for: "browse.scope", in: "browse")) picks one."
+        )
     }
 
     private func scopeChip(_ scope: BrowseScope) -> some View {
@@ -513,8 +572,14 @@ struct BrowseCount: View {
         let capped = browse.settings.maxAgeDays > 0 && !browse.query.showOlder && !browse.query.hasOwnActivity
         HStack(spacing: 8) {
             // GitHub's count says nothing of heed's own filters: with one, the count is what is here.
-            Text("\(browse.query.localTokens.isEmpty ? browse.meta?.total ?? browse.rows.count : browse.rows.count)")
-                .font(Theme.ui(12.5, weight: .semibold))
+            if browse.refusal != nil {
+                Text("–").font(Theme.ui(12.5, weight: .semibold))
+            } else {
+                let total = browse.query.localTokens.isEmpty ? browse.meta?.total ?? browse.rows.count : browse.rows
+                    .count
+                Text(verbatim: BrowseNumber.compact(total)).font(Theme.ui(12.5, weight: .semibold))
+                    .help(BrowseNumber.exact(total))
+            }
             Text(capped ? "open · last \(browse.cap)" : "open").font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
             if browse.settings.maxAgeDays > 0, !browse.query.hasOwnActivity {
                 Text(browse.query.showOlder ? "Back to \(browse.cap) ▸" : "Show older ▸")
@@ -525,8 +590,15 @@ struct BrowseCount: View {
             Spacer()
             switch browse.load {
             case .loading: Text("asking GitHub…").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+            case _ where browse.refusal != nil: EmptyView()
             case let .failed(why): Text(why).font(Theme.ui(12)).foregroundStyle(Theme.err).lineLimit(1)
-            case .idle: EmptyView()
+            case .idle:
+                if let meta = browse.meta, meta.groupsTotal > meta.groups {
+                    Text(
+                        "first \(meta.groups) of \(meta.groupsTotal) org groups; narrow with \(model.keyText(for: "browse.scope", in: "browse"))"
+                    )
+                    .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                }
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 9)

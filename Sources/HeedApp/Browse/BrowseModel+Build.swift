@@ -125,9 +125,10 @@ extension BrowseModel {
                     .min { (countedAt[$0.id] ?? .distantPast) < (countedAt[$1.id] ?? .distantPast) }
                 guard let saved = due else { continue }
                 countedAt[saved.id] = now
-                var asked = saved.query
-                if asked.scope == nil { asked.scope = scope }
-                if let total = try? await BrowseFetch.count(asked, maxAgeDays: settings.maxAgeDays) {
+                let asked = effective(saved)
+                if let total = try? await BrowseFetch.count(
+                    asked, maxAgeDays: settings.maxAgeDays, checkouts: checkouts
+                ) {
                     queryTotals[saved.id] = total
                 }
             }

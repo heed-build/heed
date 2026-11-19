@@ -22,6 +22,13 @@ extension AppModel {
         return rows.indices.contains(index) ? rows[index] : nil
     }
 
+    /// The toggle at the right of the count: only the items with an agent run on them, and back. The cursor goes to
+    /// the top, since the rows it pointed into change.
+    func toggleBrowseAgentOnly() {
+        browse.agentOnly = !browse.showsAgentOnly
+        itemCursor[.browse] = 0
+    }
+
     /// Whether heed has a checkout of the repo on this Mac (the fake world's Mac has its own).
     func browseIsCloned(_ repo: Repo) -> Bool {
         !RepoPlace.of(repo, in: browseRecords).clones
@@ -193,6 +200,7 @@ extension AppModel {
         case "browse.implement": browseVerb(.implement)
         case "browse.chat": browseVerb(.chat)
         case "browse.review": browseVerb(.review)
+        case "browse.agents": toggleBrowseAgentOnly()
         case "browse.tell": browseTellRun()
         case "browse.run.close": browseEscape()
         case "browse.run.keep": keepBrowseRun()

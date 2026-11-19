@@ -228,6 +228,7 @@ A button that does not fit is dashed and says why.
 | `C` Chat | Asks questions, finds the cause, drafts a reply. Edits nothing |
 | `R` Review | Reads the diff, runs the tests and drafts a review for you |
 | `t` | Tell an agent in your own words what to do |
+| `w` | Only the items with an agent on them, and back |
 
 **What heed suggests:**
 
@@ -264,6 +265,10 @@ Without it a run stops at once and says `claude-agent-acp is not installed`, wit
 speak ACP themselves and need nothing extra; codex needs `codex-acp`. heed never installs an adapter. Sessions you
 start with Start work run the agent directly and do not need it. The adapter table, and `[helpers] command` for running it
 through `npx -y` instead, are in [Helpers](../autopilot/helpers.md#which-agent); `[browse] agent` picks the agent a run uses.
+
+**Which items have an agent.** A row with a run on it is tinted in the run's colour (stronger under the cursor) and
+says what it is doing (*Fix · working*). While there is any, a *● N with an agent* toggle appears at the right of the
+count (`w`) and narrows the list to those items. It goes away with the last run.
 
 **Clone first.** When the repo is not on this Mac, the run opens with a card: `↩` clones and starts, `c` only clones,
 `d` picks the folder, `⎋` is not now.
@@ -389,6 +394,7 @@ Where you are, what you picked and the query survive a resize.
 | `U` | `browse.read` | heed reads the item or the picked items |
 | `F` `I` `C` `R` | `browse.fix` `browse.implement` `browse.chat` `browse.review` | Fix, Implement, Chat, Review |
 | `t` | `browse.tell` | Tell an agent what to do, in your words |
+| `w` | `browse.agents` | Only the items with an agent on them, and back |
 | `s` | `browse.run.keep` | Keep the run as a session |
 | `i` | `browse.run.steer` | Steer the run |
 | `⎋` | `browse.run.close` | Close the run and remove its worktree; with items picked, clear them; on a pushed reader, go back |

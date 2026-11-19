@@ -613,6 +613,7 @@ struct BrowseCount: View {
                     .tap { model.perform(CommandInvocation(name: "browse.older")) }
             }
             Spacer()
+            if browse.agentCount > 0 { agentToggle(browse) }
             // A refresh on its own is quiet: no "asking GitHub", only how old the list is.
             if browse.refusal != nil {
                 EmptyView()
@@ -629,6 +630,24 @@ struct BrowseCount: View {
         }
         .padding(.horizontal, 16).padding(.vertical, 9)
         .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+    }
+}
+
+extension BrowseCount {
+    /// `● 2 with an agent`: shows only while an agent is on some item, and narrows the list to those items.
+    fileprivate func agentToggle(_ browse: BrowseModel) -> some View {
+        let on = browse.showsAgentOnly
+        return HStack(spacing: 6) {
+            Circle().fill(Theme.busy).frame(width: 6, height: 6)
+            Text("\(browse.agentCount) with an agent").font(Theme.ui(12, weight: on ? .semibold : .regular))
+        }
+        .foregroundStyle(on ? Theme.fg : Theme.fg2)
+        .padding(.horizontal, 8).padding(.vertical, 3)
+        .background(RoundedRectangle(cornerRadius: 5).fill(on ? Theme.busy.opacity(0.22) : Color.clear))
+        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(on ? Theme.busy : Theme.keyCapBorder))
+        .contentShape(Rectangle())
+        .help(on ? "Show every item again" : "Show only the items with an agent on them")
+        .tap { model.toggleBrowseAgentOnly() }
     }
 }
 
@@ -772,8 +791,23 @@ struct BrowseRow: View {
         .padding(.leading, 8).padding(.trailing, 16).padding(.vertical, 9)
         .overlay(alignment: .leading) { if index == cursor { Theme.busy.frame(width: 2) } }
         .overlay(alignment: .topLeading) { BrowseFreshPip(id: item.id) }
-        .background(isPicked ? Theme.block.opacity(0.16) : index == cursor ? Theme.bg3 : .clear)
+        .background(rowBackground)
+        .overlay(alignment: .leading) {
+            // An agent is on it: a bar in the run's colour, stronger on the row you are on.
+            if let run = model.browse.runs.current(for: item.id), index != cursor {
+                run.effectiveVerb.tint.frame(width: 2)
+            }
+        }
         .overlay(alignment: .bottom) { Theme.line.opacity(0.6).frame(height: 1) }
+    }
+
+    /// Picked, then an agent on it (tinted by its verb, stronger under the cursor), then the cursor, else nothing.
+    private var rowBackground: Color {
+        if isPicked { return Theme.block.opacity(0.16) }
+        if let run = model.browse.runs.current(for: item.id) {
+            return run.effectiveVerb.tint.opacity(index == cursor ? 0.24 : 0.12)
+        }
+        return index == cursor ? Theme.bg3 : .clear
     }
 }
 

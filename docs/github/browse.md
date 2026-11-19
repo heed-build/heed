@@ -208,6 +208,7 @@ A button that does not fit is dashed and says why.
 | `C` Chat | Asks questions, finds the cause, drafts a reply. Edits nothing |
 | `R` Review | Reads the diff, runs the tests and drafts a review for you |
 | `t` | Tell an agent in your own words what to do |
+| `w` | Only the items with an agent on them, and back |
 
 **What heed suggests:**
 
@@ -231,6 +232,10 @@ Implement never fits a PR, and Review is off on your own PR. An agent action wor
 shows the feed: what it read, edited (with the diff), ran, tested, commented, pushed and opened. Closing the run
 (`⎋`) removes the worktree and its local branch. A branch it pushed stays on GitHub. If commits were never pushed,
 heed says so as it closes.
+
+**Which items have an agent.** A row with a run on it is tinted in the run's colour (stronger under the cursor) and
+says what it is doing (*Fix · working*). While there is any, a *● N with an agent* toggle appears at the right of the
+count (`w`) and narrows the list to those items. It goes away with the last run.
 
 **Clone first.** When the repo is not on this Mac, the run opens with a card: `↩` clones and starts, `c` only clones,
 `d` picks the folder, `⎋` is not now.
@@ -355,6 +360,7 @@ Where you are, what you picked and the query survive a resize.
 | `U` | `browse.read` | heed reads the item or the picked items |
 | `F` `I` `C` `R` | `browse.fix` `browse.implement` `browse.chat` `browse.review` | Fix, Implement, Chat, Review |
 | `t` | `browse.tell` | Tell an agent what to do, in your words |
+| `w` | `browse.agents` | Only the items with an agent on them, and back |
 | `s` | `browse.run.keep` | Keep the run as a session |
 | `i` | `browse.run.steer` | Steer the run |
 | `⎋` | `browse.run.close` | Close the run and remove its worktree; with items picked, clear them; on a pushed reader, go back |

@@ -26,6 +26,14 @@ public struct ResumeCandidate: Identifiable, Hashable, Sendable {
     /// The agent no longer has the session, so `command` starts it again from its prompt.
     public var startsFresh = false
 
+    public init(session: Session, mode: Mode, command: ShellCommand, paneCount: Int, startsFresh: Bool = false) {
+        self.session = session
+        self.mode = mode
+        self.command = command
+        self.paneCount = paneCount
+        self.startsFresh = startsFresh
+    }
+
     /// What the dialog says will happen. An idle or finished session is "left closed" until you tick it; ticked, it
     /// resumes (or starts fresh when the agent no longer has the session).
     public func label(ticked: Bool) -> String {
@@ -75,6 +83,26 @@ public enum Resume {
         ).first
     }
 
+    private static func signOffArguments(session: Session, agent: AgentProfile, settings: WorkSettings) -> [String] {
+        settings.signOffArguments(agent: agent, repo: session.repos.first, session: session.id, host: session.host)
+    }
+
+    /// What every launch of a session's agent injects: the hooks (`--settings`, `-c`, extensions), the sign-off
+    /// arguments and the telemetry, as arguments, and the environment the agent's command line carries. A resume
+    /// passes `resuming: true`, which leaves the session id flag off.
+    public static func injection(
+        session: Session, agent: AgentProfile, settings: WorkSettings, integration: IntegrationFiles?
+    ) -> (arguments: [String], environment: [String: String]) {
+        let signOff = signOffArguments(session: session, agent: agent, settings: settings)
+        let extra = integration.map {
+            AgentIntegration.launchArguments(
+                agent: agent, sessionID: session.id, files: $0, resuming: true, signOff: signOff
+            )
+        } ?? []
+        let env = integration.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
+        return (extra, env)
+    }
+
     public static func candidates(
         domain: Domain, settings: WorkSettings, integration: IntegrationFiles?,
         hasSession: (Session) -> Bool? = { _ in nil }
@@ -82,15 +110,8 @@ public enum Resume {
         domain.sessions.compactMap { session -> ResumeCandidate? in
             guard !session.parked, let agent = settings.agent(session.agent) else { return nil }
             let panes = domain.layouts[session.id]?.tabs.flatMap(\.tree.panes).count ?? 0
-            let signOff = settings.signOffArguments(
-                agent: agent, repo: session.repos.first, session: session.id, host: session.host
-            )
-            let extra = integration.map {
-                AgentIntegration.launchArguments(
-                    agent: agent, sessionID: session.id, files: $0, resuming: true, signOff: signOff
-                )
-            } ?? []
-            let env = integration.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
+            let (extra, env) = injection(session: session, agent: agent, settings: settings, integration: integration)
+            let signOff = signOffArguments(session: session, agent: agent, settings: settings)
             let resumable = session.agentSessionID.flatMap { id -> ShellCommand? in
                 hasSession(session) == false ? nil : agent.resumeCommand(
                     id: id,

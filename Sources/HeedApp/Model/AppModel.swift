@@ -3075,6 +3075,7 @@ final class AppModel {
             )
         case "agent.resume": resumeAgent(command.target, fresh: false)
         case "agent.fresh": resumeAgent(command.target, fresh: true)
+        case "agent.resume.copy": copyResumeCommand(command.target)
         case "session.reconnect": reconnect(command.target)
         case "agent.resume.dismiss": dismissResumeBanner(command.target)
         case "work.again": openStartWork(prompt: currentSession?.prompt ?? "", chat: currentSession?.isChat == true)

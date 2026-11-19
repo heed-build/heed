@@ -98,8 +98,12 @@ public enum ContextMenus {
         public var pinned = false
         public var parked = false
         public var hasPrompt = false
-        /// Its agent is not running and could be resumed: the banner over its panes (`ResumeBanner`).
-        public var agentless = false
+        /// Why "Resume its agent" and "Start its agent fresh" are greyed out (`ResumePlan`: an agent runs in a pane,
+        /// the session is parked or on a host, nothing to run); nil when they can run. Both are always listed.
+        public var resumeBlocked: String?
+        /// Why "Copy resume command" is greyed out; nil when it can copy. Running agents do not block it: it only
+        /// copies text.
+        public var copyBlocked: String?
         /// heed can't hear its agent pane (`Unheard`): restarting it reconnects (`session.reconnect`).
         public var unheard = false
         /// The agents it can be handed to (`agent.switch`): every configured one but its own.
@@ -168,9 +172,14 @@ public enum ContextMenus {
         if repo, facts.pulls > 0 {
             menu.section(pilotItems(facts.pilot, open: facts.openPulls > 0, target: target))
         }
-        if facts.agentless {
-            menu.section([item("Resume its agent", "agent.resume"), item("Start its agent fresh", "agent.fresh")])
+        func blockable(_ title: String, _ name: String, _ blocked: String?) -> MenuItem {
+            item(blocked.map { "\(title) (\($0))" } ?? title, name, enabled: blocked == nil)
         }
+        menu.section([
+            blockable("Resume its agent", "agent.resume", facts.resumeBlocked),
+            blockable("Copy resume command", "agent.resume.copy", facts.copyBlocked),
+            blockable("Start its agent fresh", "agent.fresh", facts.resumeBlocked),
+        ])
         if facts.unheard { menu.section([item("Restart to reconnect", "session.reconnect")]) }
         menu.section([
             item(facts.pinned ? "Unpin" : "Pin", "session.pin"),

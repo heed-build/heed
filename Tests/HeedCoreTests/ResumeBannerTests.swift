@@ -150,20 +150,29 @@ struct ResumeBannerTests {
         #expect(parked != nil)
     }
 
-    @Test func theMenusOfferItOnlyWhenTheAgentIsntRunning() {
+    @Test func theMenusAlwaysListTheThreeItemsAndGreyThemWithAReason() {
         var facts = ContextMenus.SessionFacts(id: "s", title: "s")
-        let names = { (facts: ContextMenus.SessionFacts) in
-            MenuBar.Menu("", ContextMenus.session(facts)).items.map(\.command.name)
+        let items = { (facts: ContextMenus.SessionFacts) in
+            MenuBar.Menu("", ContextMenus.session(facts)).items.filter { $0.command.name.hasPrefix("agent.") }
         }
-        #expect(!names(facts).contains("agent.resume"))
-        facts.agentless = true
-        #expect(names(facts).contains("agent.resume") && names(facts).contains("agent.fresh"))
+        // Always there, in this order, enabled when nothing blocks them.
+        #expect(items(facts).map(\.command.name) == ["agent.resume", "agent.resume.copy", "agent.fresh"])
+        #expect(items(facts).allSatisfy { $0.enabled })
+        // Running: resume and fresh grey out with the reason in the text; copy stays on.
+        facts.resumeBlocked = "agent running in pane 2"
+        let running = items(facts)
+        #expect(running.map(\.enabled) == [false, true, false])
+        #expect(running[0].title == "Resume its agent (agent running in pane 2)")
+        #expect(running[2].title == "Start its agent fresh (agent running in pane 2)")
+        // Nothing to run at all: all three grey, each with its reason.
+        facts.copyBlocked = "no agent is recorded for this session"
+        #expect(items(facts).allSatisfy { !$0.enabled && $0.title.contains("(") })
     }
 
     @Test func theKeysAreBoundInTheSessionsScopeAlone() {
         let sessions = Dictionary(DefaultKeys.sessions, uniquingKeysWith: { first, _ in first })
         #expect(sessions["gu"] == "agent.resume" && sessions["gf"] == "agent.fresh")
-        #expect(sessions["gq"] == "agent.resume.dismiss")
+        #expect(sessions["gq"] == "agent.resume.dismiss" && sessions["gY"] == "agent.resume.copy")
         let everywhere = DefaultKeys.normal + DefaultKeys.scoped.filter { $0.key != "sessions" }.flatMap(\.value)
         for key in ["gu", "gf", "gq"] {
             #expect(!everywhere.contains { $0.0 == key && !$0.1.hasPrefix("agent.") }, "\(key) clashes")

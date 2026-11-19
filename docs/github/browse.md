@@ -41,9 +41,14 @@ background while you are in Browse. A blue dot marks a query with news; `]q` and
 
 ### Quick jump
 
-`⌘K` opens the jump: type to find an org or account, or a repo of one. Orgs list their repo count. Matching repos
-follow (six at most) with *cloned ✓* or *not cloned* and how many items are open. `↩` goes there. A repo that is not
-cloned still browses: only starting an agent on it asks to clone first.
+`⌘K` opens the jump, the one dialog for "get me to X" and "find Y". Type to find a saved query, an org or account, or a
+repo of one. Saved queries lead, the ones you ran last first, each with its count; `↩` runs one. Orgs list their repo
+count. Matching repos follow (six at most) with *cloned ✓* or *not cloned* and how many items are open. `↩` goes there.
+A repo that is not cloned still browses: only starting an agent on it asks to clone first.
+
+When what you typed matches none of them, the last row is **Search GitHub for “…”**, and `⌘↩` picks it at any time.
+The words go to the add-filter card, so the model reads them into filters first (*Understood as*), or, with `[llm]`
+off, they search as text. `⌘F` and `/` work as before.
 
 ![The quick jump: an org with 1,240 repos, two matching repos, and the offer of a view of its own](../images/shots/github/browse-scope.png)
 

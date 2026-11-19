@@ -716,14 +716,25 @@ struct BrowsePaletteView: View {
                     Image(systemName: "magnifyingglass").foregroundStyle(Theme.fg2)
                     CaretText(input: palette.input).font(Theme.ui(15))
                     Spacer()
-                    Text("org or repo").font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
+                    Text("jump or search").font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
                 }
                 .padding(.horizontal, 18).padding(.vertical, 14)
                 Theme.line.frame(height: 1)
                 VStack(alignment: .leading, spacing: 0) {
-                    section("Orgs and accounts")
+                    if rows.contains(where: { if case .query = $0 { true } else { false } }) {
+                        section("Saved queries")
+                        ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                            if case let .query(saved) = row { queryRow(saved, selected: index == palette.cursor) }
+                        }
+                    }
+                    if rows.contains(where: { if case .org = $0 { true } else { false } }) {
+                        section("Orgs and accounts")
+                    }
                     ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                         if case let .org(org) = row { orgRow(org, selected: index == palette.cursor) }
+                    }
+                    ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                        if case let .search(text) = row { searchRow(text, selected: index == palette.cursor) }
                     }
                     if rows.contains(where: { if case .repo = $0 { true } else { false } }) {
                         section("Repos matching “\(palette.query)”")
@@ -751,6 +762,31 @@ struct BrowsePaletteView: View {
     private func section(_ title: String) -> some View {
         Text(title.uppercased()).font(Theme.mono(10.5, weight: .semibold)).tracking(1).foregroundStyle(Theme.fg3)
             .padding(.horizontal, 18).padding(.top, 14).padding(.bottom, 6)
+    }
+
+    private func queryRow(_ row: BrowsePalette.QueryRow, selected: Bool) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: row.query.glyph.symbol).font(.system(size: 13)).foregroundStyle(row.query.tint.color)
+                .frame(width: 22, height: 22)
+            Text(row.query.name).font(Theme.ui(13.5, weight: .semibold))
+            Spacer()
+            if let count = row.count { Text("\(count)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg2) }
+            if selected { Text("↩").font(Theme.mono(10)).foregroundStyle(Theme.fg3) }
+        }
+        .padding(.horizontal, 18).padding(.vertical, 7)
+        .background(selected ? Theme.bg3 : .clear)
+    }
+
+    private func searchRow(_ text: String, selected: Bool) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "magnifyingglass").font(.system(size: 13)).foregroundStyle(Theme.busy)
+                .frame(width: 22, height: 22)
+            Text("Search GitHub for “\(text)”").font(Theme.ui(13.5, weight: .semibold)).lineLimit(1)
+            Spacer()
+            if selected { Text("↩").font(Theme.mono(10)).foregroundStyle(Theme.fg3) }
+        }
+        .padding(.horizontal, 18).padding(.vertical, 7)
+        .background(selected ? Theme.bg3 : .clear)
     }
 
     private func orgRow(_ org: BrowsePalette.Org, selected: Bool) -> some View {

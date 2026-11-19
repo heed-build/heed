@@ -146,13 +146,20 @@ extension AppModel {
 
     // MARK: Quick jump (⌘K)
 
+    /// The saved queries as the jump lists them: newest used first, each with its count.
+    private var paletteQueries: [BrowsePalette.QueryRow] {
+        BrowsePalette.byRecency(browse.queries, used: browse.queryUsed).map {
+            .init(query: $0, count: browse.count(of: $0))
+        }
+    }
+
     func openBrowsePalette() {
         if view != .browse { view = .browse }
         if isFixture || tutor != nil {
             let data = Fixtures.Browse.self
             browse.palette = BrowsePalette(
                 orgs: data.orgs, listings: data.listings, records: data.records, openCounts: data.openCounts,
-                threshold: config.browse.manyRepos
+                threshold: config.browse.manyRepos, queries: paletteQueries
             )
             return
         }
@@ -175,7 +182,7 @@ extension AppModel {
         }
         browse.palette = BrowsePalette(
             orgs: orgs, listings: cache.lists.values.flatMap(\.listings), records: repos,
-            threshold: config.browse.manyRepos
+            threshold: config.browse.manyRepos, queries: paletteQueries
         )
         for org in orgs {
             browse.learnRepoCount(of: org.name)
@@ -232,6 +239,23 @@ extension AppModel {
         case let .createOrgView(org):
             browse.palette = nil
             browse.openOrgBuilder(owner: org)
+        case let .run(saved):
+            browse.palette = nil
+            browse.run(saved)
+            browseQueryChanged()
+        case let .searchGitHub(words):
+            // ⌘K is the one dialog for "get me to X or find Y": the words go to the add-filter card as typed there.
+            browse.palette = nil
+            openBrowseBuilder()
+            guard var builder = browse.builder else { return }
+            let action = builder.askWords(words)
+            browse.builder = builder
+            if case let .read(sentence) = action { readBrowseWords(sentence) }
+            if case let .apply(query) = action {
+                browse.builder = nil
+                browse.applyBuilder(query)
+                browseQueryChanged()
+            }
         }
     }
 

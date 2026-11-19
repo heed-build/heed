@@ -29,6 +29,8 @@ final class BrowseModel {
     /// The items the query keeps, in the sort order: what the list draws.
     private(set) var rows: [BrowseItem] = []
     var queries: [SavedQuery] = []
+    /// When each saved query was last run, for the quick jump's order: kept per Mac, not in the fake world.
+    private(set) var queryUsed: [String: Date] = [:]
     var scopes: [BrowseScope] = []
     var query = BrowseQuery(tokens: [.state(.open)])
     /// The saved query `query` is, until you change it.
@@ -75,7 +77,12 @@ final class BrowseModel {
     @ObservationIgnored private var fetchTask: Task<Void, Never>?
     @ObservationIgnored private var started = false
 
-    init(fixture: Bool) { self.fixture = fixture }
+    init(fixture: Bool) {
+        self.fixture = fixture
+        if !fixture, let saved = UserDefaults.standard.dictionary(forKey: "browseQueryUsed") as? [String: Double] {
+            queryUsed = saved.mapValues { Date(timeIntervalSince1970: $0) }
+        }
+    }
 
     var scope: BrowseScope? { query.scope }
 
@@ -250,6 +257,10 @@ final class BrowseModel {
         if next.scope == nil { next.scope = scope }
         query = next
         activeQuery = saved.id
+        queryUsed[saved.id] = Clock.now
+        if !fixture {
+            UserDefaults.standard.set(queryUsed.mapValues(\.timeIntervalSince1970), forKey: "browseQueryUsed")
+        }
         newQueries.remove(saved.id)
         changed()
     }

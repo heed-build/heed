@@ -194,4 +194,21 @@ struct BrowsePaletteTests {
         type("gl", into: &palette)
         #expect(palette.handle(KeyStroke("CR", .command)) == .searchGitHub("gl"))
     }
+
+    @Test func theOrderIsQueriesThenCheckedOutOrgsThenReposThenDimmedOrgsThenTheSearch() {
+        var palette = withQueries()
+        palette.orgs.append(.init(name: "glacier", checkedOut: false))
+        type("gl", into: &palette)
+        let kinds = palette.rows.map { row -> String in
+            switch row {
+            case .query: "query"
+            case let .org(org): org.checkedOut ? "org" : "dimmed"
+            case .repo: "repo"
+            case .search: "search"
+            }
+        }
+        #expect(kinds == ["org", "repo", "repo", "dimmed"])
+        type("zzz", into: &palette)
+        #expect(palette.rows == [.search("glzzz")])
+    }
 }

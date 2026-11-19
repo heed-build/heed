@@ -631,6 +631,22 @@ public enum StartWork {
         return "\(root)/\(record.repo.name)/\(name.replacingOccurrences(of: "/", with: "-"))"
     }
 
+    /// A session in several repos starts in the first one's worktree: its agent is told where the others are (one line
+    /// each, after the prompt), and the agents that take extra directories (`--add-dir`) are given them, so the
+    /// others are not outside its reach.
+    static func told(of worktrees: [Worktree], in plan: StartWorkPlan) -> StartWorkPlan {
+        guard worktrees.count > 1, plan.chat == nil else { return plan }
+        var plan = plan
+        let others = worktrees.dropFirst()
+        plan.prompt += "\n\nThis session works in \(worktrees.count) repos. You start in \(worktrees[0].repo.slug) "
+            + "(\(worktrees[0].path)); the others have a worktree on the same branch, \(plan.name):\n"
+            + others.map { "- \($0.repo.slug): \($0.path)" }.joined(separator: "\n")
+        if let name = plan.agent?.name, ["claude", "codex"].contains(name) {
+            plan.arguments += others.flatMap { ["--add-dir", $0.path] }
+        }
+        return plan
+    }
+
     /// The new session's tabs: the agent (or a shell) in the first repo's worktree, a shell split beside it when asked,
     /// and a shell tab per extra repo of a cross-repo session. Each worktree's approved setup runs first in its pane:
     /// before the agent in the first, on its own in the others.
@@ -639,6 +655,7 @@ public enum StartWork {
         setup: SetupRules = SetupRules()
     ) -> SessionLayout {
         let primary = worktrees.first?.path ?? NSHomeDirectory()
+        let plan = told(of: worktrees, in: plan)
         // Every pane runs where its worktree is.
         let location = worktrees.first?.location ?? .local
         let agentPane = PaneSpec(

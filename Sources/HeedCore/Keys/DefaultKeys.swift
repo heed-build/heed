@@ -412,8 +412,8 @@ public enum DefaultKeys {
         ("a", "browse.select.all"),
     ]
 
-    /// Browse with two items picked or more: the reader is the bulk panel. s is one session for the related ones, S a
-    /// session each, G a goal from all; 1 labels, A assigns to you, c comments and x closes on GitHub (each after a
+    /// Browse with two items picked or more: the reader is the bulk panel. s is one session for all the picks, S one
+    /// session per repo, G a goal from all; 1 labels, A assigns to you, c comments and x closes on GitHub (each after a
     /// confirm step). The agent verbs F I C R are for one item and say so. a is "all", so assigning is A.
     static let browseBulk: [(String, String)] = [
         ("s", "browse.bulk.session"), ("S", "browse.bulk.each"), ("G", "browse.bulk.goal"),

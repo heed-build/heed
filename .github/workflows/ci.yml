@@ -84,7 +84,8 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: scripts/prune-caches.sh "$SWIFTPM_CACHE_BASE-"
 
-  # A release build and the tutor played with the real keys on it.
+  # The app compiled in debug (incremental: the setup action pinned the files' times, so only what changed since main's
+  # cached build compiles) and the tutor played with the real keys on it. The release build is the next job, on main only.
   build:
     runs-on: macos-26
     timeout-minutes: 45
@@ -98,13 +99,15 @@ jobs:
         with:
           cache: build
 
-      - name: Release build
+      - name: Debug build
         shell: bash
-        run: mise run bundle 2>&1 | tee "$RUNNER_TEMP/release.log"
+        run: |
+          swift build 2>&1 | tee "$RUNNER_TEMP/debug.log"
+          scripts/bundle.sh debug
 
-      # Whole-module, so the log has every warning of HeedCore, the helper and the app.
+      # The log has the warnings of what compiled (HeedCore, the helper and the app); the test job reads the tests'.
       - name: Text check
-        run: scripts/text-check.sh "$RUNNER_TEMP/release.log"
+        run: scripts/text-check.sh "$RUNNER_TEMP/debug.log"
 
       # What the release workflow attaches for the updater: well-formed, and carrying what Sparkle reads.
       - name: Appcast
@@ -129,9 +132,41 @@ jobs:
           path: .build
           key: ${{ env.SWIFTPM_CACHE_KEY }}
 
-      # The repository's cache allowance is 10 GB and each of these is about 700 MB: keep this job's newest two.
+      # The repository's cache allowance is 10 GB and each of these is about 1 GB: keep this job's newest two.
       - name: Prune older .build caches
         if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: scripts/prune-caches.sh "$SWIFTPM_CACHE_BASE-"
+
+  # The release build, as the release workflow builds it, on main only: whole-module, so it cannot be incremental and
+  # takes the longest of anything here, and a pull request would wait for it. A release-only break shows up on the merge
+  # (and the release workflow builds it again before it publishes); its .build is what that workflow restores.
+  release-build:
+    if: github.event_name == 'push'
+    runs-on: macos-26
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: write # prune-caches deletes old .build caches
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup
+        with:
+          cache: release
+
+      - name: Release build
+        run: mise run bundle
+
+      - name: Save .build
+        uses: actions/cache/save@v4
+        with:
+          path: .build
+          key: ${{ env.SWIFTPM_CACHE_KEY }}
+
+      - name: Prune older .build caches
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

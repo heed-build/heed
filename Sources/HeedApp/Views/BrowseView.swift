@@ -378,6 +378,7 @@ struct BrowseRail: View {
                 Text(row.title)
                     .font(Theme.ui(indent ? 13 : 13.5)).foregroundStyle(indent ? Theme.fg2 : Theme.fg)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.78)
                 Spacer(minLength: 4)
                 Text(verbatim: browse.count(of: scope).map(BrowseNumber.compact) ?? "–").font(Theme.mono(11))
                     .foregroundStyle(Theme.fg3)

@@ -20,7 +20,7 @@ if [ "$#" -gt 0 ]; then
   out=$(cat "$@")
 else
   find Sources Tests -name '*.swift' -exec touch {} +
-  out=$(swift build --build-tests --scratch-path .build/text-check 2>&1) || { printf '%s\n' "$out" | tail -40; exit 1; }
+  out=$(scripts/slot.sh swift build --build-tests --scratch-path .build/text-check 2>&1) || { printf '%s\n' "$out" | tail -40; exit 1; }
 fi
 
 hits=$(printf '%s\n' "$out" | sed 's/\x1b\[[0-9;]*m//g' | grep -E "$pattern" | sort -u || true)

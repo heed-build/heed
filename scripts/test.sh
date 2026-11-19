@@ -14,7 +14,7 @@ for arg in "$@"; do
 done
 
 if [ "$build" = 1 ]; then
-  swift build --product HeedPackageTests
+  scripts/slot.sh swift build --product HeedPackageTests
 fi
 # ${args[@]+...}: an empty array is an unbound variable under `set -u` on macOS's bash 3.2.
 exec swift test --skip-build --quiet ${args[@]+"${args[@]}"}

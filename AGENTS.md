@@ -31,6 +31,11 @@
 - CI builds are incremental: `scripts/pin-mtimes.sh` (run by the setup action) stamps each tracked file from its content,
   because Swift Build rebuilds an input whose modification time changed and a fresh checkout changes all of them. Main
   saves `.build` (the newest two per job are kept, `scripts/prune-caches.sh`) and pull requests restore it.
+- Several agents build at once on one machine, and a `swift build` spawns a compiler per core, so the heavy commands (`mise run
+  test`, `check`, `build`, `bundle`, `bench`, `live`, `ghostty`) run through `scripts/slot.sh`: two machine-wide build slots, the rest
+  wait their turn and say who is building. `HEED_BUILD_SLOTS=N` changes the count (0 turns it off; CI does not need it).
+  `scripts/prune-worktree-builds.sh` lists the worktrees whose `.build` has been idle (3 to 4 GB each; Swift Build ties its
+  state to the absolute path, so one cannot be moved or shared) and deletes them only with `--delete`.
 - Text other people wrote (PR and issue text, comments, checks) is `ExternalText`, and what leaves heed for an agent
   is a `Prompt` (`Sources/HeedCore/Domain/Prompt.swift`). `mise run text-check` fails when either is
   interpolated into a plain String; run it after changing a prompt. CI reads the warnings of its own builds (the test

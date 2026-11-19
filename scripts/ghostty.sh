@@ -19,7 +19,7 @@ git -C "$src" checkout --quiet --force "$commit"
 
 cd "$src"
 # Native arch only (this is a personal build); the macOS app itself is not needed.
-zig build -Doptimize=ReleaseFast -Demit-xcframework=true -Demit-macos-app=false -Dxcframework-target=native
+"$root/scripts/slot.sh" zig build -Doptimize=ReleaseFast -Demit-xcframework=true -Demit-macos-app=false -Dxcframework-target=native
 
 mkdir -p "$root/Vendor"
 rm -rf "$root/Vendor/GhosttyKit.xcframework"

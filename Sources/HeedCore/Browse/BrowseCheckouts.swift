@@ -3,9 +3,9 @@ import Foundation
 /// What Browse works inside: the orgs and repos checked out on a Mac heed knows (this one or a host). It is built from
 /// the repo records each time and never stored, so it is always what `repos` says now. A repo that is not checked out
 /// is not searched: clone it first (Add or clone).
-public struct BrowseCheckouts: Equatable, Sendable {
+public struct BrowseCheckouts: Hashable, Sendable {
     /// One org (or account) with the repos checked out under it.
-    public struct Org: Equatable, Sendable, Identifiable {
+    public struct Org: Hashable, Sendable, Identifiable {
         public var name: String
         public var repos: [Repo]
         public var id: String { name.lowercased() }

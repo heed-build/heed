@@ -7,6 +7,9 @@ public enum BrowseScope: Hashable, Sendable, Codable, Identifiable {
     case project(owner: String, number: Int, title: String)
     /// A saved slice of an org with very many repos (`BrowseOrgView`).
     case view(BrowseOrgView)
+    /// Only the repos of an org that are checked out here. It stores the org and nothing more: the repos are read from
+    /// the checkouts each time it is searched, so it follows a clone or a removal and is never a snapshot.
+    case ownRepos(String)
 
     public var id: String {
         switch self {
@@ -14,6 +17,7 @@ public enum BrowseScope: Hashable, Sendable, Codable, Identifiable {
         case let .repo(repo): "repo:\(repo.slug.lowercased())"
         case let .project(owner, number, _): "project:\(owner.lowercased())/\(number)"
         case let .view(view): "view:\(view.owner.lowercased())/\(view.name.lowercased())"
+        case let .ownRepos(org): "own:\(org.lowercased())"
         }
     }
 
@@ -24,8 +28,25 @@ public enum BrowseScope: Hashable, Sendable, Codable, Identifiable {
         case let .repo(repo): repo.name
         case let .project(_, _, title): title
         case let .view(view): view.name
+        case let .ownRepos(org): "\(org) · only my repos"
         }
     }
+
+    public var isOwnRepos: Bool {
+        if case .ownRepos = self { true } else { false }
+    }
+
+    /// The chip's text: for an org's own repos it says how many, as the checkouts say now ("acme · only my 3 repos").
+    public func chipText(_ checkouts: BrowseCheckouts) -> String {
+        guard case let .ownRepos(org) = self else { return title }
+        return "\(org) · \(Self.ownRepoWords(checkouts.org(org)?.repos.count ?? 0))"
+    }
+
+    /// "only my 3 repos", "only my 1 repo".
+    public static func ownRepoWords(_ count: Int) -> String { "only " + myRepos(count) }
+
+    /// "my 3 repos", "my 1 repo".
+    public static func myRepos(_ count: Int) -> String { "my \(count) repo\(count == 1 ? "" : "s")" }
 
     /// The organisation it belongs to: a repo sits indented under its org in the rail.
     public var owner: String {
@@ -34,6 +55,7 @@ public enum BrowseScope: Hashable, Sendable, Codable, Identifiable {
         case let .repo(repo): repo.org
         case let .project(owner, _, _): owner
         case let .view(view): view.owner
+        case let .ownRepos(org): org
         }
     }
 
@@ -44,16 +66,22 @@ public enum BrowseScope: Hashable, Sendable, Codable, Identifiable {
         case let .repo(repo): "repo:\(repo.slug)"
         case let .project(owner, number, _): "project:\(owner)/\(number)"
         case let .view(view): view.qualifier
+        // The repos come from the checkouts (`BrowseQuery.rendered(checkouts:)`), so there is nothing to say here.
+        case .ownRepos: ""
         }
     }
 
     /// Whether an item belongs to it, as far as the item says (a Project is matched by its title).
-    public func contains(_ item: BrowseItem) -> Bool {
+    /// `checkouts` is what an org's own repos are read from; without them that scope holds nothing.
+    public func contains(_ item: BrowseItem, checkouts: BrowseCheckouts? = nil) -> Bool {
         switch self {
         case let .org(org): item.repo.org.caseInsensitiveCompare(org) == .orderedSame
         case let .repo(repo): item.repo.slug.caseInsensitiveCompare(repo.slug) == .orderedSame
         case let .project(_, _, title): item.projects.contains { $0.caseInsensitiveCompare(title) == .orderedSame }
         case let .view(view): view.contains(item.repo)
+        case let .ownRepos(org):
+            checkouts?.org(org)?.repos
+                .contains { $0.slug.caseInsensitiveCompare(item.repo.slug) == .orderedSame } ?? false
         }
     }
 }

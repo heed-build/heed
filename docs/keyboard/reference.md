@@ -411,6 +411,7 @@ This page is generated from the code (`mise run shots`).
 | `browse.scope` | `<D-k>` (browse), `<D-k>` (browsebulk) | Browse: jump to an org or a repo (type to find it) |
 | `browse.scope.next` | `]o` (browse), `]o` (browsebulk) | Browse: the next scope in the rail |
 | `browse.scope.prev` | `[o` (browse), `[o` (browsebulk) | Browse: the previous scope in the rail |
+| `browse.scope.toggle` | `za` (browse), `za` (browsebulk) | Browse: open or close the repos under the current org in the rail |
 | `browse.query.next` | `]q` (browse), `]q` (browsebulk) | Browse: the next saved query |
 | `browse.query.prev` | `[q` (browse), `[q` (browsebulk) | Browse: the previous saved query |
 | `browse.query.save` | `S` (browse) | Browse: keep the query you are on in the rail |

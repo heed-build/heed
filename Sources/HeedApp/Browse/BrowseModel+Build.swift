@@ -11,7 +11,7 @@ extension BrowseModel {
         BrowseBuilder.Context(
             items: items, viewer: viewer, maxAgeDays: settings.maxAgeDays, now: now,
             projects: scopes.filter { if case .project = $0 { true } else { false } }, wordsOff: wordsOff,
-            reads: reads
+            reads: reads, checkouts: checkouts
         )
     }
 

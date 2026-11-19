@@ -115,6 +115,8 @@ public struct BrowseQuery: Hashable, Sendable, Codable {
         case let .repo(repo): found.append(BrowsePlace(owner: repo.org, repo: repo.slug))
         case let .project(owner, _, _): found.append(BrowsePlace(owner: owner))
         case let .view(view): found.append(BrowsePlace(owner: view.owner))
+        // Its org: the repos are the org's checked-out ones by construction, so the gate has nothing more to ask.
+        case let .ownRepos(org): found.append(BrowsePlace(owner: org))
         case nil: break
         }
         for token in tokens {
@@ -144,9 +146,13 @@ public struct BrowseQuery: Hashable, Sendable, Codable {
     public func isCapped(maxAgeDays: Int) -> Bool { !showOlder && maxAgeDays > 0 && !hasOwnActivity }
 
     /// The GitHub search string, with `updated:>=` capped at `maxAgeDays` unless the query shows older items.
-    public func rendered(maxAgeDays: Int, now: Date) -> String {
+    /// An org's own repos scope renders as the `repo:` qualifiers of `checkouts`, all of them (`BrowseFetch` splits
+    /// them into searches that fit); without checkouts it names nothing.
+    public func rendered(maxAgeDays: Int, now: Date, checkouts: BrowseCheckouts? = nil) -> String {
         var parts: [String] = []
-        if let scope { parts.append(scope.qualifier) }
+        if case let .ownRepos(org)? = scope {
+            parts += checkouts?.repoQualifiers(of: org) ?? []
+        } else if let scope { parts.append(scope.qualifier) }
         var words: [String] = []
         for token in tokens {
             if case let .text(text) = token { words.append(text) } else { parts += Self.render(token, now: now) }

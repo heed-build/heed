@@ -951,6 +951,7 @@ public enum Commands {
         .init("browse.scope", "Browse: jump to an org or a repo (type to find it)", .selection),
         .init("browse.scope.next", "Browse: the next scope in the rail", .selection),
         .init("browse.scope.prev", "Browse: the previous scope in the rail", .selection),
+        .init("browse.scope.toggle", "Browse: open or close the repos under the current org in the rail", .selection),
         .init("browse.query.next", "Browse: the next saved query", .selection),
         .init("browse.query.prev", "Browse: the previous saved query", .selection),
         .init("browse.query.save", "Browse: keep the query you are on in the rail", .selection),

@@ -13,8 +13,14 @@ public struct BrowseFilter: Hashable, Sendable {
     public var maxAgeDays: Int
     /// heed's reads by item id, for the filters on class, size and agent-ready.
     public var reads: BrowseReads
+    /// What an org's own repos scope is read from.
+    public var checkouts: BrowseCheckouts?
 
-    public init(query: BrowseQuery, viewer: String? = nil, maxAgeDays: Int = 90, reads: BrowseReads = [:]) {
+    public init(
+        query: BrowseQuery, viewer: String? = nil, maxAgeDays: Int = 90, reads: BrowseReads = [:],
+        checkouts: BrowseCheckouts? = nil
+    ) {
+        self.checkouts = checkouts
         self.query = query
         self.viewer = viewer
         self.maxAgeDays = maxAgeDays
@@ -22,7 +28,7 @@ public struct BrowseFilter: Hashable, Sendable {
     }
 
     public func matches(_ item: BrowseItem, now: Date) -> Bool {
-        if let scope = query.scope, !scope.contains(item) { return false }
+        if let scope = query.scope, !scope.contains(item, checkouts: checkouts) { return false }
         if query.isCapped(maxAgeDays: maxAgeDays), let cutoff = AttentionAge.cutoff(days: maxAgeDays, now: now),
            item.updatedAt < cutoff { return false }
         return query.tokens.allSatisfy { matches(item, $0, now: now) }
@@ -156,9 +162,12 @@ public extension BrowseFilter {
         viewer: String?,
         maxAgeDays: Int,
         now: Date,
-        reads: BrowseReads = [:]
+        reads: BrowseReads = [:],
+        checkouts: BrowseCheckouts? = nil
     ) -> Int {
-        let filter = BrowseFilter(query: query, viewer: viewer, maxAgeDays: maxAgeDays, reads: reads)
+        let filter = BrowseFilter(
+            query: query, viewer: viewer, maxAgeDays: maxAgeDays, reads: reads, checkouts: checkouts
+        )
         return items.count(where: { filter.matches($0, now: now) })
     }
 }

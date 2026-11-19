@@ -146,11 +146,14 @@ public struct BrowseBuilder: Sendable {
         public var wordsOff: String?
         /// heed's reads by item id.
         public var reads: BrowseReads
+        /// What an org's own repos scope is read from.
+        public var checkouts: BrowseCheckouts?
 
         public init(
             items: [BrowseItem], viewer: String? = nil, maxAgeDays: Int = 90, now: Date, projects: [BrowseScope] = [],
-            wordsOff: String? = nil, reads: BrowseReads = [:]
+            wordsOff: String? = nil, reads: BrowseReads = [:], checkouts: BrowseCheckouts? = nil
         ) {
+            self.checkouts = checkouts
             self.reads = reads
             self.items = items
             self.viewer = viewer
@@ -332,7 +335,8 @@ public struct BrowseBuilder: Sendable {
             viewer: context.viewer,
             maxAgeDays: context.maxAgeDays,
             now: context.now,
-            reads: context.reads
+            reads: context.reads,
+            checkouts: context.checkouts
         )
     }
 
@@ -345,10 +349,11 @@ public struct BrowseBuilder: Sendable {
             query: wide,
             viewer: context.viewer,
             maxAgeDays: context.maxAgeDays,
-            reads: context.reads
+            reads: context.reads, checkouts: context.checkouts
         )
         let kept = BrowseFilter(
-            query: narrow, viewer: context.viewer, maxAgeDays: context.maxAgeDays, reads: context.reads
+            query: narrow, viewer: context.viewer, maxAgeDays: context.maxAgeDays, reads: context.reads,
+            checkouts: context.checkouts
         )
         let window = context.maxAgeDays > 0 ? context.maxAgeDays : 90
         return BrowseHistogram.of(
@@ -374,7 +379,8 @@ public struct BrowseBuilder: Sendable {
 
     func options(for field: BrowseField) -> [BrowsePicker.Option] {
         let scoped = BrowseFilter(
-            query: without(field), viewer: context.viewer, maxAgeDays: context.maxAgeDays, reads: context.reads
+            query: without(field), viewer: context.viewer, maxAgeDays: context.maxAgeDays, reads: context.reads,
+            checkouts: context.checkouts
         )
         .apply(to: context.items, now: context.now)
         let facets = BrowseFacets(of: scoped, reads: context.reads)

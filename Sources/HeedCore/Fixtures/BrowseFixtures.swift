@@ -195,10 +195,14 @@ public extension Fixtures {
             .org("acme"), .repo(acmeDocs), .repo(acmeIngest), .repo(acmeMarkgraph), .org("globex"),
         ]
 
+        /// The orgs open in the rail's Scopes.
+        public static let expanded: Set<String> = ["acme"]
+
         /// What the rail counts, as GitHub's searches would answer.
         public static let scopeTotals: [String: Int] = [
             BrowseScope.org("acme").id: 212, BrowseScope.repo(acmeDocs).id: 83, BrowseScope.repo(acmeIngest).id: 40,
             BrowseScope.repo(acmeMarkgraph).id: 21, BrowseScope.org("globex").id: 64,
+            BrowseScope.ownRepos("acme").id: 131,
         ]
 
         public static let queries: [SavedQuery] = [
@@ -244,8 +248,8 @@ public extension Fixtures {
         )
 
         public static let orgs: [BrowsePalette.Org] = [
-            .init(name: "acme", repoCount: 38, openCount: 212),
-            .init(name: "globex", repoCount: 1240),
+            .init(name: "acme", repoCount: 38, openCount: 212, ownRepos: 4),
+            .init(name: "globex", repoCount: 1240, ownRepos: 1),
             .init(name: "Mpdreamz", repoCount: 61, personal: true),
         ]
 

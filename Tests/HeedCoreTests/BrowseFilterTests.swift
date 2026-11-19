@@ -122,6 +122,7 @@ struct BrowsePaletteTests {
         let names = palette.rows.map { row -> String in
             switch row {
             case let .org(org): org.name
+            case let .ownRepos(org): "\(org.name) own"
             case let .repo(repo): repo.listing.repo.slug
             case let .query(row): row.query.name
             case let .search(text): text
@@ -203,6 +204,7 @@ struct BrowsePaletteTests {
             switch row {
             case .query: "query"
             case let .org(org): org.checkedOut ? "org" : "dimmed"
+            case .ownRepos: "own"
             case .repo: "repo"
             case .search: "search"
             }

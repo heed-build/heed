@@ -271,8 +271,9 @@ struct BrowseRail: View {
                         .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.line))
                 }
                 allCheckoutsRow
-                let rail = railScopes
-                ForEach(rail.rows) { row in scopeRow(row.scope, indent: row.indent) }
+                let rail = browse.railScopes
+                // The icon rail keeps its one square per scope: no chevron, and no "Only my N repos" row.
+                ForEach(rail.rows.filter { !compact || !$0.scope.isOwnRepos }) { row in scopeRow(row) }
                 if rail.more > 0 { moreRow(rail.more) }
                 if rail.rows.isEmpty {
                     Text("Nothing is checked out yet: Add or clone a repo.").font(Theme.ui(12))
@@ -336,12 +337,6 @@ struct BrowseRail: View {
         .tap { model.browse.run(saved); model.browseOpenedQuery() }
     }
 
-    private var railScopes: BrowseRailScopes.Result {
-        BrowseRailScopes.rows(
-            pinned: model.browse.scopes, checkouts: model.browse.checkouts, current: model.browse.scope
-        )
-    }
-
     /// No scope: the queries run inside every org with a checkout.
     private var allCheckoutsRow: some View {
         let browse = model.browse
@@ -368,15 +363,22 @@ struct BrowseRail: View {
         .tap { model.browse.go(to: nil); model.browseOpenedQuery() }
     }
 
-    private func scopeRow(_ scope: BrowseScope, indent: Bool) -> some View {
+    private func scopeRow(_ row: BrowseRailScopes.Row) -> some View {
         let browse = model.browse
+        let scope = row.scope
+        let indent = row.indent
         let active = browse.scope == scope
         return HStack(spacing: 10) {
-            if indent, !compact { Color.clear.frame(width: 16, height: 1) }
+            if !compact {
+                if indent { Color.clear.frame(width: 16, height: 1) }
+                chevron(row)
+            }
             scopeMark(scope)
             if !compact {
-                Text(scope.title).font(Theme.ui(indent ? 13 : 13.5)).foregroundStyle(indent ? Theme.fg2 : Theme.fg)
+                Text(row.title)
+                    .font(Theme.ui(indent ? 13 : 13.5)).foregroundStyle(indent ? Theme.fg2 : Theme.fg)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.78)
                 Spacer(minLength: 4)
                 Text(verbatim: browse.count(of: scope).map(BrowseNumber.compact) ?? "–").font(Theme.mono(11))
                     .foregroundStyle(Theme.fg3)
@@ -388,7 +390,24 @@ struct BrowseRail: View {
         .background(active ? Theme.bg3 : .clear)
         .opacity(browse.count(of: scope) == nil ? 0.55 : 1)
         .contentShape(Rectangle())
-        .tap { model.browse.go(to: scope); model.browseOpenedQuery() }
+        .tap {
+            if case let .org(org) = scope { model.browse.clickOrg(org) } else { model.browse.go(to: scope) }
+            model.browseOpenedQuery()
+        }
+    }
+
+    /// The disclosure chevron of an org with repos checked out; a space of its width where there is none, so the
+    /// marks line up. Its own click opens or closes the org and leaves the scope as it is.
+    @ViewBuilder private func chevron(_ row: BrowseRailScopes.Row) -> some View {
+        if row.expandable, case let .org(org) = row.scope {
+            Image(systemName: row.expanded ? "chevron.down" : "chevron.right").font(.system(size: 8, weight: .bold))
+                .foregroundStyle(Theme.fg3).frame(width: 14, height: 20)
+                .contentShape(Rectangle())
+                .tap { model.browse.toggleExpansion(of: org) }
+                .help(row.expanded ? "Hide the repos you have checked out" : "Show the repos you have checked out")
+        } else if !row.indent {
+            Color.clear.frame(width: 14, height: 1)
+        }
     }
 
     @ViewBuilder private func scopeMark(_ scope: BrowseScope) -> some View {
@@ -402,6 +421,10 @@ struct BrowseRail: View {
                 .foregroundStyle(repo.color.foreground)
                 .frame(width: 18, height: 18)
                 .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(repo.color.foreground, lineWidth: 1.2))
+        case .ownRepos:
+            Image(systemName: "checkmark").font(.system(size: 8, weight: .bold)).foregroundStyle(Theme.fg2)
+                .frame(width: 18, height: 18)
+                .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.fg2, lineWidth: 1.2))
         case .view:
             Image(systemName: "line.3.horizontal.decrease").font(.system(size: 10, weight: .bold))
                 .foregroundStyle(Theme.ink)
@@ -483,7 +506,7 @@ struct BrowseHeader: View {
                 .foregroundStyle(Theme.ink)
                 .frame(width: 16, height: 16)
                 .background(RoundedRectangle(cornerRadius: 4).fill(Repo(org: scope.owner, name: "").color.foreground))
-            Text(scope.title).font(Theme.ui(12.5, weight: .semibold))
+            Text(scope.chipText(model.browse.checkouts)).font(Theme.ui(12.5, weight: .semibold))
             if case .org = scope, let count = model.browse.repoCounts[scope.owner.lowercased()] ?? fixtureRepos(scope) {
                 Text("\(count) repos").font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
             }
@@ -949,6 +972,8 @@ struct BrowsePaletteView: View {
         ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
             if case let .org(org) = row, org.checkedOut == checkedOut {
                 orgRow(org, selected: index == palette.cursor).id(index)
+            } else if checkedOut, case let .ownRepos(org) = row {
+                ownReposRow(org, selected: index == palette.cursor).id(index)
             }
         }
     }
@@ -1002,6 +1027,21 @@ struct BrowsePaletteView: View {
         }
         .padding(.horizontal, 18).padding(.vertical, 7)
         .opacity(org.checkedOut ? 1 : 0.55)
+        .background(selected ? Theme.bg3 : .clear)
+    }
+
+    /// "<org> · only my 3 repos", under its org: the outlined small square of a repo.
+    private func ownReposRow(_ org: BrowsePalette.Org, selected: Bool) -> some View {
+        HStack(spacing: 12) {
+            Color.clear.frame(width: 4, height: 1)
+            Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.fg2)
+                .frame(width: 18, height: 18)
+                .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.fg2, lineWidth: 1.2))
+            Text("\(org.name) · \(BrowseScope.ownRepoWords(org.ownRepos))").font(Theme.ui(13.5))
+            Spacer()
+            if selected { Text("↩").font(Theme.mono(10)).foregroundStyle(Theme.fg3) }
+        }
+        .padding(.horizontal, 18).padding(.vertical, 7)
         .background(selected ? Theme.bg3 : .clear)
     }
 

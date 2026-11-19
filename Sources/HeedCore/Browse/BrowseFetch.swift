@@ -51,8 +51,17 @@ public enum BrowseFetch {
     static func searches(
         for query: BrowseQuery, checkouts: BrowseCheckouts, maxAgeDays: Int, now: Date, sorted: Bool
     ) throws -> (texts: [String], total: Int) {
-        let text = query.rendered(maxAgeDays: maxAgeDays, now: now) + (sorted ? " sort:updated-desc" : "")
         if let refusal = refusal(for: query, checkouts: checkouts) { throw refusal }
+        // An org's own repos: its checked-out repos in as many searches as they need, exactly as the default scope
+        // splits the orgs. Read from the checkouts now, so it is never a snapshot.
+        if case let .ownRepos(org)? = query.scope {
+            var rest = query
+            rest.scope = nil
+            let text = rest.rendered(maxAgeDays: maxAgeDays, now: now) + (sorted ? " sort:updated-desc" : "")
+            let plan = BrowseDefaultScope.plan(checkouts.repoQualifiers(of: org), rest: text)
+            return (plan.groups.map { BrowseDefaultScope.text($0, rest: text) }, plan.totalGroups)
+        }
+        let text = query.rendered(maxAgeDays: maxAgeDays, now: now) + (sorted ? " sort:updated-desc" : "")
         if query.hasOwnPlace { return ([text], 1) }
         let plan = BrowseDefaultScope.plan(checkouts.qualifiers, rest: text)
         return (plan.groups.map { BrowseDefaultScope.text($0, rest: text) }, plan.totalGroups)

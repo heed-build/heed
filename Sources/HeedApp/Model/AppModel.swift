@@ -3337,6 +3337,7 @@ final class AppModel {
              "helper.dismiss":
             performHelper(command)
         case "view.browse", "browse.open", "browse.scope", "browse.scope.next", "browse.scope.prev",
+             "browse.scope.toggle",
              "browse.query.next", "browse.query.prev", "browse.query.save", "browse.older", "browse.refresh",
              "browse.sort", "browse.filter.add", "browse.filter.remove", "browse.query.rename", "browse.query.delete",
              "browse.query.up", "browse.query.down", "browse.view.new", "browse.read", "browse.fix", "browse.implement",

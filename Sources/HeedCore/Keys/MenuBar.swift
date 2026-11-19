@@ -463,7 +463,8 @@ public enum MenuBar {
                 ], in: ["attention"]),
                 scoped("In Browse", [
                     ("Jump to an org or repo…", "browse.scope"), ("Next scope", "browse.scope.next"),
-                    ("Previous scope", "browse.scope.prev"), ("Next saved query", "browse.query.next"),
+                    ("Previous scope", "browse.scope.prev"), ("Open or close the org", "browse.scope.toggle"),
+                    ("Next saved query", "browse.query.next"),
                     ("Previous saved query", "browse.query.prev"), ("Keep this query", "browse.query.save"),
                     ("Show older", "browse.older"), ("Refresh", "browse.refresh"), ("Sort", "browse.sort"),
                     ("Add a filter…", "browse.filter.add"), ("Remove the last filter", "browse.filter.remove"),

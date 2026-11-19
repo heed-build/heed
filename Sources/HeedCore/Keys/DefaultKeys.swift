@@ -406,7 +406,10 @@ public enum DefaultKeys {
     /// t tells one in your own words; N renames the saved query you are on.
     static let browse: [(String, String)] = [
         ("<Space>", "select.toggle"), ("<CR>", "browse.open"), ("<D-k>", "browse.scope"), ("]o", "browse.scope.next"),
-        ("[o", "browse.scope.prev"), ("]q", "browse.query.next"), ("[q", "browse.query.prev"),
+        ("[o", "browse.scope.prev"), ("za", "browse.scope.toggle"), ("]q", "browse.query.next"), (
+            "[q",
+            "browse.query.prev"
+        ),
         ("S", "browse.query.save"), ("e", "browse.older"), ("r", "browse.refresh"), ("T", "browse.sort"),
         ("/", "browse.filter.add"), ("x", "browse.filter.remove"), ("N", "browse.query.rename"),
         ("D", "browse.query.delete"), ("]Q", "browse.query.down"), ("[Q", "browse.query.up"),

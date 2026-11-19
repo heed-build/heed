@@ -15,10 +15,14 @@ public struct BrowsePalette: Sendable {
         /// says
         /// to clone first instead of searching it.
         public var checkedOut: Bool
+        /// How many of its repos are checked out: the "only my N repos" row of an org that has some.
+        public var ownRepos: Int
 
         public init(
-            name: String, repoCount: Int? = nil, openCount: Int? = nil, personal: Bool = false, checkedOut: Bool = true
+            name: String, repoCount: Int? = nil, openCount: Int? = nil, personal: Bool = false, checkedOut: Bool = true,
+            ownRepos: Int = 0
         ) {
+            self.ownRepos = ownRepos
             self.name = name
             self.repoCount = repoCount
             self.openCount = openCount
@@ -46,6 +50,8 @@ public struct BrowsePalette: Sendable {
     public enum Row: Hashable, Sendable {
         case query(QueryRow)
         case org(Org)
+        /// "<org> · only my N repos", right after its org.
+        case ownRepos(Org)
         case repo(RepoRow)
         /// "Search GitHub for “…”": the text goes to the add-filter flow.
         case search(String)
@@ -107,7 +113,10 @@ public struct BrowsePalette: Sendable {
         // Orgs with a checkout always; the others only once something typed matches them, after the repos.
         let matches = orgs.filter { org in words.isEmpty ? org.checkedOut : org.name.lowercased().contains(words) }
         var rows = queries.filter { words.isEmpty || $0.query.name.lowercased().contains(words) }.map { Row.query($0) }
-        rows += matches.filter(\.checkedOut).map { Row.org($0) }
+        for org in matches where org.checkedOut {
+            rows.append(.org(org))
+            if org.ownRepos > 0 { rows.append(.ownRepos(org)) }
+        }
         if !words.isEmpty {
             let repos = listings.filter { $0.repo.slug.lowercased().contains(words) }.prefix(Self.repoLimit)
             rows += repos.map { listing in
@@ -148,6 +157,7 @@ public struct BrowsePalette: Sendable {
                 if !org.checkedOut { return .choose(.org(org.name)) }
                 if case .createOrgView = guidance { return .createOrgView(org.name) }
                 return .choose(.org(org.name))
+            case let .ownRepos(org): return .choose(.ownRepos(org.name))
             case let .repo(repo): return .choose(.repo(repo.listing.repo))
             }
         case KeyStroke("CR", .command):

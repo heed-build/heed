@@ -186,12 +186,16 @@ struct BrowseJumpSheet: View {
                     }
                 }
                 section("Scopes")
-                ForEach(browse.scopes, id: \.id) { scope in
+                ForEach(browse.railScopes.rows) { entry in
+                    let scope = entry.scope
                     row(active: browse.scope == scope, count: browse.count(of: scope)) {
+                        chevron(entry)
                         scopeMark(scope)
-                        Text(scope.title).font(Theme.ui(15.5))
+                        Text(entry.title).font(Theme.ui(entry.indent ? 14.5 : 15.5))
+                            .foregroundStyle(entry.indent ? Theme.fg2 : Theme.fg)
                     } go: {
-                        model.browse.go(to: scope)
+                        // The sheet closes on a pick; an org still opens or closes as in the rail.
+                        if case let .org(org) = scope { model.browse.clickOrg(org) } else { model.browse.go(to: scope) }
                         model.browseOpenedQuery()
                     }
                 }
@@ -202,6 +206,18 @@ struct BrowseJumpSheet: View {
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
             .shadow(color: .black.opacity(0.5), radius: 24)
             .padding(.leading, 20).padding(.trailing, 20).padding(.top, 62)
+        }
+    }
+
+    /// The org's chevron: it opens or closes the org and keeps the sheet.
+    @ViewBuilder private func chevron(_ entry: BrowseRailScopes.Row) -> some View {
+        if entry.expandable, case let .org(org) = entry.scope {
+            Image(systemName: entry.expanded ? "chevron.down" : "chevron.right")
+                .font(.system(size: 10, weight: .bold)).foregroundStyle(Theme.fg3).frame(width: 24, height: 24)
+                .contentShape(Rectangle())
+                .onTapGesture { model.browse.toggleExpansion(of: org) }
+        } else if !entry.indent {
+            Color.clear.frame(width: 24, height: 1)
         }
     }
 
@@ -238,6 +254,11 @@ struct BrowseJumpSheet: View {
             Text(String(repo.name.prefix(1)).uppercased()).font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(repo.color.foreground).frame(width: 22, height: 22)
                 .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(repo.color.foreground, lineWidth: 1.2))
+                .padding(.leading, 12)
+        case .ownRepos:
+            Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.fg2)
+                .frame(width: 22, height: 22)
+                .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.fg2, lineWidth: 1.2))
                 .padding(.leading, 12)
         case .view:
             Image(systemName: "line.3.horizontal.decrease").font(.system(size: 11, weight: .bold))

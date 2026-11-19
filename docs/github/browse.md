@@ -59,16 +59,36 @@ says what a scope is:
 | Mark | Scope |
 |---|---|
 | Filled square with the initial | An org or your own account |
+| Outlined small square with a tick, first under its org | *Only my N repos*: the org's repos you have checked out ([below](#only-my-repos)) |
 | Outlined small square, indented under its org | One repo |
 | Filled square with a filter glyph | An org view: an org narrowed by language or archived state ([below](#orgs-with-very-many-repos)) |
 
-`]o` and `[o` step through the scopes. A scope joins the rail when you go there, and the rail keeps it.
+**Clicking an org** picks it as the scope and opens it, which shows what is under it: *Only my N repos*, then the
+repos you have checked out, as outlined small squares. Clicking the org that is already the scope closes it again,
+and clicking another org opens that one without closing the first. The chevron beside an org opens or closes it and
+leaves the scope alone. An org opens by itself the first time you go there; once you close it, it stays closed.
+Which orgs are open is kept on this Mac. `za` opens or closes the org you are in, and `]o` and `[o` step through the
+scopes. A scope joins the rail when you go there, and the rail keeps it. The half-width icon rail keeps its one square
+per scope, and the sheet at a third width shows the same tree as the rail.
+
+![The rail with acme and globex open: Only my 4 repos leads under acme and is the scope](../images/shots/github/browse-rail-expanded.png)
+
+### Only my repos
+
+An org can be too big to browse whole while you work in three of its repos. *Only my N repos* under an org (and
+a row of that name in the quick jump) searches just the repos of that org you have checked out. The scope chip
+says so (*acme · only my 3 repos*). heed keeps only the org's name and the fact that it is this scope: the repos are
+read from your checkouts each time, so a clone or a removal changes the next search and nothing is a snapshot. A long
+list of repos is split into several searches that each fit GitHub's limit, their counts are added up and their items
+merged; each search backs off on a failure the way the whole-org search does. It is the same rule as the rest of
+Browse: every repo it names is checked out, so nothing outside what you have checked out is searched.
 
 ### Quick jump
 
 `⌘K` opens the jump, the one dialog for "get me to X" and "find Y". Type to find a saved query, an org or account, or a
 repo of one. Saved queries lead, the ones you ran last first, each with its count; `↩` runs one. Orgs list their repo
-count. Matching repos follow (six at most) with *cloned ✓* or *not cloned* and how many items are open. `↩` goes there.
+count, and an org with repos checked out has an *acme · only my 3 repos* row right after it. Matching repos follow
+(six at most) with *cloned ✓* or *not cloned* and how many items are open. `↩` goes there.
 A repo that is not cloned still browses: only starting an agent on it asks to clone first.
 
 When what you typed matches none of them, the last row is **Search GitHub for “…”**, and `⌘↩` picks it at any time.
@@ -341,6 +361,7 @@ Where you are, what you picked and the query survive a resize.
 | `↩` | `browse.open` | Load the item now; on a narrow window, push the reader |
 | `⌘K` | `browse.scope` | Jump to an org or a repo |
 | `]o` `[o` | `browse.scope.next` `browse.scope.prev` | Next and previous scope |
+| `za` | `browse.scope.toggle` | Open or close the repos under the org you are in (the rail's chevron) |
 | `]q` `[q` | `browse.query.next` `browse.query.prev` | Next and previous saved query |
 | `/` | `browse.filter.add` | Add a filter |
 | `x` | `browse.filter.remove` | Take the last filter off |

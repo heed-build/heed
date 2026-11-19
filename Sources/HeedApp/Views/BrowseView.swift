@@ -878,46 +878,15 @@ struct BrowsePaletteView: View {
                 }
                 .padding(.horizontal, 18).padding(.vertical, 14)
                 Theme.line.frame(height: 1)
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 0) {
-                            if rows.contains(where: { if case .query = $0 { true } else { false } }) {
-                                section("Saved queries")
-                                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
-                                    if case let .query(saved) = row {
-                                        queryRow(saved, selected: index == palette.cursor).id(index)
-                                    }
-                                }
-                            }
-                            if rows.contains(where: { if case let .org(org) = $0 { org.checkedOut } else { false } }) {
-                                section("Orgs and accounts")
-                            }
-                            orgRows(rows, checkedOut: true)
-                            if rows.contains(where: { if case .repo = $0 { true } else { false } }) {
-                                section("Repos matching “\(palette.query)”")
-                                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
-                                    if case let .repo(repo) = row {
-                                        repoRow(repo, selected: index == palette.cursor).id(index)
-                                    }
-                                }
-                            }
-                            orgRows(rows, checkedOut: false)
-                            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
-                                if case let .search(text) = row {
-                                    searchRow(text, selected: index == palette.cursor).id(index)
-                                }
-                            }
-                            if case let .createOrgView(count)? = palette.guidance,
-                               case let .org(org)? = rows[safeRow: palette.cursor]
-                            {
-                                guidance(org: org.name, repos: count)
-                            }
-                        }
-                        .padding(.bottom, 12)
-                    }
+                if rows.count > Self.scrollsAbove {
                     // Long lists scroll instead of running off the window.
-                    .frame(maxHeight: 560)
-                    .onChange(of: palette.cursor) { _, cursor in proxy.scrollTo(cursor) }
+                    ScrollViewReader { proxy in
+                        ScrollView { content(rows) }
+                            .frame(maxHeight: 560)
+                            .onChange(of: palette.cursor) { _, cursor in proxy.scrollTo(cursor) }
+                    }
+                } else {
+                    content(rows)
                 }
             }
             .frame(width: 700)
@@ -927,6 +896,46 @@ struct BrowsePaletteView: View {
             .padding(.top, 100)
             .shotRegion(.browsePalette)
         }
+    }
+
+    /// More rows than this scroll.
+    private static let scrollsAbove = 10
+
+    private func content(_ rows: [BrowsePalette.Row]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if rows.contains(where: { if case .query = $0 { true } else { false } }) {
+                section("Saved queries")
+                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                    if case let .query(saved) = row {
+                        queryRow(saved, selected: index == palette.cursor).id(index)
+                    }
+                }
+            }
+            if rows.contains(where: { if case let .org(org) = $0 { org.checkedOut } else { false } }) {
+                section("Orgs and accounts")
+            }
+            orgRows(rows, checkedOut: true)
+            if rows.contains(where: { if case .repo = $0 { true } else { false } }) {
+                section("Repos matching “\(palette.query)”")
+                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                    if case let .repo(repo) = row {
+                        repoRow(repo, selected: index == palette.cursor).id(index)
+                    }
+                }
+            }
+            orgRows(rows, checkedOut: false)
+            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                if case let .search(text) = row {
+                    searchRow(text, selected: index == palette.cursor).id(index)
+                }
+            }
+            if case let .createOrgView(count)? = palette.guidance,
+               case let .org(org)? = rows[safeRow: palette.cursor]
+            {
+                guidance(org: org.name, repos: count)
+            }
+        }
+        .padding(.bottom, 12)
     }
 
     private func section(_ title: String) -> some View {

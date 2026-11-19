@@ -848,7 +848,9 @@ enum Shots {
             model.browse.refilter()
         }),
         // Nothing checked out: the list asks for a repo first, and the counts are dashes.
-        Shot(id: "github/browse-none", keys: "gb", prepare: { model in
+        Shot(id: "github/browse-none", keys: "", prepare: { model in
+            // Entering Browse reads the fake world's checkouts, so it is entered first and emptied after.
+            model.view = .browse
             model.browse.scopes = []
             model.browse.query = BrowseQuery(tokens: [.state(.open)])
             model.browse.activeQuery = nil

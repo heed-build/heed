@@ -642,7 +642,7 @@ struct StatusBar: View {
         case .normal where model.browse.orgBuilder != nil:
             "↑↓ move · ↩ choose · space toggle · ⌘↩ create the view · ⎋ close"
         case .normal where model.browse.palette != nil:
-            "type to find · ⌃n ⌃p move · ↩ go · ⌃b browse a big org whole · ⎋ close"
+            "type to find · ⌃n ⌃p move · ↩ go · ⌘↩ search GitHub for it · ⌃b browse a big org whole · ⎋ close"
         case .normal where model.view == .browse:
             "\(key("row.next", "row.prev", in: "browse")) move · space pick · ↩ open · "
                 + "\(key("browse.scope", in: "browse")) scope · \(key("browse.query.next", in: "browse")) query · "

@@ -32,10 +32,18 @@ jobs:
       - name: fish
         run: brew install fish
 
+      # HeedCore and the tests only: the test product needs neither the app, MLX, Sparkle nor GhosttyKit (the build job
+      # compiles those). Heed's own sources are touched first so the log carries every warning, which text-check reads.
+      - name: Build the tests
+        shell: bash
+        run: |
+          find Sources/HeedCore Sources/heed Tests -name '*.swift' -exec touch {} +
+          swift build --product HeedPackageTests 2>&1 | tee "$RUNNER_TEMP/build-tests.log"
+
       - name: Test
         id: test
         shell: bash
-        run: mise run test 2>&1 | tee "$RUNNER_TEMP/test-1.log"
+        run: mise run test --skip-build 2>&1 | tee "$RUNNER_TEMP/test-1.log"
 
       # On main the suite runs a second time, on the same build, and a test that fails in only one of the two runs
       # fails the job by name as flaky. Nothing is retried: a flake is a bug to fix, not to hide. Pull requests run once.
@@ -50,9 +58,11 @@ jobs:
           scripts/flaky-tests.sh "$RUNNER_TEMP/test-1.log" "$RUNNER_TEMP/test-2.log"
           exit "$status"
 
-      # Rebuilds heed's own sources to see every warning again: other people's text in a plain String fails here.
+      # Reads the warnings of that build (HeedCore and the tests; the build job checks the app's): other people's text
+      # in a plain String fails here. Runs after the tests so a failing test is not hidden behind it.
       - name: Text check
-        run: mise run text-check
+        if: "!cancelled()"
+        run: scripts/text-check.sh "$RUNNER_TEMP/build-tests.log"
 
       # main's .build, for the next run to build on (see the setup action); pull requests only read it.
       - name: Save .build
@@ -74,7 +84,12 @@ jobs:
           cache: build
 
       - name: Release build
-        run: mise run bundle
+        shell: bash
+        run: mise run bundle 2>&1 | tee "$RUNNER_TEMP/release.log"
+
+      # Whole-module, so the log has every warning of HeedCore, the helper and the app.
+      - name: Text check
+        run: scripts/text-check.sh "$RUNNER_TEMP/release.log"
 
       # What the release workflow attaches for the updater: well-formed, and carrying what Sparkle reads.
       - name: Appcast

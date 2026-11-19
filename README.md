@@ -122,7 +122,8 @@ mise install        # zig (libghostty), swiftformat, swiftlint
 mise run doctor     # what is missing: Xcode licence, Metal toolchain, zig, gh
 mise run ghostty    # build Vendor/GhosttyKit.xcframework from the pinned Ghostty commit
 mise run dev        # build, assemble build/Heed.app, copy it to HEED_DEPLOY_DIR, launch
-mise run test       # Swift Testing (HeedCore)
+mise run test       # Swift Testing (HeedCore), built without the app
+mise run check      # compile the app
 mise run lint       # swiftformat + swiftlint
 ```
 

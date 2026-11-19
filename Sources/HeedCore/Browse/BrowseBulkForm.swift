@@ -54,6 +54,9 @@ public struct BrowseBulkForm: Equatable, Sendable {
         stage = .confirmEach
     }
 
+    /// How many sessions `confirmEach` would start: one per repo of the picks.
+    public var sessionCount: Int { BrowseBulk.byRepo(items).count }
+
     public mutating func started() { stage = .running }
 
     public mutating func finished(_ report: BrowseReport) { stage = .report(report) }

@@ -45,15 +45,131 @@ struct BrowseRailScopesTests {
         #expect(result.rows[0].checkedOut == nil && result.rows[1].checkedOut == 2)
     }
 
-    @Test func anOrgShowsItsCheckedOutReposWhenPinnedOrCurrent() {
+    @Test func anOrgShowsWhatIsUnderItOnlyWhenItIsExpanded() {
         let all = checkouts(["acme": 2, "globex": 1])
         let plain = BrowseRailScopes.rows(pinned: [], checkouts: all)
         #expect(plain.rows.allSatisfy { !$0.indent })
-        let current = BrowseRailScopes.rows(pinned: [], checkouts: all, current: .org("globex"))
-        #expect(current.rows.map(\.scope.id) == ["org:acme", "org:globex", "repo:globex/r1"])
-        #expect(current.rows.last?.indent == true)
+        #expect(plain.rows.map(\.expanded) == [false, false] && plain.rows.allSatisfy(\.expandable))
+        let open = BrowseRailScopes.rows(pinned: [], checkouts: all, expanded: ["globex"])
+        #expect(open.rows.map(\.scope.id) == ["org:acme", "org:globex", "own:globex", "repo:globex/r1"])
+        #expect(open.rows.map(\.indent) == [false, false, true, true])
+        #expect(open.rows.map(\.expanded) == [false, true, false, false])
+        // A pinned repo no longer opens its org by itself.
         let pinned = BrowseRailScopes.rows(pinned: [.repo(Repo(org: "acme", name: "r2"))], checkouts: all)
-        #expect(pinned.rows.map(\.scope.id) == ["org:acme", "repo:acme/r2", "repo:acme/r1", "org:globex"])
+        #expect(pinned.rows.map(\.scope.id) == ["org:acme", "org:globex"])
+        let both = BrowseRailScopes.rows(
+            pinned: [.repo(Repo(org: "acme", name: "r2"))], checkouts: all, expanded: ["acme"]
+        )
+        #expect(both.rows.map(\.scope.id) == ["org:acme", "own:acme", "repo:acme/r2", "repo:acme/r1", "org:globex"])
+    }
+
+    @Test func theFirstRowUnderAnOrgIsOnlyMyNReposAndIsNeverPinnedOnItsOwn() {
+        let all = checkouts(["acme": 3])
+        let rows = BrowseRailScopes.rows(pinned: [.ownRepos("acme")], checkouts: all, expanded: ["acme"]).rows
+        #expect(rows.map(\.scope.id) == ["org:acme", "own:acme", "repo:acme/r1", "repo:acme/r2", "repo:acme/r3"])
+        #expect(rows[1].checkedOut == 3 && rows[1].title == "Only my 3 repos")
+        // Closed: a pinned own-repos scope does not turn up at the end of the rail.
+        #expect(BrowseRailScopes.rows(pinned: [.ownRepos("acme")], checkouts: all).rows.map(\.scope.id) == ["org:acme"])
+        let one = BrowseRailScopes.rows(pinned: [], checkouts: checkouts(["solo": 1]), expanded: ["solo"]).rows
+        #expect(one[1].title == "Only my 1 repo")
+    }
+
+    @Test func anOrgWithNoCheckoutHasNoChevronAndNothingUnderItEvenWhenExpanded() {
+        let rows = BrowseRailScopes.rows(pinned: [.org("initech")], checkouts: checkouts([:]), expanded: ["initech"]).rows
+        #expect(rows.map(\.scope.id) == ["org:initech"])
+        #expect(!rows[0].expandable && !rows[0].expanded)
+    }
+
+    @Test func theExpandedSetIsReadCaseInsensitively() {
+        let rows = BrowseRailScopes.rows(pinned: [], checkouts: checkouts(["Acme": 1]), expanded: [BrowseRailScopes.key("Acme")])
+        #expect(rows.rows.map(\.scope.id) == ["org:acme", "own:acme", "repo:acme/r1"])
+    }
+}
+
+struct BrowseRailExpansionTests {
+    @Test func clickingAnOrgThatIsNotTheScopeOpensItAndClickingTheScopeClosesItAndOpensItAgain() {
+        var rail = BrowseRailExpansion()
+        rail.clicked("Acme", wasScope: false)
+        #expect(rail.isOpen("acme"))
+        rail.clicked("Acme", wasScope: false)
+        #expect(rail.isOpen("acme"), "an unselected org never collapses by being clicked")
+        rail.clicked("acme", wasScope: true)
+        #expect(!rail.isOpen("acme"))
+        rail.clicked("acme", wasScope: true)
+        #expect(rail.isOpen("ACME"))
+    }
+
+    @Test func anotherOrgOpeningLeavesTheFirstAsItWas() {
+        var rail = BrowseRailExpansion()
+        rail.clicked("acme", wasScope: false)
+        rail.clicked("globex", wasScope: false)
+        #expect(rail.open == ["acme", "globex"])
+    }
+
+    @Test func theChevronOnlyToggles() {
+        var rail = BrowseRailExpansion()
+        rail.toggle("acme")
+        #expect(rail.isOpen("acme"))
+        rail.toggle("acme")
+        #expect(!rail.isOpen("acme"))
+    }
+
+    @Test func theOrgYouPickOpensOnceAndACollapseSticks() {
+        var rail = BrowseRailExpansion()
+        rail.picked("acme")
+        #expect(rail.isOpen("acme"))
+        rail.toggle("acme")
+        rail.picked("acme")
+        #expect(!rail.isOpen("acme"), "a collapse is remembered: picking again does not open it")
+        var other = BrowseRailExpansion(open: [], seen: ["acme"])
+        other.picked("acme")
+        #expect(!other.isOpen("acme"))
+    }
+
+    @Test func aCollapseOfAnOrgThatWasNeverAutoOpenedIsRememberedToo() {
+        var rail = BrowseRailExpansion()
+        rail.toggle("acme")
+        rail.toggle("acme")
+        rail.picked("acme")
+        #expect(!rail.isOpen("acme"))
+    }
+}
+
+struct BrowsePaletteOwnReposTests {
+    private let orgs = [
+        BrowsePalette.Org(name: "acme", ownRepos: 3), BrowsePalette.Org(name: "globex", ownRepos: 1),
+        BrowsePalette.Org(name: "empty"), BrowsePalette.Org(name: "initech", checkedOut: false),
+    ]
+
+    @Test func eachCheckedOutOrgWithReposHasAnOnlyMyNReposRowRightAfterIt() {
+        let palette = BrowsePalette(orgs: orgs, listings: [])
+        #expect(palette.rows == [.org(orgs[0]), .ownRepos(orgs[0]), .org(orgs[1]), .ownRepos(orgs[1]), .org(orgs[2])])
+    }
+
+    @Test func pickingThatRowScopesToTheOrgsOwnRepos() {
+        var palette = BrowsePalette(orgs: orgs, listings: [])
+        _ = palette.handle(KeyStroke("Down"))
+        #expect(palette.handle(KeyStroke("CR")) == .choose(.ownRepos("acme")))
+    }
+
+    @Test func typingAnOrgKeepsItsRowAndAnOrgWithNoCheckoutGetsNone() {
+        var palette = BrowsePalette(orgs: orgs, listings: [])
+        for character in "glob" {
+            _ = palette.handle(KeyStroke(String(character)))
+        }
+        #expect(palette.rows == [.org(orgs[1]), .ownRepos(orgs[1])])
+        var other = BrowsePalette(orgs: orgs, listings: [])
+        for character in "initech" {
+            _ = other.handle(KeyStroke(String(character)))
+        }
+        #expect(other.rows == [.org(orgs[3])])
+    }
+
+    @Test func theOwnReposRowOffersNoOrgViewGuidance() {
+        var palette = BrowsePalette(orgs: orgs, listings: [])
+        palette.setRepoCount(5000, of: "acme")
+        _ = palette.handle(KeyStroke("Down"))
+        #expect(palette.guidance == nil)
     }
 }
 

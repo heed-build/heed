@@ -532,13 +532,15 @@ final class AppModel {
     /// Scoped key bindings follow what has focus: the diff, the PR overlay or reader, else the view (Goals'
     /// Unassigned pane has its own: y n m i answer there).
     func updateScope() {
-        engine.scope = overlay == .approvals ? "approvals" : overlay == .diff ? "diff" : issueReader != nil ? "issue"
+        let scope = overlay == .approvals ? "approvals" : overlay == .diff ? "diff" : issueReader != nil ? "issue"
             : (overlay == .pr || reader != nil) ? "pr" : view == .goals ? goals.scope
             : view == .attention && attentionQuestion != nil ? "swarmask"
             : view == .sessions && goalPromotion != nil ? "sessionspromote"
             : view == .browse && pickedIDs(.browse).count >= 2 ? "browsebulk"
             : panelPopoverScope ?? helperScope ?? panelOfferScope ?? view.rawValue
-        if engine.scope == "goals", goals.focus == .goals, pageShows { engine.scope = "goalpage" }
+        let adjusted = scope == "goals" && goals.focus == .goals && pageShows ? "goalpage" : scope
+        // Browse shows no terminal: switching to it from INSERT (the menu, a command) must not leave the keys there.
+        if engine.scopeChanged(to: adjusted) { modeChanged(from: .insert) }
     }
 
     // Diff overlay

@@ -33,6 +33,18 @@ public struct ModeEngine: Sendable {
     /// The view whose scoped bindings apply, e.g. `repos`.
     public var scope: String?
 
+    /// Views that show no terminal: INSERT there sends every key, ⌘K among them, to nothing.
+    public static let scopesWithoutTerminal: Set<String> = ["browse", "browsebulk"]
+
+    /// The view changed to `scope`. A view without a terminal (Browse) cannot hold INSERT, which a session you were
+    /// typing into leaves behind when the menu or a command switches views: returns true when it went back to NORMAL.
+    public mutating func scopeChanged(to scope: String?) -> Bool {
+        self.scope = scope
+        guard mode == .insert, let scope, Self.scopesWithoutTerminal.contains(scope) else { return false }
+        enter(.normal)
+        return true
+    }
+
     public init(keymaps: [Mode: Keymap], scoped: [String: Keymap] = [:]) {
         self.keymaps = keymaps
         scopedKeymaps = scoped

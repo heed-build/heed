@@ -85,7 +85,7 @@ Browse: every repo it names is checked out, so nothing outside what you have che
 
 ### Quick jump
 
-`⌘K` opens the jump, the one dialog for "get me to X" and "find Y". Type to find a saved query, an org or account, or a
+`⌘K` (or `gj`, as in "go jump") opens the jump, the one dialog for "get me to X" and "find Y". Type to find a saved query, an org or account, or a
 repo of one. Saved queries lead, the ones you ran last first, each with its count; `↩` runs one. Orgs list their repo
 count, and an org with repos checked out has an *acme · only my 3 repos* row right after it. Matching repos follow
 (six at most) with *cloned ✓* or *not cloned* and how many items are open. `↩` goes there.
@@ -359,7 +359,7 @@ Where you are, what you picked and the query survive a resize.
 |---|---|---|
 | `j` `k` | | Move through the list |
 | `↩` | `browse.open` | Load the item now; on a narrow window, push the reader |
-| `⌘K` | `browse.scope` | Jump to an org or a repo |
+| `⌘K`, `gj` | `browse.scope` | Jump to an org or a repo |
 | `]o` `[o` | `browse.scope.next` `browse.scope.prev` | Next and previous scope |
 | `za` | `browse.scope.toggle` | Open or close the repos under the org you are in (the rail's chevron) |
 | `]q` `[q` | `browse.query.next` `browse.query.prev` | Next and previous saved query |

@@ -1607,12 +1607,20 @@ final class AppModel {
             if turn.continues, pendingContinue.remove(session.id) != nil,
                let layout = layouts[session.id], let (_, paneID) = agentPane(in: layout)
             {
-                // Typed as soon as it is idle, as it always was (no typing grace), unless its channel takes it.
+                // Typed as soon as it is idle, as it always was (no typing grace), and never through its channel: Claude
+                // can hold a message from its inbox for your approval, and a resumed agent would sit waiting for it.
                 let prompt = settings.continuePrompt, id = session.id
                 Task { @MainActor in
-                    let outcome = await self.sendToAgent(.owner(prompt), pane: paneID, state: .idle, lastTyped: nil)
-                    guard outcome.sent, var sent = self.sessions.first(where: { $0.id == id }) else { return }
-                    sent.record("sent “\(prompt)”" + (outcome == .typed(fallback: nil) ? "" : " · \(outcome.summary)"))
+                    let outcome = await self.sendToAgent(
+                        .owner(prompt), pane: paneID, state: .idle, lastTyped: nil, viaChannel: false
+                    )
+                    guard var sent = self.sessions.first(where: { $0.id == id }) else { return }
+                    // A continue that was not sent says so on the session, since nothing retries it.
+                    sent.record(
+                        outcome.sent
+                            ? "sent “\(prompt)”" + (outcome == .typed(fallback: nil) ? "" : " · \(outcome.summary)")
+                            : "did not send “\(prompt)” after the resume · \(outcome.summary)"
+                    )
                     self.commit(.sessionUpserted(sent))
                 }
             }

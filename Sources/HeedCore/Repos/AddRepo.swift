@@ -402,7 +402,10 @@ public struct AddRepoForm: Sendable {
             pinned: pinned, recent: recent.compactMap { tab in tabs.firstIndex(of: tab).flatMap(order.firstIndex) },
             moreWidth: AddRepoChips.moreWidth(total: order.count)
         )
-        return AddRepoChips.Result(visible: result.visible.map { order[$0] }, overflow: result.overflow.map { order[$0] })
+        return AddRepoChips.Result(
+            visible: result.visible.map { order[$0] },
+            overflow: result.overflow.map { order[$0] }
+        )
     }
 
     /// The chips as rows: tab indices, and nil for the "+N more" chip, which ends the last row.
@@ -436,7 +439,8 @@ public struct AddRepoForm: Sendable {
         select(tab: index)
     }
 
-    /// A keystroke while the list is open: ⎋ closes it (not the dialog), ↩ chooses, ↓ ↑ ⌃n ⌃p move, ⇥ and ⌘↩ close it and
+    /// A keystroke while the list is open: ⎋ closes it (not the dialog), ↩ chooses, ↓ ↑ ⌃n ⌃p move, ⇥ and ⌘↩ close it
+    /// and
     /// act as they do on the dialog, anything else types into its filter.
     mutating func handleMenu(_ stroke: KeyStroke) -> Action? {
         guard var menu = orgMenu else { return nil }
@@ -520,7 +524,8 @@ public struct AddRepoForm: Sendable {
     }
 
     /// One keystroke. Typing goes to the field; ⌃n ⌃p and ↓ ↑ move; space picks (it types on the folder tab, where
-    /// paths may have spaces); ⇥ ⇧⇥ change tabs (⇥ completes a folder on the folder tab); ⌃o lists the orgs with no chip; ⌃r and ⌃t change the root
+    /// paths may have spaces); ⇥ ⇧⇥ change tabs (⇥ completes a folder on the folder tab); ⌃o lists the orgs with no
+    /// chip; ⌃r and ⌃t change the root
     /// and the "then"; ↩ and ⌘↩ go; ⎋ cancels.
     public mutating func handle(_ stroke: KeyStroke) -> Action {
         if let action = handleMenu(stroke) { return action }

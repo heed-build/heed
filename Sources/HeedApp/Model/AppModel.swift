@@ -4649,6 +4649,10 @@ final class AppModel {
     @ObservationIgnored var addRepoFieldTask: Task<Void, Never>?
     /// What `gh repo list` last answered, loaded from the caches folder on first use.
     @ObservationIgnored var repoListCache: RepoListCache?
+    /// Shots only: the lists the fake world's Add or clone dialog opens on, instead of the usual fixture's.
+    @ObservationIgnored var shotRepoLists: RepoListCache?
+    /// Shots only: a narrower Add or clone dialog.
+    var shotAddRepoWidth: CGFloat?
     private var pathPreviewTask: Task<Void, Never>?
 
     private func openPathImport() {

@@ -73,7 +73,11 @@ struct AddRepoChipsTests {
         // The wide one is held to the row width (100): the rows are [0], [1], so only the more chip follows.
         #expect(AddRepoChips.pack([40, 400], available: 100, spacing: 10) == [[0], [1]])
         #expect(result.visible.contains(0))
-        let rows = AddRepoChips.pack(result.visible.map { [40, 400, 40, 40, 40][$0] } + [30], available: 100, spacing: 10)
+        let rows = AddRepoChips.pack(
+            result.visible.map { [40, 400, 40, 40, 40][$0] } + [30],
+            available: 100,
+            spacing: 10
+        )
         #expect(rows.count <= 2)
     }
 

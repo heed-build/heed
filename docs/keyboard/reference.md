@@ -411,7 +411,7 @@ This page is generated from the code (`mise run shots`).
 | `attention.mute` | `M` (attention), `M` (attentionhelper), `M` (attentionother), `M` (swarmask) | mute the thread on GitHub (no more notifications about it); listed under Muted |
 | `attention.reply` | `R` (attention), `R` (attentionhelper), `R` (attentionother), `R` (swarmask) | draft a reply with the model; you read it before anything is posted |
 | `browse.open` | `<CR>` (browse), `<CR>` (browsebulk) | Browse: load the item under the cursor into the reader now |
-| `browse.scope` | `<D-k>` (browse), `<D-k>` (browsebulk) | Browse: jump to an org or a repo (type to find it) |
+| `browse.scope` | `<D-k>` (browse), `gj` (browse), `<D-k>` (browsebulk), `gj` (browsebulk) | Browse: jump to an org or a repo (type to find it) |
 | `browse.scope.next` | `]o` (browse), `]o` (browsebulk) | Browse: the next scope in the rail |
 | `browse.scope.prev` | `[o` (browse), `[o` (browsebulk) | Browse: the previous scope in the rail |
 | `browse.scope.toggle` | `za` (browse), `za` (browsebulk) | Browse: open or close the repos under the current org in the rail |

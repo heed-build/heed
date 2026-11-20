@@ -405,7 +405,10 @@ public enum DefaultKeys {
     /// /. U has heed read the items, F I C R send an agent at the one under the cursor (Fix, Implement, Chat, Review),
     /// t tells one in your own words; N renames the saved query you are on.
     static let browse: [(String, String)] = [
-        ("<Space>", "select.toggle"), ("<CR>", "browse.open"), ("<D-k>", "browse.scope"), ("]o", "browse.scope.next"),
+        ("<Space>", "select.toggle"), ("<CR>", "browse.open"), ("<D-k>", "browse.scope"), ("gj", "browse.scope"), (
+            "]o",
+            "browse.scope.next"
+        ),
         ("[o", "browse.scope.prev"), ("za", "browse.scope.toggle"), ("]q", "browse.query.next"), (
             "[q",
             "browse.query.prev"

@@ -205,6 +205,17 @@ public struct AddRepoForm: Sendable {
     /// While it clones: what it is doing; after a failure: why.
     public var progress: String?
     public var problem: String?
+    /// The dialog's width, for how many chips fit a row (the app sets it).
+    public var dialogWidth = 860.0
+    /// The tabs you were on, newest first: they keep their chip when there are more orgs than fit.
+    public private(set) var recent: [Tab] = []
+    /// The "+N more" list while it is open: a filter over the orgs without a chip, and the row under the cursor.
+    public struct OrgMenu: Sendable {
+        public var filter = EditableText()
+        public var cursor = 0
+    }
+
+    public private(set) var orgMenu: OrgMenu?
 
     public init(
         orgs: [String], records: [RepoRecord], roots: [String], then: AfterAdd, lists: [String: ListState] = [:]
@@ -354,10 +365,104 @@ public struct AddRepoForm: Sendable {
         guard tabs.indices.contains(index) else { return }
         tab = index
         cursor = 0
+        recent.removeAll { $0 == tabs[index] }
+        recent.insert(tabs[index], at: 0)
+        if recent.count > 8 { recent.removeLast() }
     }
 
+    /// The next tab in the order the chips show (⇥ and ⇧⇥), round.
     public mutating func nextTab(_ delta: Int = 1) {
-        select(tab: (tab + delta + tabs.count) % tabs.count)
+        let order = chipOrder
+        guard let at = order.firstIndex(of: tab) else { return select(tab: (tab + delta + tabs.count) % tabs.count) }
+        select(tab: order[(at + delta + order.count) % order.count])
+    }
+
+    // MARK: The chips
+
+    /// Tab indices in the order the chips show: Your GitHub, the orgs with the most repos first (those still loading
+    /// last, equal counts in tab order), the folder.
+    public var chipOrder: [Int] {
+        let orgs = tabs.indices.filter { if case .org = tabs[$0] { true } else { false } }
+        let counts = Dictionary(uniqueKeysWithValues: orgs.map { ($0, count(tabs[$0]) ?? -1) })
+        let sorted = orgs.sorted { counts[$0] == counts[$1] ? $0 < $1 : counts[$0]! > counts[$1]! }
+        return tabs.indices.filter { tabs[$0] == .mine } + sorted + tabs.indices.filter { tabs[$0] == .folder }
+    }
+
+    /// The width the chips have: the dialog less its padding and the ⇥ hint beside them.
+    var chipsWidth: Double { dialogWidth - 44 - 90 }
+    public static let chipRows = 2
+
+    /// What the chips show: the tab indices in the visible rows, and the ones behind "+N more".
+    public var chipLayout: AddRepoChips.Result {
+        let order = chipOrder
+        let widths = order.map { AddRepoChips.width(title: tabs[$0].title, count: count(tabs[$0])) }
+        let pinned = Set(order.indices.filter { tabs[order[$0]] == .mine || tabs[order[$0]] == .folder })
+        let result = AddRepoChips.layout(
+            widths: widths, available: chipsWidth, maxRows: Self.chipRows, selected: order.firstIndex(of: tab),
+            pinned: pinned, recent: recent.compactMap { tab in tabs.firstIndex(of: tab).flatMap(order.firstIndex) },
+            moreWidth: AddRepoChips.moreWidth(total: order.count)
+        )
+        return AddRepoChips.Result(visible: result.visible.map { order[$0] }, overflow: result.overflow.map { order[$0] })
+    }
+
+    /// The chips as rows: tab indices, and nil for the "+N more" chip, which ends the last row.
+    public var chipRows: [[Int?]] {
+        let layout = chipLayout
+        var widths = layout.visible.map { AddRepoChips.width(title: tabs[$0].title, count: count(tabs[$0])) }
+        var slots: [Int?] = layout.visible
+        if !layout.overflow.isEmpty {
+            widths.append(AddRepoChips.moreWidth(total: layout.overflow.count))
+            slots.append(nil)
+        }
+        return AddRepoChips.pack(widths, available: chipsWidth).map { $0.map { slots[$0] } }
+    }
+
+    /// The orgs the "+N more" list offers: those without a chip that the filter matches.
+    public var menuTabs: [Int] {
+        guard let orgMenu else { return [] }
+        return chipLayout.overflow.filter { FilterQuery.matches(orgMenu.filter.text, [tabs[$0].title]) }
+    }
+
+    /// ⌃o or a click on "+N more": opens the list, or closes it.
+    public mutating func toggleOrgMenu() {
+        if orgMenu != nil { orgMenu = nil } else if !chipLayout.overflow.isEmpty { orgMenu = OrgMenu() }
+    }
+
+    public mutating func closeOrgMenu() { orgMenu = nil }
+
+    /// Chooses the org in the list: its tab opens, with its chip shown.
+    public mutating func chooseFromMenu(tab index: Int) {
+        orgMenu = nil
+        select(tab: index)
+    }
+
+    /// A keystroke while the list is open: ⎋ closes it (not the dialog), ↩ chooses, ↓ ↑ ⌃n ⌃p move, ⇥ and ⌘↩ close it and
+    /// act as they do on the dialog, anything else types into its filter.
+    mutating func handleMenu(_ stroke: KeyStroke) -> Action? {
+        guard var menu = orgMenu else { return nil }
+        switch stroke {
+        case .escape, KeyStroke("o", .control):
+            orgMenu = nil
+            return Action.none
+        case KeyStroke("CR"):
+            let items = menuTabs
+            if items.indices.contains(menu.cursor) { chooseFromMenu(tab: items[menu.cursor]) } else { orgMenu = nil }
+            return Action.none
+        case KeyStroke("n", .control), KeyStroke("j", .control), KeyStroke("Down"):
+            menu.cursor = min(menu.cursor + 1, max(menuTabs.count - 1, 0))
+        case KeyStroke("p", .control), KeyStroke("k", .control), KeyStroke("Up"):
+            menu.cursor = max(menu.cursor - 1, 0)
+        case KeyStroke("Tab"), KeyStroke("Tab", .shift), KeyStroke("CR", .command), KeyStroke("r", .control),
+             KeyStroke("t", .control):
+            orgMenu = nil
+            return nil
+        default:
+            let before = menu.filter.text
+            _ = menu.filter.handle(stroke)
+            if menu.filter.text != before { menu.cursor = 0 }
+        }
+        orgMenu = menu
+        return Action.none
     }
 
     /// The next root, round.
@@ -415,11 +520,13 @@ public struct AddRepoForm: Sendable {
     }
 
     /// One keystroke. Typing goes to the field; ⌃n ⌃p and ↓ ↑ move; space picks (it types on the folder tab, where
-    /// paths may have spaces); ⇥ ⇧⇥ change tabs (⇥ completes a folder on the folder tab); ⌃r and ⌃t change the root
+    /// paths may have spaces); ⇥ ⇧⇥ change tabs (⇥ completes a folder on the folder tab); ⌃o lists the orgs with no chip; ⌃r and ⌃t change the root
     /// and the "then"; ↩ and ⌘↩ go; ⎋ cancels.
     public mutating func handle(_ stroke: KeyStroke) -> Action {
+        if let action = handleMenu(stroke) { return action }
         switch stroke {
         case .escape: return .cancel
+        case KeyStroke("o", .control): toggleOrgMenu()
         case KeyStroke("CR"), KeyStroke("CR", .command): return .submit
         case KeyStroke("n", .control), KeyStroke("j", .control), KeyStroke("Down"):
             move(by: 1)

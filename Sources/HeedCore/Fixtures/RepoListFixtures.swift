@@ -49,4 +49,23 @@ public enum RepoListFixtures {
 
     /// The orgs gh says you belong to.
     public static let orgs = ["acme", "globex", "initech", "umbrella"]
+
+    /// A user in many orgs of mixed name lengths, with their repo counts, for the many-orgs shots and tests.
+    public static let manyOrgs: [(name: String, repos: Int)] = [
+        ("acme", 199), ("globex", 24), ("initech", 5), ("umbrella", 4), ("hooli", 200), ("pied-piper", 35),
+        ("stark", 3), ("wayne-enterprises", 30), ("wonka", 1), ("cyberdyne-systems", 2), ("tyrell", 27),
+        ("soylent", 1), ("oscorp-industries-international-holdings", 23), ("massive-dynamic", 49), ("vandelay", 7),
+        ("bluth", 12),
+    ]
+
+    /// `lists` with an org each of `manyOrgs`, the repos invented.
+    public static var manyOrgLists: [String: [RepoListing]] {
+        var out = lists
+        for org in manyOrgs {
+            out[org.name] = (0 ..< org.repos).map {
+                listing("\(org.name)/project-\($0)", "repo \($0) of \(org.name)", pushed: Double($0 + 1) * 6)
+            }
+        }
+        return out
+    }
 }

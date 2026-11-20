@@ -23,7 +23,7 @@ struct AddRepoView: View {
                 footer
             }
             .padding(22)
-            .frame(width: 860)
+            .frame(width: width)
             .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
             .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -49,25 +49,76 @@ struct AddRepoView: View {
         }
     }
 
+    /// The dialog's width; a shot may narrow it.
+    private var width: CGFloat { model.shotAddRepoWidth ?? 860 }
+
+    /// The tab chips: at most two rows, each chip on one line, the orgs that do not fit behind "+N more".
     private var tabs: some View {
-        HStack(spacing: 8) {
-            ForEach(Array(form.tabs.enumerated()), id: \.offset) { index, tab in
-                let current = index == form.tab
-                let count = form.count(tab).map { " · \($0)" } ?? ""
-                Text(tab.title + count)
-                    .font(Theme.ui(12.5, weight: current ? .semibold : .regular))
-                    .foregroundStyle(current ? Theme.ink : Theme.fg2)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(current ? Theme.inverse : .clear))
-                    .overlay(Capsule().strokeBorder(current ? .clear : Theme.line))
-                    .contentShape(Capsule())
-                    .tap { model.editAddRepo { $0.select(tab: index) } }
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(form.chipRows.enumerated()), id: \.offset) { _, row in
+                    HStack(spacing: AddRepoChips.spacing) {
+                        ForEach(Array(row.enumerated()), id: \.offset) { _, slot in
+                            if let index = slot { chip(index) } else { moreChip }
+                        }
+                    }
+                }
             }
             Spacer(minLength: 8)
             KeyCap(text: "⇥")
             Text("next").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
         }
+        .overlay(alignment: .topLeading) {
+            if form.orgMenu != nil { OrgMenuView(form: form).offset(y: 34).zIndex(1) }
+        }
+        .zIndex(1)
+    }
+
+    private func chip(_ index: Int) -> some View {
+        let tab = form.tabs[index]
+        let current = index == form.tab
+        let count = form.count(tab)
+        // Never wraps: a chip is its text on one line, and one too long for `maxChipWidth` is cut with an ellipsis
+        // (the tooltip has the whole name).
+        let capped = AddRepoChips.width(title: tab.title, count: count) >= AddRepoChips.maxChipWidth
+        return HStack(spacing: 6) {
+            Text(verbatim: tab.title)
+                .font(Theme.ui(12.5, weight: current ? .semibold : .regular))
+                .lineLimit(1).truncationMode(.tail)
+                .fixedSize(horizontal: !capped, vertical: false)
+            if let count {
+                Text(verbatim: BrowseNumber.compact(count)).font(Theme.mono(11))
+                    .foregroundStyle(current ? Theme.ink.opacity(0.6) : Theme.fg3).lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+        }
+        .foregroundStyle(current ? Theme.ink : Theme.fg2)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+        .frame(width: capped ? AddRepoChips.maxChipWidth : nil, alignment: .leading)
+        .fixedSize(horizontal: !capped, vertical: false)
+        .background(Capsule().fill(current ? Theme.inverse : .clear))
+        .overlay(Capsule().strokeBorder(current ? .clear : Theme.line))
+        .contentShape(Capsule())
+        .help(count.map { "\(tab.title) · \(BrowseNumber.exact($0)) repos" } ?? tab.title)
+        .tap { model.editAddRepo { $0.select(tab: index) } }
+    }
+
+    private var moreChip: some View {
+        let open = form.orgMenu != nil
+        return HStack(spacing: 6) {
+            Text(verbatim: "+\(form.chipLayout.overflow.count) more").font(Theme.ui(12.5)).lineLimit(1)
+            KeyCap(text: "⌃o")
+        }
+        .foregroundStyle(Theme.fg2)
+        .fixedSize(horizontal: true, vertical: false)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(open ? Theme.bg3 : .clear))
+        .overlay(Capsule().strokeBorder(Theme.fg3, style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
+        .contentShape(Capsule())
+        .help("The orgs that have no chip here")
+        .tap { model.editAddRepo { $0.toggleOrgMenu() } }
     }
 
     @ViewBuilder private var list: some View {
@@ -222,5 +273,60 @@ private struct AddRepoRow: View {
             listing.isArchived ? "archived" : nil, row.typed ? "on GitHub" : nil,
         ].compactMap(\.self)
         return words.isEmpty ? "" : " · " + words.joined(separator: " · ")
+    }
+}
+
+/// The "+N more" list: the orgs with no chip, narrowed by what is typed, with their repo counts. It is drawn here, not
+/// in a popover, so the keys stay with the dialog (↩ chooses, ⎋ closes it first, ⌃o toggles it).
+private struct OrgMenuView: View {
+    @Environment(AppModel.self) private var model
+    let form: AddRepoForm
+
+    var body: some View {
+        let items = form.menuTabs
+        let cursor = form.orgMenu?.cursor ?? 0
+        let start = max(0, min(cursor - 3, items.count - 7))
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 0) {
+                if let menu = form.orgMenu { CaretText(input: menu.filter).font(Theme.mono(12.5)).lineLimit(1) }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Theme.pane))
+            .overlay(alignment: .leading) {
+                if form.orgMenu?.filter.text.isEmpty ?? true {
+                    Text("find an org").font(Theme.mono(12.5)).foregroundStyle(Theme.fg3).padding(.leading, 20)
+                }
+            }
+            if items.isEmpty {
+                Text("No org matches.").font(Theme.ui(12)).foregroundStyle(Theme.fg3).padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+            }
+            ForEach(Array(items.enumerated().dropFirst(start).prefix(7)), id: \.element) { position, index in
+                HStack(spacing: 8) {
+                    Text(verbatim: form.tabs[index].title).font(Theme.ui(12.5)).lineLimit(1).truncationMode(.tail)
+                    Spacer(minLength: 12)
+                    if let count = form.count(form.tabs[index]) {
+                        Text(verbatim: BrowseNumber.compact(count)).font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                    }
+                }
+                .foregroundStyle(Theme.fg)
+                .padding(.horizontal, 10).padding(.vertical, 4)
+                .background(RoundedRectangle(cornerRadius: 6).fill(position == cursor ? Theme.bg3 : .clear))
+                .contentShape(Rectangle())
+                .help(form.tabs[index].title)
+                .tap { model.editAddRepo { $0.chooseFromMenu(tab: index) } }
+            }
+            HStack(spacing: 6) {
+                KeyCap(text: "↩"); Text("choose").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                KeyCap(text: "⎋"); Text("close").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+            }
+            .padding(.horizontal, 10).padding(.top, 2)
+        }
+        .padding(8)
+        .frame(width: 300)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
+        .shadow(color: .black.opacity(0.4), radius: 12, y: 4)
     }
 }

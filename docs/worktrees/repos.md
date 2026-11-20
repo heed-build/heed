@@ -41,11 +41,19 @@ repo gets here:
 - **The tabs**: **Your GitHub** is your repos and every org's together, then a tab per org, then **A folder on this
   Mac**. The lists come from `gh repo list` (read only), newest push first; Heed keeps the last answer and asks again
   when the dialog opens, at most every 15 minutes, off the main thread. `⇥` and `⇧⇥` move between tabs.
+  With many orgs the chips stay on one line each and fill at most two rows: the orgs with the most repos first, the
+  rest behind a **+N more** chip. Click it or press `⌃o` for a list you can type into to find an org (`↓` `↑` move,
+  `↩` chooses, `⎋` closes the list before it closes the dialog). The org you choose gets its chip in the rows, and `⇥`
+  walks every org, shown or not, in the order of the chips.
 - **Here** says where each repo already is: its folder on this Mac, **@host only** (it is on a host, not here), or
   **clone**. Archived repos are dimmed.
 - `⌃n` `⌃p` (or `↓` `↑`) move, and `space` picks several.
 
 ![An org's tab: its repos alone](../images/shots/worktrees/add-repo-org.png)
+
+![Sixteen orgs: two rows of chips, the rest behind +9 more](../images/shots/worktrees/add-repo-many-orgs.png)
+
+![The +9 more list, ready to filter](../images/shots/worktrees/add-repo-many-orgs-menu.png)
 
 ![acme/an typed, two repos picked](../images/shots/worktrees/add-repo-picked.png)
 

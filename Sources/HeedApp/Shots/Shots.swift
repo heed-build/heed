@@ -535,6 +535,15 @@ enum Shots {
 
     static let short = CGSize(width: 1440, height: 640)
 
+    /// The Add or clone dialog for a user in many orgs, at the usual width or a narrower one.
+    @MainActor static func manyOrgs(_ model: AppModel, width: CGFloat? = nil) {
+        model.shotRepoLists = RepoListCache(
+            lists: RepoListFixtures.manyOrgLists.mapValues { .init(at: Clock.now, listings: $0) },
+            orgs: RepoListFixtures.manyOrgs.map(\.name)
+        )
+        model.shotAddRepoWidth = width
+    }
+
     /// Five asks from four agents waiting on you (docs/agents/approvals.md).
     static let approvals: [Shot] = {
         let asks: @MainActor (AppModel) -> Void = { $0.approvals.queue = ApprovalQueue(asks: Fixtures.approvalAsks()) }
@@ -962,6 +971,26 @@ enum Shots {
         Shot(id: "worktrees/add-repo-org", keys: "gra<Tab><Tab>", crop: .addRepo),
         Shot(id: "worktrees/add-repo-typed", keys: "gra" + "acme/brand-new", crop: .addRepo),
         Shot(id: "worktrees/add-repo-folder", keys: "gra" + "~/Projects/side-project", crop: .addRepo),
+        // Many orgs: two rows of chips at most, the rest behind "+N more", the chosen org always shown.
+        Shot(id: "worktrees/add-repo-many-orgs", keys: "gra", crop: .addRepo, prepare: { manyOrgs($0) }),
+        Shot(
+            id: "worktrees/add-repo-many-orgs-picked",
+            keys: "gra" + String(repeating: "<Tab>", count: 14),
+            crop: .addRepo,
+            prepare: { manyOrgs($0) }
+        ),
+        Shot(
+            id: "worktrees/add-repo-many-orgs-menu",
+            keys: "gra<C-o><C-n><C-n>",
+            crop: .addRepo,
+            prepare: { manyOrgs($0) }
+        ),
+        Shot(
+            id: "worktrees/add-repo-many-orgs-narrow",
+            keys: "gra",
+            crop: .addRepo,
+            prepare: { manyOrgs($0, width: 700) }
+        ),
         Shot(id: "worktrees/import-worktree", keys: "Iw", crop: .picker),
         // Typing narrows by repo, branch or the path below its root, and marks what matched.
         Shot(id: "worktrees/import-worktree-filtered", keys: "Iwgantt", crop: .picker),

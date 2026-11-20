@@ -10,12 +10,13 @@ extension AppModel {
     func openAddRepo(prefill: String? = nil) {
         if view != .repos { view = .repos }
         let fake = isFixture || tutor != nil
-        let cache = fake ? fixtureRepoLists : loadedRepoListCache()
+        let cache = fake ? (shotRepoLists ?? fixtureRepoLists) : loadedRepoListCache()
         let orgs = AddRepoForm.orgs(records: repos, listed: cache.orgs, viewer: nil)
         var form = AddRepoForm(
             orgs: orgs, records: repos, roots: settings.repoRoots, then: settings.afterAdd, lists: cache.states
         )
         form.lookups = repoLookups
+        form.dialogWidth = Double(shotAddRepoWidth ?? 860)
         if let prefill { form.setQuery(prefill) }
         addRepoDialog = form
         if prefill != nil { refreshAddRepoField() }

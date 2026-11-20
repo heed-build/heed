@@ -979,8 +979,18 @@ enum Shots {
             crop: .addRepo,
             prepare: { manyOrgs($0) }
         ),
-        Shot(id: "worktrees/add-repo-many-orgs-menu", keys: "gra<C-o><C-n><C-n>", crop: .addRepo, prepare: { manyOrgs($0) }),
-        Shot(id: "worktrees/add-repo-many-orgs-narrow", keys: "gra", crop: .addRepo, prepare: { manyOrgs($0, width: 700) }),
+        Shot(
+            id: "worktrees/add-repo-many-orgs-menu",
+            keys: "gra<C-o><C-n><C-n>",
+            crop: .addRepo,
+            prepare: { manyOrgs($0) }
+        ),
+        Shot(
+            id: "worktrees/add-repo-many-orgs-narrow",
+            keys: "gra",
+            crop: .addRepo,
+            prepare: { manyOrgs($0, width: 700) }
+        ),
         Shot(id: "worktrees/import-worktree", keys: "Iw", crop: .picker),
         // Typing narrows by repo, branch or the path below its root, and marks what matched.
         Shot(id: "worktrees/import-worktree-filtered", keys: "Iwgantt", crop: .picker),

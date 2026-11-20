@@ -20,6 +20,10 @@ in the Autopilot log for a PR's rounds, and in a swarm's rows. A message typed a
 
 ![The PR overlay's Delivery card: 3 queued go to fix-anchors-redirects as one prompt, once it is idle, and now working, waiting](../images/shots/agents/messages-queued.png)
 
+The continue prompt after a resume is the exception: it is always typed (the resumed agent is idle and nobody is typing
+there), never sent through Claude's inbox, where a session that holds messages for your approval would leave it
+waiting. If it could not be sent, the session's activity says so.
+
 The one thing heed still types whatever the agent is: **Allow** on a permission notification presses Return on the
 prompt. No channel can answer a prompt, by design.
 

@@ -26,11 +26,13 @@ extension AppModel {
     /// line). `typingGrace`: as `Delivery.verdict`'s. `mayType` false: its channel or nothing, never the pane (a
     /// helper's notice). Returns where it ended up; `.waiting` means nothing was sent. The prompt is rendered here,
     /// where it leaves heed: other people's text fenced, and control characters stripped before it is typed.
+    /// `viaChannel` false: never its channel, typed under the typing rules (the continue prompt: Claude can hold a
+    /// message from its inbox for your approval, and a resumed agent waiting for it would never be told).
     func sendToAgent(
         _ prompt: Prompt, typed: Prompt? = nil, pane: String, state: AgentState, lastTyped: Date?,
-        typingGrace: TimeInterval = 20, mayType: Bool = true
+        typingGrace: TimeInterval = 20, mayType: Bool = true, viaChannel: Bool = true
     ) async -> DeliveryOutcome {
-        let inbox = inbox(forPane: pane)
+        let inbox = viaChannel ? inbox(forPane: pane) : nil
         let session = layouts.first { $0.value.tabs.contains { $0.tree.panes.contains { $0.id == pane } } }?.key
         auditPrompt(prompt, pane: pane, session: session)
         switch Delivery.route(

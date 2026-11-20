@@ -69,6 +69,8 @@ final class TerminalSurfaces {
     var onPaneExited: ((String) -> Void)?
     /// A pane's terminal started its command (an agent, a resume, a task): whatever it ran is running.
     var onCommandStarted: ((String) -> Void)?
+    /// A pane's command was not started, and why (its folder is gone): the pane opens a plain shell, so say so.
+    var onCommandSkipped: ((_ pane: String, _ why: String) -> Void)?
     private var exitsWired = false
     /// `[sessions] persist`: with zmx, a pane's terminal attaches to its zmx session instead of starting a shell.
     var persist: PanePersistence = .none
@@ -159,7 +161,10 @@ final class TerminalSurfaces {
         let exists = FileManager.default.fileExists(atPath: pane.directory)
         // Only a pane in a real worktree starts its command: fixture and tutor panes, and ones whose worktree is gone,
         // open a plain shell instead of starting an agent somewhere unexpected. On a host the worktree is there.
-        if pane.location.isLocal, !exists { command = nil }
+        if pane.location.isLocal, !exists {
+            if command != nil { onCommandSkipped?(pane.id, "its folder \(pane.directory) is gone") }
+            command = nil
+        }
         var process: String?
         paneLocations[pane.id] = pane.location
         if let host = pane.location.hostName {

@@ -1271,12 +1271,17 @@ final class AppModel {
         for candidate in chosen {
             guard var layout = layouts[candidate.id], var session = sessions.first(where: { $0.id == candidate.id })
             else { continue }
-            guard let (tabIndex, paneID) = agentPane(in: layout) else { continue }
+            guard let (tabIndex, paneID) = agentPane(in: layout) else {
+                flash = "\(session.title) has no pane to start \(session.agent) in"
+                continue
+            }
             layout.tabs[tabIndex].tree = layout.tabs[tabIndex].tree.updating(paneID) { $0.command = candidate.command }
+            // What was run is on the session's activity, so a pane that shows nothing is not a mystery.
+            let ran = " · ran " + String(candidate.command.posix.prefix(200))
             session.record(
                 restarting ?
-                    (candidate.startsFresh ? "restarted to reconnect · started fresh" : "restarted to reconnect")
-                    : candidate.startsFresh ? "relaunched · started fresh" : "resumed after restart"
+                    (candidate.startsFresh ? "restarted to reconnect · started fresh" : "restarted to reconnect") + ran
+                    : candidate.startsFresh ? "relaunched · started fresh" + ran : "resumed after restart" + ran
             )
             session.state = ObservedState(.idle, source: .guessed, reason: restarting ? "reconnecting" : "resuming")
             commit([.layoutChanged(session: session.id, layout), .sessionUpserted(session)])
@@ -1295,6 +1300,16 @@ final class AppModel {
             }
         }
         if !chosen.isEmpty, !restarting { flash = "resumed \(chosen.count) session\(chosen.count == 1 ? "" : "s")" }
+    }
+
+    /// A pane's command was not started (its folder is gone): the session says so, since the pane is a plain shell.
+    func commandSkipped(in pane: String, _ why: String) {
+        guard let id = layouts.first(where: { $0.value.tabs.contains { $0.tree.panes.contains { $0.id == pane } } })?.key,
+              var session = sessions.first(where: { $0.id == id })
+        else { return }
+        session.record("agent not started in its pane: \(why)")
+        commit(.sessionUpserted(session))
+        flash = "\(session.title): agent not started, \(why)"
     }
 
     /// The pane the agent runs in: the first `.agent` pane, else the first pane. A run's tab is never it.

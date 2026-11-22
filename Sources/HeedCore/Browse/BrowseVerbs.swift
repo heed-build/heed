@@ -195,7 +195,9 @@ public struct BrowseVerbs: Hashable, Sendable {
 
     /// Get it merged: suggested on your own pull request once its checks are green and nobody asks for changes; on
     /// offer on any other open one (it waits for green first); not on a draft.
-    private static func mergeAdvice(_ item: BrowseItem, mine: Bool, failing: Bool, changes: Bool) -> BrowseVerbAdvice.Pull {
+    private static func mergeAdvice(_ item: BrowseItem, mine: Bool, failing: Bool, changes: Bool) -> BrowseVerbAdvice
+        .Pull
+    {
         if item.isDraft { return .init(.unavailable, "Still a draft: mark it ready first.") }
         if mine, item.checks == .passing, !changes { return .init(.recommended, "Your PR is green: get it merged") }
         if failing || changes { return .init(.available, "Gets it green first, then merges it.") }

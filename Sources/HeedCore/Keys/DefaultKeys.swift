@@ -403,7 +403,8 @@ public enum DefaultKeys {
     /// step for the item, Y does it and turns it on for the repo from now on, . proposes the next other step.
     /// Browse: the rail is ⌘K and `]o` `[o` (scopes) and `]q` `[q` (queries); the list is the usual j k, space, ↩ and
     /// /. U has heed read the items, F I C R send an agent at the one under the cursor (Fix, Implement, Chat, Review),
-    /// t tells one in your own words; w narrows the list to the items with an agent on them; N renames the saved query you are on.
+    /// t tells one in your own words; w narrows the list to the items with an agent on them; N renames the saved query
+    /// you are on.
     static let browse: [(String, String)] = [
         ("<Space>", "select.toggle"), ("<CR>", "browse.open"), ("<D-k>", "browse.scope"), ("gj", "browse.scope"), (
             "]o",

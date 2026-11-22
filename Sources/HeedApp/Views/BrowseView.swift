@@ -633,9 +633,9 @@ struct BrowseCount: View {
     }
 }
 
-extension BrowseCount {
+private extension BrowseCount {
     /// `● 2 with an agent`: shows only while an agent is on some item, and narrows the list to those items.
-    fileprivate func agentToggle(_ browse: BrowseModel) -> some View {
+    func agentToggle(_ browse: BrowseModel) -> some View {
         let on = browse.showsAgentOnly
         return HStack(spacing: 6) {
             Circle().fill(Theme.busy).frame(width: 6, height: 6)

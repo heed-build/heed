@@ -45,6 +45,17 @@ public enum BrowseAvailability: String, Hashable, Sendable {
 }
 
 public struct BrowseVerbAdvice: Hashable, Sendable {
+    /// Advice for the pull request's own tracking action (Get it merged), which is no agent run.
+    public struct Pull: Hashable, Sendable {
+        public var availability: BrowseAvailability
+        public var reason: String
+
+        public init(_ availability: BrowseAvailability, _ reason: String) {
+            self.availability = availability
+            self.reason = reason
+        }
+    }
+
     public var verb: BrowseVerb
     public var availability: BrowseAvailability
     /// One line: why it is suggested, or why it is on offer or not.
@@ -72,6 +83,11 @@ public struct BrowseVerbs: Hashable, Sendable {
     /// Below this agent-readiness heed would be guessing, so Chat leads.
     public static let clearLine = 50
 
+    /// Get it merged on an open pull request (`pilot.merge`, the PR tracking's own mode): the advice beside the four
+    /// verbs. Nil for an issue and for a pull request that is closed or merged. On a pull request Fix is shown as Get
+    /// it green (`pilot.green`) and Implement is left out.
+    public var merge: BrowseVerbAdvice.Pull?
+
     /// All four, in the order Fix, Implement, Chat, Review.
     public var advice: [BrowseVerbAdvice]
 
@@ -79,13 +95,18 @@ public struct BrowseVerbs: Hashable, Sendable {
 
     public var recommended: BrowseVerbAdvice? { advice.first { $0.availability == .recommended } }
 
+    /// Whether get it merged is the suggestion (no verb is then).
+    public var recommendsMerge: Bool { merge?.availability == .recommended }
+
     /// The buttons' order: the suggestion first, the rest as they are.
     public var ordered: [BrowseVerbAdvice] {
         advice.filter { $0.availability == .recommended } + advice.filter { $0.availability != .recommended }
     }
 
     /// The line over the buttons: why the suggestion, or that there is none.
-    public var headline: String { recommended?.reason ?? "No suggestion yet" }
+    public var headline: String {
+        recommended?.reason ?? (recommendsMerge ? merge?.reason : nil) ?? "No suggestion yet"
+    }
 
     public static func recommend(item: BrowseItem, read: BrowseRead?, viewer: String?) -> BrowseVerbs {
         func suggest(
@@ -172,6 +193,17 @@ public struct BrowseVerbs: Hashable, Sendable {
         }
     }
 
+    /// Get it merged: suggested on your own pull request once its checks are green and nobody asks for changes; on
+    /// offer on any other open one (it waits for green first); not on a draft.
+    private static func mergeAdvice(_ item: BrowseItem, mine: Bool, failing: Bool, changes: Bool) -> BrowseVerbAdvice
+        .Pull
+    {
+        if item.isDraft { return .init(.unavailable, "Still a draft: mark it ready first.") }
+        if mine, item.checks == .passing, !changes { return .init(.recommended, "Your PR is green: get it merged") }
+        if failing || changes { return .init(.available, "Gets it green first, then merges it.") }
+        return .init(.available, "Watches the PR and merges it by your rules once it is green.")
+    }
+
     private static func noPull() -> String { "No pull request linked to this issue yet." }
 
     private static func pull(_ item: BrowseItem, mine: Bool, viewer: String?, ask: String) -> BrowseVerbs {
@@ -197,9 +229,9 @@ public struct BrowseVerbs: Hashable, Sendable {
         } else if failing || changes {
             fix = .init(.fix, .available, failing ? "CI is failing on this PR." : "Changes were requested on this PR.")
         } else if item.checks == .passing {
-            fix = .init(.fix, .unavailable, "Push a change to this PR. Not needed: CI is green.")
+            fix = .init(.fix, .unavailable, "Nothing to fix: CI is green.")
         } else {
-            fix = .init(.fix, .available, "Push a change to this PR.")
+            fix = .init(.fix, .available, "Watches the PR and fixes what fails.")
         }
 
         var review: BrowseVerbAdvice = if mine {
@@ -216,6 +248,8 @@ public struct BrowseVerbs: Hashable, Sendable {
         if item.isDraft, review.availability == .recommended {
             review = .init(.review, .available, "Review requested, but it is still a draft")
         }
-        return BrowseVerbs(advice: [fix, implement, .init(.chat, .available, ask), review])
+        var answer = BrowseVerbs(advice: [fix, implement, .init(.chat, .available, ask), review])
+        answer.merge = mergeAdvice(item, mine: mine, failing: failing, changes: changes)
+        return answer
     }
 }

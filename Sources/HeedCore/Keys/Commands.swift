@@ -1004,6 +1004,11 @@ public enum Commands {
             "Browse: review the pull request with an agent; nothing is posted without you",
             .selection
         ),
+        .init(
+            "browse.agents",
+            "Browse: only the items with an agent on them, and back (shown while there are any)",
+            .selection
+        ),
         .init("browse.tell", "Browse: tell an agent what to do with the item, in your own words", .selection),
         .init(
             "browse.run.close",

@@ -3,6 +3,9 @@ import Foundation
 /// Owns the persisted domain. Runs off the main actor: loading, applying and writing never touch the UI path.
 ///
 /// Writes are coalesced: a burst of changes (a git refresh across ten repos) produces one write, a moment later.
+/// A change that leaves the domain as it was writes nothing, and writes are spaced `minimumInterval` apart: the file
+/// is megabytes, and a store rewriting it every few seconds for hours was what macOS flagged for excessive disk writes.
+/// What a crash can lose is the last few seconds, and quitting writes at once (`flushAll`).
 ///
 /// With an event log, what happened goes there as the domain changes (`DomainEvents`), batched the same way, and
 /// history and session timelines are kept there instead of in `domain.json`.
@@ -12,6 +15,8 @@ public actor DomainStore {
     private let file: URL?
     private var writeScheduled = false
     private let writeDelay: Duration
+    private let minimumInterval: Duration
+    private var lastWrite: ContinuousClock.Instant?
     private let log: EventLog?
     private var pendingLog: [EventLogWrite] = []
     private var logScheduled = false
@@ -19,8 +24,12 @@ public actor DomainStore {
     private var logWriting: Task<Void, Never>?
 
     /// `file` nil keeps everything in memory (fixtures, tests).
-    public init(domain: Domain = .empty, file: URL?, log: EventLog? = nil, writeDelay: Duration = .milliseconds(250)) {
+    public init(
+        domain: Domain = .empty, file: URL?, log: EventLog? = nil, writeDelay: Duration = .milliseconds(250),
+        minimumInterval: Duration = .seconds(5)
+    ) {
         self.domain = domain
+        self.minimumInterval = minimumInterval
         self.file = file
         self.log = log
         self.writeDelay = writeDelay
@@ -107,6 +116,7 @@ public actor DomainStore {
         for change in changes {
             stats.changes[Mirror(reflecting: change).children.first?.label ?? "\(change)", default: 0] += 1
         }
+        let before = domain
         if log != nil {
             pendingLog += DomainEvents.apply(changes, to: &domain, now: Date())
             scheduleLogWrite()
@@ -115,7 +125,8 @@ public actor DomainStore {
                 domain.apply(change)
             }
         }
-        scheduleWrite()
+        // Changes that left the domain as it was (a poll that found nothing new) do not rewrite the file.
+        if domain != before { scheduleWrite() }
     }
 
     public func apply(_ change: DomainChange) { apply([change]) }
@@ -139,6 +150,7 @@ public actor DomainStore {
         guard let file else { return }
         let perf = Perf.begin("domain.flush")
         defer { perf.end() }
+        lastWrite = .now
         let cached = CachedDomain(version: CachedDomain.currentVersion, domain: log == nil ? domain : domain.leavingLog)
         do {
             try FileManager.default.createDirectory(
@@ -182,7 +194,8 @@ public actor DomainStore {
     private func scheduleWrite() {
         guard file != nil, !writeScheduled else { return }
         writeScheduled = true
-        let delay = writeDelay
+        var delay = writeDelay
+        if let lastWrite { delay = max(delay, minimumInterval - (.now - lastWrite)) }
         Task {
             try? await Task.sleep(for: delay)
             self.flush()

@@ -606,6 +606,50 @@ struct BrowseHeader: View {
     }
 }
 
+/// What was started from an item: the sessions and goals that close, track or hold it, each a link to where it lives.
+/// Nothing shows for an item with none.
+struct BrowseOriginLinks: View {
+    @Environment(AppModel.self) private var model
+    let item: BrowseItem
+
+    var body: some View {
+        let origin = model.browse.origins[item]
+        if !origin.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("STARTED FROM HERE").font(Theme.mono(10.5, weight: .semibold)).tracking(1)
+                    .foregroundStyle(Theme.fg3)
+                ForEach(origin.sessions, id: \.self) { id in
+                    if let session = model.sessions.first(where: { $0.id == id }) {
+                        link("terminal", Theme.done, session.title, "session") { model.openBrowseOrigin(session: id) }
+                    }
+                }
+                ForEach(origin.goals, id: \.self) { id in
+                    if let goal = model.goals.snapshot.goal(id) {
+                        link("star", Theme.ask, goal.title, "goal") { model.openBrowseOrigin(goal: id) }
+                    }
+                }
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Theme.line))
+        }
+    }
+
+    private func link(_ symbol: String, _ tint: Color, _ title: String, _ kind: String, _ open: @escaping () -> Void)
+        -> some View
+    {
+        HStack(spacing: 8) {
+            Image(systemName: symbol).font(.system(size: 11)).foregroundStyle(tint).frame(width: 16)
+            Text(title).font(Theme.ui(13)).foregroundStyle(Theme.fg).lineLimit(1)
+            Text(kind).font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+            Spacer(minLength: 0)
+            Image(systemName: "arrow.right").font(.system(size: 10)).foregroundStyle(Theme.fg3)
+        }
+        .contentShape(Rectangle())
+        .tap(open)
+    }
+}
+
 /// `47 open · last 3 months  Show older ▸` over the list.
 struct BrowseCount: View {
     @Environment(AppModel.self) private var model
@@ -632,7 +676,7 @@ struct BrowseCount: View {
                     .tap { model.perform(CommandInvocation(name: "browse.older")) }
             }
             Spacer()
-            if browse.agentCount > 0 { agentToggle(browse) }
+            ForEach(browse.offeredFilters, id: \.self) { filter in workToggle(filter, browse) }
             // A refresh on its own is quiet: no "asking GitHub", only how old the list is.
             if browse.refusal != nil {
                 EmptyView()
@@ -653,20 +697,22 @@ struct BrowseCount: View {
 }
 
 private extension BrowseCount {
-    /// `● 2 with an agent`: shows only while an agent is on some item, and narrows the list to those items.
-    func agentToggle(_ browse: BrowseModel) -> some View {
-        let on = browse.showsAgentOnly
+    /// `● 2 with an agent`, `2 from sessions`, `1 in goals`: each shows only while some item qualifies, and narrows the
+    /// list to those items.
+    func workToggle(_ filter: BrowseWorkFilter, _ browse: BrowseModel) -> some View {
+        let on = browse.shownFilter == filter
+        let tint = filter == .agent ? Theme.busy : filter == .session ? Theme.done : Theme.ask
         return HStack(spacing: 6) {
-            Circle().fill(Theme.busy).frame(width: 6, height: 6)
-            Text("\(browse.agentCount) with an agent").font(Theme.ui(12, weight: on ? .semibold : .regular))
+            Circle().fill(tint).frame(width: 6, height: 6)
+            Text("\(browse.count(of: filter)) \(filter.title)").font(Theme.ui(12, weight: on ? .semibold : .regular))
         }
         .foregroundStyle(on ? Theme.fg : Theme.fg2)
         .padding(.horizontal, 8).padding(.vertical, 3)
-        .background(RoundedRectangle(cornerRadius: 5).fill(on ? Theme.busy.opacity(0.22) : Color.clear))
-        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(on ? Theme.busy : Theme.keyCapBorder))
+        .background(RoundedRectangle(cornerRadius: 5).fill(on ? tint.opacity(0.22) : Color.clear))
+        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(on ? tint : Theme.keyCapBorder))
         .contentShape(Rectangle())
-        .help(on ? "Show every item again" : "Show only the items with an agent on them")
-        .tap { model.toggleBrowseAgentOnly() }
+        .help(on ? "Show every item again" : "Show only the items \(filter.title)")
+        .tap { model.toggleBrowseFilter(filter) }
     }
 }
 
@@ -789,6 +835,19 @@ struct BrowseRow: View {
                         }.foregroundStyle(Theme.fg2)
                     }
                     if item.kind == .pull, item.isDraft { ReasonTag(text: "draft", tint: Theme.fg3) }
+                    let origin = model.browse.origins[item]
+                    if !origin.sessions.isEmpty {
+                        ReasonTag(
+                            text: origin.sessions.count == 1 ? "session" : "\(origin.sessions.count) sessions",
+                            tint: Theme.done
+                        )
+                    }
+                    if !origin.goals.isEmpty {
+                        ReasonTag(
+                            text: origin.goals.count == 1 ? "goal" : "\(origin.goals.count) goals",
+                            tint: Theme.ask
+                        )
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .overlay(alignment: .trailing) { if !narrow { BrowseVerbHint(item: item) } }

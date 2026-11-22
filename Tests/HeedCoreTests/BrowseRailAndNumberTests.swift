@@ -176,6 +176,19 @@ struct BrowsePaletteOwnReposTests {
         _ = palette.handle(KeyStroke("Down"))
         #expect(palette.guidance == nil)
     }
+
+    @Test func reposWithNothingOpenAreLeftOutExceptTheCurrentOneAndThoseNotCountedYet() {
+        let a = Repo(org: "acme", name: "a"), b = Repo(org: "acme", name: "b")
+        let c = Repo(org: "acme", name: "c"), d = Repo(org: "acme", name: "d")
+        let rows = [BrowseRailScopes.Row(scope: .org("acme"), indent: false, checkedOut: 4)] + [a, b, c, d].map {
+            BrowseRailScopes.Row(scope: .repo($0), indent: true, checkedOut: nil)
+        }
+        let counts: [BrowseScope: Int] = [.org("acme"): 0, .repo(a): 5, .repo(b): 0, .repo(c): 0]
+        let result = BrowseRailScopes.hidingEmpty(rows, count: { counts[$0] }, keeping: .repo(c))
+        // The org row stays whatever its count; b is hidden; c is where you are; d has no count yet.
+        #expect(result.rows.map(\.scope.title) == ["acme", "a", "c", "d"])
+        #expect(result.hidden == 1)
+    }
 }
 
 struct BrowsePaletteCheckoutTests {

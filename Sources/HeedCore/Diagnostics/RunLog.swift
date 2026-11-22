@@ -1,5 +1,6 @@
 import Foundation
 import os
+import Synchronization
 
 /// Heed's own record of what it was doing, for when it goes away without a crash report.
 ///
@@ -12,7 +13,12 @@ public final class RunLog: @unchecked Sendable {
 
     public static let subsystem = "build.heed.app"
     /// The app's log. Nil (a no-op) until `open(directory:)`, so tests and fixtures never write one.
-    public nonisolated(unsafe) static var shared: RunLog?
+    public static var shared: RunLog? {
+        get { installed.withLock { $0 } }
+        set { installed.withLock { $0 = newValue } }
+    }
+
+    private static let installed = Mutex<RunLog?>(nil)
 
     public let file: URL
     private let maxBytes: Int

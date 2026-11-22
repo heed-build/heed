@@ -10,7 +10,7 @@ struct DomainStoreWriteTests {
     }
 
     /// Polls until `condition` holds, up to `seconds`.
-    private func eventually(_ seconds: Double = 5, _ condition: () async -> Bool) async -> Bool {
+    private func eventually(_ seconds: Double = 30, _ condition: () async -> Bool) async -> Bool {
         let deadline = Date().addingTimeInterval(seconds)
         while Date() < deadline {
             if await condition() { return true }

@@ -20,6 +20,9 @@ description: Where Heed keeps its configuration, cache and other files.
 | `~/Library/Application Support/Heed/telemetry.sqlite` | The agents' own [OpenTelemetry](../insights/opentelemetry.md): spans, prompts and usage samples as the receiver read them. Pruned per `[telemetry]` |
 | `~/Library/Application Support/Heed/chats` | The scratch folders of [chats](../sessions/chats.md) started without a folder; with cleanup on, cleanup removes a closed chat's 30 days after it closed |
 | `~/Library/Application Support/Heed/ghostty-panes.conf` | The few terminal settings Heed sets for its panes |
+| `~/Library/Application Support/Heed/heed.log` | Heed's own log (`heed.log.1` is the one before): launch, quit, sleep and wake, memory pressure, signals, and a line a minute with the memory Heed uses and what it wrote to `domain.json`. Rolls over at 512 KB. The same lines go to the unified log, subsystem `build.heed.app` |
+| `~/Library/Application Support/Heed/run.json` | Whether the last run quit cleanly. The next launch says in `heed.log` when it did not |
+| `~/Library/Application Support/Heed/diagnostics/` | Crash, hang, CPU and disk-write reports macOS hands to Heed (MetricKit), as JSON |
 | `~/Library/Application Support/Heed/heed.sock` | The socket hooks report to |
 | `~/Library/Application Support/Heed/control.sock` | The [control socket](cli.md#the-control-socket) other apps, scripts and `heed goal` talk to Heed through |
 | `~/Library/Application Support/Heed/hooks.spool` | What hooks reported while Heed was not running; read and emptied on launch |

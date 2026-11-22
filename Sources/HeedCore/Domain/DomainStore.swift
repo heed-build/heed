@@ -8,6 +8,7 @@ import Foundation
 /// history and session timelines are kept there instead of in `domain.json`.
 public actor DomainStore {
     public private(set) var domain: Domain
+    private var stats = Stats()
     private let file: URL?
     private var writeScheduled = false
     private let writeDelay: Duration
@@ -79,8 +80,33 @@ public actor DomainStore {
         }
     }
 
+    /// What the store did since the last `takeStats()`: how often it wrote, and which kinds of change asked for it.
+    /// The heartbeat logs it, so a store rewriting itself while nobody is there shows who keeps asking.
+    public struct Stats: Sendable, Equatable {
+        public var writes = 0
+        public var bytes = 0
+        public var changes: [String: Int] = [:]
+
+        /// "12 writes, 34.5 MB; changes: sessionUpserted ×40, ...", the five most frequent kinds.
+        public var summary: String {
+            let top = changes.sorted { ($0.value, $1.key) > ($1.value, $0.key) }.prefix(5)
+                .map { "\($0.key) ×\($0.value)" }.joined(separator: ", ")
+            let size = String(format: "%.1f", Double(bytes) / 1_048_576)
+            return "\(writes) writes, \(size) MB" + (top.isEmpty ? "" : "; changes: " + top)
+        }
+    }
+
+    /// The counts so far, and starts them again.
+    public func takeStats() -> Stats {
+        defer { stats = Stats() }
+        return stats
+    }
+
     public func apply(_ changes: [DomainChange]) {
         guard !changes.isEmpty else { return }
+        for change in changes {
+            stats.changes[Mirror(reflecting: change).children.first?.label ?? "\(change)", default: 0] += 1
+        }
         if log != nil {
             pendingLog += DomainEvents.apply(changes, to: &domain, now: Date())
             scheduleLogWrite()
@@ -118,7 +144,10 @@ public actor DomainStore {
             try FileManager.default.createDirectory(
                 at: file.deletingLastPathComponent(), withIntermediateDirectories: true
             )
-            try JSONEncoder.heed.encode(cached).write(to: file, options: .atomic)
+            let data = try JSONEncoder.heed.encode(cached)
+            try data.write(to: file, options: .atomic)
+            stats.writes += 1
+            stats.bytes += data.count
         } catch {
             NSLog("heed: could not write \(file.path): \(error)")
         }

@@ -96,6 +96,14 @@ If Settings also says "Session key couldn't be read", Heed could not read the ke
 Keychain was locked or refused, or the key file could not be read), and is using one for this run only: panes started
 now are heard until Heed restarts, then need `gk` too. The call log has the error under `session.key`.
 
+## Heed quit by itself
+
+Look at the end of `~/Library/Application Support/Heed/heed.log`. A launch that starts with "the previous run did not
+quit cleanly" says when Heed was last alive, how much memory it used then, and whether the Mac restarted in between.
+The lines before it (`alive … MB`, `memory pressure`, `received signal`, `system will sleep`) show what led up to it.
+A run that simply stops with no signal line was killed from outside or crashed hard: check
+`/Library/Logs/DiagnosticReports` and `diagnostics/` beside the log.
+
 ## A key does nothing
 
 The status bar says what Heed made of it ("gq is not bound"). Check `config.toml` for a binding that was refused (the

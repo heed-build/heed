@@ -39,16 +39,27 @@ struct DomainStoreWriteTests {
         #expect(await eventually { await DomainStore.load(from: file).sessions.count == 1 })
     }
 
-    @Test func writesAreSpacedByTheMinimumInterval() async throws {
+    @Test func aSecondWriteWaitsOutTheMinimumInterval() async throws {
         let file = try file()
         let sessions = Fixtures.main.sessions
         try #require(sessions.count >= 2)
-        let store = DomainStore(file: file, writeDelay: .milliseconds(1), minimumInterval: .seconds(1))
+        // An interval no loaded runner outlasts, so "not yet" cannot turn into "already".
+        let store = DomainStore(file: file, writeDelay: .milliseconds(1), minimumInterval: .seconds(60))
         await store.apply(.sessionUpserted(sessions[0]))
         #expect(await eventually { await DomainStore.load(from: file).sessions.count == 1 })
         await store.apply(.sessionUpserted(sessions[1]))
         try await Task.sleep(for: .milliseconds(300))
         #expect(await DomainStore.load(from: file).sessions.count == 1, "the second write waited out the interval")
+    }
+
+    @Test func aSecondWriteComesOnceTheIntervalHasPassed() async throws {
+        let file = try file()
+        let sessions = Fixtures.main.sessions
+        try #require(sessions.count >= 2)
+        let store = DomainStore(file: file, writeDelay: .milliseconds(1), minimumInterval: .milliseconds(500))
+        await store.apply(.sessionUpserted(sessions[0]))
+        #expect(await eventually { await DomainStore.load(from: file).sessions.count == 1 })
+        await store.apply(.sessionUpserted(sessions[1]))
         #expect(await eventually { await DomainStore.load(from: file).sessions.count == 2 })
     }
 

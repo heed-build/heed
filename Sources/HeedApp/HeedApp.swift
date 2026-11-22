@@ -149,6 +149,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         router.start()
         MainMenu.shared.install(host: host)
         if !model.isFixture {
+            let model = model
+            RunDiagnostics.shared.start { await model.store?.takeStats() }
             Task { await model.start(cache: DomainStore.defaultFile()) }
         }
     }
@@ -157,12 +159,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Fixtures quit at once, unless HEED_OUTSIDE has them behave like the live app outside the window.
         let outside = ProcessInfo.processInfo.environment["HEED_OUTSIDE"] != nil
         guard !model.isFixture || outside else { return .terminateNow }
+        RunLog.info("quit requested")
         // Quitting stops every agent: with any of them running, ask first (the confirm quits again when accepted).
         guard model.quitConfirmed || !model.confirmQuitIfAgentsRun() else { return .terminateCancel }
         // From here terminals ending are the quit, not exits: sessions keep their panes for the next launch.
         model.beginTerminating()
         Task {
             await model.flush()
+            RunDiagnostics.shared.quit("quit")
             NSApp.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater

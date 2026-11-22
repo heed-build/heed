@@ -1304,8 +1304,9 @@ final class AppModel {
 
     /// A pane's command was not started (its folder is gone): the session says so, since the pane is a plain shell.
     func commandSkipped(in pane: String, _ why: String) {
-        guard let id = layouts.first(where: { $0.value.tabs.contains { $0.tree.panes.contains { $0.id == pane } } })?.key,
-              var session = sessions.first(where: { $0.id == id })
+        guard let id = layouts.first(where: { $0.value.tabs.contains { $0.tree.panes.contains { $0.id == pane } } })?
+            .key,
+            var session = sessions.first(where: { $0.id == id })
         else { return }
         session.record("agent not started in its pane: \(why)")
         commit(.sessionUpserted(session))
@@ -1622,7 +1623,8 @@ final class AppModel {
             if turn.continues, pendingContinue.remove(session.id) != nil,
                let layout = layouts[session.id], let (_, paneID) = agentPane(in: layout)
             {
-                // Typed as soon as it is idle, as it always was (no typing grace), and never through its channel: Claude
+                // Typed as soon as it is idle, as it always was (no typing grace), and never through its channel:
+                // Claude
                 // can hold a message from its inbox for your approval, and a resumed agent would sit waiting for it.
                 let prompt = settings.continuePrompt, id = session.id
                 Task { @MainActor in

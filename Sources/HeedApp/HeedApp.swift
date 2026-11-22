@@ -211,7 +211,8 @@ final class ModelHost {
         let model = current
         TerminalSurfaces.shared.onPaneClick = { [weak model] paneID in model?.clickedPane(paneID) }
         TerminalSurfaces.shared.onCommandStarted = { [weak model] paneID in model?.agentPresence.started(paneID) }
-        TerminalSurfaces.shared.onCommandSkipped = { [weak model] paneID, why in model?.commandSkipped(in: paneID, why) }
+        TerminalSurfaces.shared
+            .onCommandSkipped = { [weak model] paneID, why in model?.commandSkipped(in: paneID, why) }
         TerminalSurfaces.shared.onPaneExited = { [weak model] paneID in model?.paneExited(paneID) }
     }
 }

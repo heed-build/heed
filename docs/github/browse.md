@@ -248,9 +248,22 @@ Implement never fits a PR, and Review is off on your own PR. An agent action wor
 
 **Where it runs.** The agent runs in a temporary worktree, named `issue-<number>-<hex>` for an issue and
 `pr-<number>-<hex>` for a PR, on a branch `heed/browse/<name>`, under the same root as helper worktrees. The reader
-shows the feed: what it read, edited (with the diff), ran, tested, commented, pushed and opened. Closing the run
+is split in two: the issue or PR stays on top, so you can keep reading what the agent is working on, and the run's
+feed sits below it: what it read, edited (with the diff), ran, tested, commented, pushed and opened. Closing the run
 (`⎋`) removes the worktree and its local branch. A branch it pushed stays on GitHub. If commits were never pushed,
 heed says so as it closes.
+
+**What it needs.** A run talks to its agent over [ACP](../autopilot/helpers.md#how-heed-talks-to-them), which the agent's
+own command line does not speak, so for claude heed needs the ACP adapter on your login shell's `PATH`:
+
+```sh
+npm install -g @agentclientprotocol/claude-agent-acp
+```
+
+Without it a run stops at once and says `claude-agent-acp is not installed`, with that command. opencode and gemini
+speak ACP themselves and need nothing extra; codex needs `codex-acp`. heed never installs an adapter. Sessions you
+start with Start work run the agent directly and do not need it. The adapter table, and `[helpers] command` for running it
+through `npx -y` instead, are in [Helpers](../autopilot/helpers.md#which-agent); `[browse] agent` picks the agent a run uses.
 
 **Clone first.** When the repo is not on this Mac, the run opens with a card: `↩` clones and starts, `c` only clones,
 `d` picks the folder, `⎋` is not now.

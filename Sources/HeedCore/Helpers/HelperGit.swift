@@ -76,12 +76,11 @@ public extension GitHub {
     static func pullForReview(_ ref: PullRef, caller: String) async throws -> (
         head: String, base: String, title: ExternalText, body: ExternalText, authorship: PullAuthorship?
     ) {
-        let result = try await gh(
-            [
-                "pr", "view", "\(ref.number)", "-R", ref.repo.slug, "--json",
-                "headRefName,baseRefName,title,body," + PullAuthorship.fields,
-            ],
-            operation: "pr view", timeout: .seconds(30), caller: caller
+        let result = try await pullFacts(
+            ref,
+            fields: "headRefName: .head.ref, baseRefName: .base.ref, title: .title, body: .body, "
+                + PullAuthorship.restFields,
+            caller: caller
         )
         guard result.succeeded, let json = JSONValue.parse(result.stdout), let head = json["headRefName"]?.string else {
             throw Failure(description: explain(result))

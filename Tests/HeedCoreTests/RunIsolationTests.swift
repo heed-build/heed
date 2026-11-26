@@ -381,7 +381,6 @@ struct PullTrustTests {
         #expect(read == PullAuthorship(author: "ann", association: "CONTRIBUTOR", crossRepository: true))
         #expect(PullAuthorship.parse(#"{"title": "x"}"#) == nil)
         #expect(PullAuthorship.parse("not json") == nil)
-        #expect(PullAuthorship.fields == "author,authorAssociation,isCrossRepository")
     }
 
     @Test func theBookAsksOnceAndKeepsNoFailure() async {

@@ -14,6 +14,10 @@ extension AppModel {
     /// heed's grouping of the picked items (nothing when none hang together): a note, never a narrowing.
     var browseBulkGroup: BrowseGroup? { BrowseGrouping.suggest(browseBulkItems, reads: browse.reads) }
 
+    /// What the GitHub writes and the goal act on: the picks, the row right-clicked when it is not picked, else the one
+    /// under the cursor. The keys are only bound with two picks or more, so they act on the picks as before.
+    private var browseWriteItems: [BrowseItem] { browseActionItems }
+
     func performBrowseBulk(_ command: CommandInvocation) {
         switch command.name {
         case "browse.select.all":
@@ -31,9 +35,11 @@ extension AppModel {
     }
 
     private func browseBulkOpen(_ make: ([BrowseItem], String?) -> BrowseBulkForm) {
-        let items = browseBulkItems
+        let items = browseWriteItems
         guard !items.isEmpty else { return say("pick items first: space picks, v a range, a all") }
         browse.bulk = make(items, browseViewer)
+        // One item, from the list: the narrower layouts show it in the reader, which comes over the list.
+        if items.count == 1, !browse.layout.showsReaderBeside { browse.reading = true }
     }
 
     // MARK: Sessions
@@ -113,7 +119,7 @@ extension AppModel {
     /// the goal's own create and add-item operations, not a new item source (a source is a query, and picks are
     /// not).
     private func browseBulkGoal() {
-        let items = browseBulkItems
+        let items = browseWriteItems
         guard !items.isEmpty else { return say("pick items first: space picks, v a range, a all") }
         let draft = BrowseBulk.goalDraft(items)
         guard !(isFixture || tutor != nil) else {
@@ -164,6 +170,9 @@ extension AppModel {
         case .startEach:
             browse.bulk = nil
             startEach(form.items)
+        case .openAll:
+            browse.bulk = nil
+            openOnGitHub(form.items)
         case let .run(plan): runBrowseBulk(plan, items: form.items)
         }
     }

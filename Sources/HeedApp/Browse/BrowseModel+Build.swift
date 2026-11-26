@@ -135,4 +135,19 @@ extension BrowseModel {
             self?.countsTask = nil
         }
     }
+
+    /// Asks GitHub for one saved query's count now (the rail's menu), whatever its age. Queries with heed's own filters
+    /// count what is cached and read, so there is nothing to ask; the fake world asks nothing.
+    func refreshCount(of saved: SavedQuery) {
+        guard !fixture, saved.query.localTokens.isEmpty else { return }
+        countedAt[saved.id] = Date()
+        let asked = effective(saved)
+        let ages = settings.maxAgeDays
+        let places = checkouts
+        Task { [weak self] in
+            if let total = try? await BrowseFetch.count(asked, maxAgeDays: ages, checkouts: places) {
+                self?.queryTotals[saved.id] = total
+            }
+        }
+    }
 }

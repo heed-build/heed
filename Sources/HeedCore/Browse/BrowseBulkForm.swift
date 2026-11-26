@@ -12,6 +12,8 @@ public struct BrowseBulkForm: Equatable, Sendable {
         case confirm(BrowsePlan)
         /// More than `BrowseBulk.eachCap` sessions: asks first.
         case confirmEach
+        /// More than `BrowseOpen.confirmAbove` pages to open on GitHub: asks first.
+        case confirmOpen
         case running
         case report(BrowseReport)
     }
@@ -20,6 +22,7 @@ public struct BrowseBulkForm: Equatable, Sendable {
         case none, changed, close
         case run(BrowsePlan)
         case startEach
+        case openAll
     }
 
     public private(set) var stage: Stage
@@ -52,6 +55,12 @@ public struct BrowseBulkForm: Equatable, Sendable {
         self.items = items
         self.viewer = viewer
         stage = .confirmEach
+    }
+
+    public init(opening items: [BrowseItem], viewer: String?) {
+        self.items = items
+        self.viewer = viewer
+        stage = .confirmOpen
     }
 
     /// How many sessions `confirmEach` would start: one per repo of the picks.
@@ -117,6 +126,9 @@ public struct BrowseBulkForm: Equatable, Sendable {
         case .confirmEach:
             if stroke == .escape || stroke == KeyStroke("n") { return .close }
             return stroke == KeyStroke("CR") || stroke == KeyStroke("y") ? .startEach : .none
+        case .confirmOpen:
+            if stroke == .escape || stroke == KeyStroke("n") { return .close }
+            return stroke == KeyStroke("CR") || stroke == KeyStroke("y") ? .openAll : .none
         case .running:
             return .none
         case .report:

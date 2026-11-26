@@ -175,7 +175,7 @@ extension AppModel {
         case "browse.scope.next": browse.nextScope(by: 1); browseQueryChanged()
         case "browse.scope.prev": browse.nextScope(by: -1); browseQueryChanged()
         case "browse.scope.toggle":
-            guard let owner = browse.scope?.owner
+            guard let owner = browseRailOrg
             else { return say("pick an org first: \(keyText(for: "browse.scope", in: "browse"))") }
             browse.toggleExpansion(of: owner)
         case "browse.query.next": browse.nextQuery(by: 1); browseQueryChanged()
@@ -191,16 +191,16 @@ extension AppModel {
             openBrowseBuilder()
             browse.builder?.startSaving()
         case "browse.query.rename":
-            guard let saved = browse.activeSaved
+            guard let saved = browseRailQuery
             else { return say("run a saved query first: \(keyText(for: "browse.query.next", in: "browse"))") }
             browse.builder = BrowseBuilder(renaming: saved, context: browse.builderContext(wordsOff: browseWordsOff))
         case "browse.query.delete":
-            guard let saved = browse.activeSaved
+            guard let saved = browseRailQuery
             else { return say("run a saved query first: \(keyText(for: "browse.query.next", in: "browse"))") }
             browse.removeQuery(saved.id)
             say("removed “\(saved.name)” from the rail")
         case "browse.query.up", "browse.query.down":
-            guard let saved = browse.activeSaved
+            guard let saved = browseRailQuery
             else { return say("run a saved query first: \(keyText(for: "browse.query.next", in: "browse"))") }
             browse.moveQuery(saved.id, by: command.name == "browse.query.up" ? -1 : 1)
         case "browse.view.new":
@@ -214,6 +214,11 @@ extension AppModel {
         case "browse.refresh":
             // A banner waits with new, gone and reordered rows: apply it, no new question to GitHub.
             if browse.pending != nil { browse.applyPending() } else { browse.fetch() }
+        case "browse.copy.link": browseCopy(link: true)
+        case "browse.copy.ref": browseCopy(link: false)
+        case "browse.query.count": browseRefreshCount()
+        case "browse.org.open": browseOpenOrgOnGitHub()
+        case "browse.scope.own": browseGoToOwnRepos()
         case "browse.read": browseReadNow()
         case "browse.fix": browseVerb(.fix)
         case "browse.implement": browseVerb(.implement)

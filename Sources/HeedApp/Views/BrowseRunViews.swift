@@ -452,3 +452,43 @@ struct BrowseCloneCard: View {
         .clickRuns(CommandInvocation(name: command))
     }
 }
+
+/// A run that could not start: what failed and what to do about it, in the reader, where it stays until it is
+/// dismissed or the verb is tried again. (A message in the status bar goes after a few seconds; this does not.)
+struct BrowseRunFailedCard: View {
+    @Environment(AppModel.self) private var model
+    let verb: BrowseVerb
+    let why: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle").font(.system(size: 13)).foregroundStyle(Theme.err)
+                Text("\(verb.title) could not start").font(Theme.ui(14, weight: .semibold))
+            }
+            Text(why).font(Theme.ui(13)).foregroundStyle(Theme.err).fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+            Text(BrowseRunFailure.advice(for: why)).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 10) {
+                HStack(spacing: 6) {
+                    KeyCap(text: model.keyText(for: verb.command, in: "browse"))
+                    Text("try again").font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+                }
+                .contentShape(Rectangle())
+                .clickRuns(CommandInvocation(name: verb.command))
+                HStack(spacing: 6) {
+                    KeyCap(text: "esc")
+                    Text("dismiss").font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+                }
+                .contentShape(Rectangle())
+                .clickRuns(CommandInvocation(name: "browse.run.close"))
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.err.opacity(0.07)))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.err.opacity(0.7)))
+        .shotRegion(.browseRun)
+    }
+}

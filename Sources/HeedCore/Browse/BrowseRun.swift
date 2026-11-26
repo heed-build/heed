@@ -401,3 +401,42 @@ public enum BrowseRuns {
         return .ok
     }
 }
+
+/// A run that could not start, as the reader says it: what went wrong and what to do about it. Pure: from the text the
+/// start gave, so the card never shows a bare error.
+public enum BrowseRunFailure {
+    /// What to do about `why`: one sentence, naming the key or the setting where there is one.
+    public static func advice(for why: String) -> String {
+        let text = why.lowercased()
+        if text.contains("could not read who opened") {
+            return "heed asks GitHub who wrote a pull request before it lets an agent near it. Check that gh is signed in "
+                + "(run gh auth status in a terminal) and that you are online, then try again."
+        }
+        if text.contains("is not installed") {
+            return "Install it as the message says, then try again. [browse] agent (or [helpers] agent) picks another agent."
+        }
+        if text.contains("sign in first") {
+            return "Run the agent once in a terminal, sign in there, then try again."
+        }
+        if text.contains("not cloned on this mac") {
+            return "Clone the repo first (Add or clone, or the clone card), then try again."
+        }
+        if text.contains("worktree") {
+            return "git could not make the run's worktree. Check the repo for a rebase or merge in progress and that "
+                + "its default branch is fetched, then try again."
+        }
+        if text.contains("setup failed") {
+            return "The repo's setup command failed in the new worktree. Run it by hand in the repo to see why."
+        }
+        if text.contains("no acp way") || text.contains("did not start") {
+            return "heed could not reach an agent over ACP. Set [browse] agent to one that is installed, then try again."
+        }
+        return "Try again with the same key; esc dismisses this."
+    }
+
+    /// The run to show a failure for: the item's last run, when it failed and nothing newer is on the item.
+    public static func failed(for itemID: String, in runs: [BrowseRun]) -> BrowseRun? {
+        guard let last = runs.last(where: { $0.itemID == itemID }), case .failed = last.phase else { return nil }
+        return last
+    }
+}

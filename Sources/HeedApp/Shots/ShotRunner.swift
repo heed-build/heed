@@ -19,6 +19,8 @@ struct Shot {
         case sessionMenu(String)
         /// A PR's right-click menu in the PRs view.
         case pullMenu(PullRef)
+        /// The right-click menu of a Browse list row, by position (the shot's keys open Browse first).
+        case browseMenu(Int)
         /// One of the menu bar's menus (File, Session, PR), drawn from the entries it is built from.
         case appMenu(String)
         /// Sparkle's update window.
@@ -270,6 +272,7 @@ enum ShotRunner {
         case .dock: DockMock()
         case let .sessionMenu(id): ContextMenuMock(entries: model.sessionMenu(id))
         case let .pullMenu(ref): ContextMenuMock(entries: model.pullMenu(ref, place: .prs))
+        case let .browseMenu(index): ContextMenuMock(entries: model.browseMenu(index))
         case .updatePrompt: UpdatePromptMock()
         case let .appMenu(title):
             ContextMenuMock(

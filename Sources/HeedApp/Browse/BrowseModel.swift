@@ -81,6 +81,15 @@ final class BrowseModel {
     /// The add-filter popover (`/`), and the org view builder ("Create <org> view").
     var builder: BrowseBuilder?
     var orgBuilder: BrowseOrgBuilder?
+    /// An agent verb that was refused before it made a run (the runs are at their cap), by item id: the reader says so
+    /// until it is dismissed (esc), another verb starts, or the item's run begins.
+    var startRefusals: [String: StartRefusal] = [:]
+
+    struct StartRefusal: Equatable {
+        var verb: BrowseVerb
+        var why: String
+    }
+
     /// A GitHub bulk action on the picked items, on its step (typing, confirm, report).
     var bulk: BrowseBulkForm?
     /// The Start work forms a "session per repo" has left to open, one as each form closes.

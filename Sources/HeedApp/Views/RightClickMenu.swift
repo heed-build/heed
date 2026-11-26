@@ -127,6 +127,11 @@ enum RightClickMenu {
         menuItem.representedObject = action
         menuItem.isEnabled = item.enabled
         menuItem.state = item.checked ? .on : .off
+        // Why it is suggested, or why it is greyed out.
+        if let reason = item.reason, !reason.isEmpty {
+            menuItem.subtitle = reason
+            menuItem.toolTip = reason
+        }
         return menuItem
     }
 

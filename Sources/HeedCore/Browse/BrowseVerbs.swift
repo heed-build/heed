@@ -252,4 +252,26 @@ public struct BrowseVerbs: Hashable, Sendable {
         answer.merge = mergeAdvice(item, mine: mine, failing: failing, changes: changes)
         return answer
     }
+
+    /// What a right-click on an item offers the agent for: on an open pull request Get it green, Get it merged, Review
+    /// and Chat (the PR tracking's modes, then the two runs); otherwise the four verbs. The suggestion first, the rest
+    /// in order, each with heed's reason.
+    public func menuChoices(for item: BrowseItem) -> [ContextMenus.BrowseRowFacts.Choice] {
+        func choice(_ advice: BrowseVerbAdvice) -> ContextMenus.BrowseRowFacts.Choice {
+            .init(
+                title: advice.verb.title, command: advice.verb.command, availability: advice.availability,
+                reason: advice.reason
+            )
+        }
+        guard item.kind == .pull, item.state == .open, let merge else { return ordered.map(choice) }
+        let green = ContextMenus.BrowseRowFacts.Choice(
+            title: "Get it green", command: "pilot.green", availability: self[.fix].availability,
+            reason: self[.fix].reason
+        )
+        let merged = ContextMenus.BrowseRowFacts.Choice(
+            title: "Get it merged", command: "pilot.merge", availability: merge.availability, reason: merge.reason
+        )
+        let all = [green, merged, choice(self[.review]), choice(self[.chat])]
+        return all.filter { $0.availability == .recommended } + all.filter { $0.availability != .recommended }
+    }
 }

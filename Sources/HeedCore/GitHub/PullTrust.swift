@@ -139,8 +139,12 @@ public struct PullAuthorship: Hashable, Sendable {
         )
     }
 
-    /// The fields to ask `gh pr view` for.
-    public static let fields = "author,authorAssociation,isCrossRepository"
+    /// The jq object body that shapes the REST pull request like the old `gh pr view --json author,authorAssociation,
+    /// isCrossRepository` answer (see `GitHub.pullFacts`).
+    public static let restFields = """
+    author: {login: .user.login, is_bot: (.user.type == "Bot")}, authorAssociation: .author_association, \
+    isCrossRepository: ((.head.repo.full_name // "") != .base.repo.full_name)
+    """
 }
 
 /// Who each PR is from, once asked: so a run that is about to start on its own can tell without waiting. What it
@@ -276,10 +280,7 @@ public extension GitHub {
     /// Who a PR is from: `gh pr view --json author,authorAssociation,isCrossRepository`, and for an organisation
     /// member, their permission on the repo (`canWrite`, through `WriteAccessBook.shared`).
     static func pullAuthorship(_ ref: PullRef, caller: String) async throws -> PullAuthorship {
-        let result = try await gh(
-            ["pr", "view", "\(ref.number)", "-R", ref.repo.slug, "--json", PullAuthorship.fields],
-            operation: "pr view", timeout: .seconds(30), caller: caller
-        )
+        let result = try await pullFacts(ref, fields: PullAuthorship.restFields, caller: caller)
         guard result.succeeded, var authorship = PullAuthorship.parse(result.stdout) else {
             throw Failure(description: explain(result))
         }
@@ -289,6 +290,18 @@ public extension GitHub {
             }
         }
         return authorship
+    }
+
+    /// What `gh pr view --json` used to say about a PR, read from the REST pull request instead: `gh pr view` has no
+    /// `authorAssociation` field (gh 2.96 answers `Unknown JSON field`), and the REST pull request has it as
+    /// `author_association`. `fields` is a jq object body, so the answer has the shape `PullAuthorship.parse` and
+    /// `pullForReview` read: `author`, `authorAssociation`, `isCrossRepository` (a PR from a fork, or from a deleted
+    /// fork) and the branch names, title and description.
+    static func pullFacts(_ ref: PullRef, fields: String, caller: String) async throws -> ProcessResult {
+        try await gh(
+            ["api", "repos/\(ref.repo.slug)/pulls/\(ref.number)", "--jq", "{\(fields)}"],
+            operation: "GET pull request", timeout: .seconds(30), caller: caller
+        )
     }
 
     /// Whether `login` can write to `repo`: `gh api repos/{owner}/{repo}/collaborators/{login}/permission` says

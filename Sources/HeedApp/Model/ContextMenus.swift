@@ -58,7 +58,9 @@ extension AppModel {
         switch list {
         case .attention:
             return attentionMenu(index)
-        case .autopilot, .autopilotWhere, .autopilotDone, .browse:
+        case .browse:
+            return browseMenu(index)
+        case .autopilot, .autopilotWhere, .autopilotDone:
             return []
         case .prs:
             let rows = pullRows

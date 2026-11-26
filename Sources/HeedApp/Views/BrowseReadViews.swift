@@ -344,15 +344,20 @@ struct BrowseWorkSection: View {
                     ForEach(cards, id: \.id) { card in workCard(card) }
                 }
             }
+            let telling = model.browse.runs.input.flatMap { $0.run == "tell:" + item.id ? $0 : nil }
             HStack {
-                Text("or tell it what to do…").font(Theme.ui(13)).foregroundStyle(Theme.fg3)
+                if let telling {
+                    CaretText(input: telling.box, caret: Theme.busy).font(Theme.ui(13))
+                } else {
+                    Text("or tell it what to do…").font(Theme.ui(13)).foregroundStyle(Theme.fg3)
+                }
                 Spacer()
                 Image(systemName: "return").font(.system(size: 10)).foregroundStyle(Theme.fg3)
                     .frame(width: 22, height: 18)
                     .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.keyCapBorder))
             }
             .padding(.horizontal, 14).padding(.vertical, 10)
-            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Theme.line))
+            .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(telling == nil ? Theme.line : Theme.busy))
             .contentShape(Rectangle())
             .clickRuns(CommandInvocation(name: "browse.tell"))
             Text(footer).font(Theme.ui(12)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)

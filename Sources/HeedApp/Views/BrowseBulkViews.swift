@@ -307,6 +307,16 @@ struct BrowseBulkStep: View {
                         KeyCap(text: "esc"); Text("cancel").font(Theme.ui(13)).foregroundStyle(Theme.fg2)
                     }
                 }
+            case .confirmOpen:
+                title("Open \(form.items.count) pages on GitHub?")
+                Text("That is more than \(BrowseOpen.confirmAbove). Each opens in a tab of your browser.")
+                    .font(Theme.ui(13)).foregroundStyle(Theme.fg2)
+                HStack(spacing: 14) {
+                    HStack(spacing: 6) { KeyCap(text: "↩"); Text("open them").font(Theme.ui(13, weight: .semibold)) }
+                    HStack(spacing: 6) {
+                        KeyCap(text: "esc"); Text("cancel").font(Theme.ui(13)).foregroundStyle(Theme.fg2)
+                    }
+                }
             case .running:
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)

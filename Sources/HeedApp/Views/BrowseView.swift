@@ -343,6 +343,7 @@ struct BrowseRail: View {
         .background(active ? Theme.bg3 : .clear)
         .contentShape(Rectangle())
         .tap { model.browse.run(saved); model.browseOpenedQuery() }
+        .rightClickMenu { model.rightClickBrowseRail() } _: { model.browseQueryMenu(saved) }
     }
 
     /// No scope: the queries run inside every org with a checkout.
@@ -401,6 +402,9 @@ struct BrowseRail: View {
         .tap {
             if case let .org(org) = scope { model.browse.clickOrg(org) } else { model.browse.go(to: scope) }
             model.browseOpenedQuery()
+        }
+        .rightClickMenu { model.rightClickBrowseRail() } _: {
+            if case let .org(org) = scope { model.browseOrgMenu(org) } else { [] }
         }
     }
 
@@ -957,9 +961,24 @@ struct BrowseReader: View {
                     repo: item.repo, kind: item.kind == .pull ? .pr : .issue, number: item.number,
                     title: conversation?.title ?? item.title.display,
                     author: conversation?.author?.login ?? item.author,
-                    openedAt: conversation?.createdAt ?? item.createdAt, chips: chips
+                    openedAt: conversation?.createdAt ?? item.createdAt, chips: chips,
+                    actions: [.init(
+                        command: "open.browser", label: "GitHub", key: model.keyText(for: "open.browser")
+                    )],
+                    openCommand: "open.browser"
                 )
                 BrowseReadCard(item: item)
+                // A GitHub write or "open many" started from this one item (a right-click): its step shows here.
+                if let form = model.browse.bulk { BrowseBulkStep(form: form) }
+                if actions, model.browse.runs.current(for: item.id) == nil {
+                    if let failed = BrowseRunFailure.failed(for: item.id, in: model.browse.runs.runs),
+                       case let .failed(why) = failed.phase
+                    {
+                        BrowseRunFailedCard(verb: failed.verb, why: why)
+                    } else if let refused = model.browse.startRefusals[item.id] {
+                        BrowseRunFailedCard(verb: refused.verb, why: refused.why)
+                    }
+                }
                 if actions, model.browse.layout != .wide { BrowseItemActions(item: item, compact: compact) }
                 if let conversation {
                     ThreadConversationView(conversation: conversation, seenAt: nil)

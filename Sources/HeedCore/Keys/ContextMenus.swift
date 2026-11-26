@@ -59,12 +59,18 @@ public struct MenuItem: Equatable, Sendable {
     public var enabled: Bool
     /// A check mark: the setting the command flips is on (watching, get it merged, paused, pinned).
     public var checked: Bool
+    /// A line under the title: why the item is suggested, or why it is greyed out.
+    public var reason: String?
 
-    public init(_ title: String, _ command: CommandInvocation, enabled: Bool = true, checked: Bool = false) {
+    public init(
+        _ title: String, _ command: CommandInvocation, enabled: Bool = true, checked: Bool = false,
+        reason: String? = nil
+    ) {
         self.title = title
         self.command = command
         self.enabled = enabled
         self.checked = checked
+        self.reason = reason
     }
 
     /// The command whose key is shown: by name, so `pr.untrack <url>` shows `:pr.untrack` when nothing binds it.
@@ -627,6 +633,133 @@ public enum ContextMenus {
             item("Snooze until tomorrow", "attention.snooze", ["tomorrow"]),
             facts.isAgent ? nil : item("Mute thread", "attention.mute", enabled: facts.hasThread),
         ])
+        return menu.entries
+    }
+
+    // MARK: Browse
+
+    /// A Browse list row. `count` is how many items the actions act on: the picks when the row clicked is one of
+    /// them, else that row alone.
+    public struct BrowseRowFacts: Sendable {
+        public struct Choice: Sendable, Equatable {
+            public var title: String
+            public var command: String
+            public var availability: BrowseAvailability
+            public var reason: String
+
+            public init(title: String, command: String, availability: BrowseAvailability, reason: String) {
+                self.title = title
+                self.command = command
+                self.availability = availability
+                self.reason = reason
+            }
+        }
+
+        public var id: String
+        public var title: String
+        public var count = 1
+        /// The agent choices for this item, the suggested one first (`BrowseVerbs.menuChoices`).
+        public var choices: [Choice] = []
+        /// The row is among the picks.
+        public var picked = false
+        /// heed has already read it: "Read again".
+        public var hasRead = false
+        /// Why reading is not possible now (model calls off); nil when it is.
+        public var readBlocked: String?
+        /// Why a write to GitHub is not possible for this item (closed, gh does not know who you are); nil when it is.
+        public var assignBlocked: String?
+        public var closeBlocked: String?
+
+        public init(id: String, title: String) {
+            self.id = id
+            self.title = title
+        }
+    }
+
+    public static func browseRow(_ facts: BrowseRowFacts) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "browse", id: facts.id)
+        func item(
+            _ title: String, _ name: String, enabled: Bool = true, reason: String? = nil
+        ) -> MenuItem {
+            MenuItem(title, CommandInvocation(name: name, target: target), enabled: enabled, reason: reason)
+        }
+        let many = facts.count > 1
+        let all = many ? "the \(facts.count) picked" : "it"
+        var menu = Menu(header: many ? "\(facts.count) picked" : facts.title)
+        menu.section([
+            item(many ? "Open \(facts.count) on GitHub" : "Open on GitHub", "open.browser"),
+            item(many ? "Copy \(facts.count) links" : "Copy link", "browse.copy.link"),
+            item(many ? "Copy \(facts.count) references" : "Copy reference", "browse.copy.ref"),
+        ])
+        // Agents work on one item: with picks, the menu offers none.
+        if !many {
+            menu.section(facts.choices.map { choice in
+                item(
+                    choice.title, choice.command, enabled: choice.availability != .unavailable,
+                    reason: choice.availability == .available && choice.reason.isEmpty ? nil : choice.reason
+                )
+            })
+        }
+        menu.section([
+            item("Start a session from \(all)", "items.start"),
+            item("Add \(all) to a Goal", "browse.bulk.goal"),
+            item(
+                facts.hasRead && !many ? "Read it again" : many ? "Read \(all)" : "Read it", "browse.read",
+                enabled: facts.readBlocked == nil, reason: facts.readBlocked
+            ),
+        ])
+        menu.section([item(facts.picked ? "Unpick" : "Pick", "select.toggle")])
+        menu.section([
+            item(many ? "Label \(all)…" : "Label…", "browse.bulk.label"),
+            item(
+                "Assign \(all) to me",
+                "browse.bulk.assign",
+                enabled: facts.assignBlocked == nil,
+                reason: facts.assignBlocked
+            ),
+            item(many ? "Comment on \(all)…" : "Comment…", "browse.bulk.comment"),
+            item(
+                many ? "Close \(all) as…" : "Close as…", "browse.bulk.close", enabled: facts.closeBlocked == nil,
+                reason: facts.closeBlocked
+            ),
+        ])
+        return menu.entries
+    }
+
+    /// The id a rail row carries as the target of its menu's commands (the view `browse.rail`).
+    public static func railQueryID(_ id: String) -> String { "query:\(id)" }
+    public static func railOrgID(_ name: String) -> String { "org:\(name)" }
+
+    /// A saved query in the Browse rail.
+    public static func browseQuery(id: String, name: String, first: Bool, last: Bool) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "browse.rail", id: railQueryID(id))
+        func item(_ title: String, _ name: String, enabled: Bool = true) -> MenuItem {
+            MenuItem(title, CommandInvocation(name: name, target: target), enabled: enabled)
+        }
+        var menu = Menu(header: name)
+        menu.section([item("Rename…", "browse.query.rename"), item("Delete", "browse.query.delete")])
+        menu.section([
+            item("Move up", "browse.query.up", enabled: !first),
+            item("Move down", "browse.query.down", enabled: !last),
+        ])
+        menu.section([item("Refresh count", "browse.query.count")])
+        return menu.entries
+    }
+
+    /// An org in the Browse rail. `checkedOut` is how many of its repos are checked out here.
+    public static func browseOrg(name: String, checkedOut: Int, expanded: Bool) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "browse.rail", id: railOrgID(name))
+        func item(_ title: String, _ name: String) -> MenuItem {
+            MenuItem(title, CommandInvocation(name: name, target: target))
+        }
+        var menu = Menu(header: name)
+        menu.section([item("Open org on GitHub", "browse.org.open")])
+        if checkedOut > 0 {
+            menu.section([
+                item(expanded ? "Collapse" : "Expand", "browse.scope.toggle"),
+                item("Only my \(checkedOut) repo\(checkedOut == 1 ? "" : "s")", "browse.scope.own"),
+            ])
+        }
         return menu.entries
     }
 

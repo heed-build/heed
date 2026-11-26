@@ -13,7 +13,18 @@ extension AppModel {
     func startBrowseRun(_ verb: BrowseVerb, item: BrowseItem, words: String? = nil) {
         let runs = browse.runs
         let start = BrowseRuns.canStart(item: item.id, runs: runs.runs, max: config.browse.maxRuns)
-        if let reason = start.reason { return say("\(verb.title): \(reason)") }
+        // From the list, the narrower layouts show the reader over it, so what the run says is seen.
+        if !browse.layout.showsReaderBeside { browse.reading = true }
+        if let reason = start.reason {
+            // Said in the reader too, where it stays: the status line is gone in a few seconds.
+            browse.startRefusals[item.id] = .init(verb: verb, why: reason)
+            return say("\(verb.title): \(reason)")
+        }
+        browse.startRefusals[item.id] = nil
+        // A run of this item that failed is dismissed first (its worktree, if it got one, goes).
+        for old in runs.runs where old.itemID == item.id && old.phase.isOver {
+            closeBrowseRun(old.id)
+        }
         let adapter = browseAdapter()
         var run = BrowseRun(
             item: item, verb: verb, agent: adapter?.agent ?? "claude", adapter: adapter?.title ?? "claude via ACP",
@@ -435,6 +446,7 @@ extension AppModel {
     /// esc: the run closes and its worktree goes (a branch it pushed stays on its remote). On the clone card it is
     /// "Not now". Without a run, esc is what it always was.
     func closeBrowseRun() {
+        if let item = browseSelected, browse.startRefusals.removeValue(forKey: item.id) != nil { return }
         guard let item = browseSelected,
               let run = browse.runs.current(for: item.id) ?? browse.runs.runs.first(where: { $0.itemID == item.id })
         else { return perform(CommandInvocation(name: "overlay.close")) }

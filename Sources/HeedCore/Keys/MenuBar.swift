@@ -474,6 +474,9 @@ public enum MenuBar {
                     ("Rename this query…", "browse.query.rename"), ("Remove this query", "browse.query.delete"),
                     ("Move this query up", "browse.query.up"), ("Move this query down", "browse.query.down"),
                     ("Make a view of this org…", "browse.view.new"), ("Pick every item", "browse.select.all"),
+                    ("Copy the link", "browse.copy.link"), ("Copy org/repo#number", "browse.copy.ref"),
+                    ("Refresh this query's count", "browse.query.count"),
+                    ("Open the org on GitHub", "browse.org.open"), ("Only my repos of the org", "browse.scope.own"),
                 ], in: ["browse", "browsebulk"]),
                 scoped("In Browse with items picked", [
                     ("One session for all the picks", "browse.bulk.session"),

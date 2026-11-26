@@ -876,6 +876,16 @@ enum Shots {
         Shot(id: "github/browse-run", keys: "gb", highlight: [.browseRun], prepare: { model in
             model.browse.runs.runs = [browseRun(2830, .fix)]
         }),
+        // A run that could not start stays in the reader with its reason and what to do, not as a passing message.
+        Shot(id: "github/browse-run-failed", keys: "gb", highlight: [.browseRun], prepare: { model in
+            var run = browseRun(2830, .fix, phase: .preparing)
+            _ = run.apply(
+                .couldNotStart("could not read who opened #2830: gh could not be reached"), at: Clock.now
+            )
+            model.browse.runs.runs = [run]
+        }),
+        // `t`: the words are typed into the line under the buttons, where they can be seen.
+        Shot(id: "github/browse-tell", keys: "gbt" + typed("fix it on the 3.x branch too"), highlight: [.browseWork]),
         // The repo is not on this Mac: the clone card comes first (design 7).
         Shot(id: "github/browse-clone", keys: "gbjjj", highlight: [.browseRun], prepare: { model in
             var run = browseRun(94, .chat, phase: .needsClone)
@@ -907,6 +917,14 @@ enum Shots {
             model.browse.refilter()
         }),
         Shot(id: "github/browse-scope", keys: "gb<D-k>gl"),
+        // The reader's GitHub button, with its key (gB), beside the thread's own header.
+        Shot(id: "github/browse-open", keys: "gb", crop: .browseDetail, cropPadding: 0),
+        // A right-click on a row: open and copy, the agent (the suggestion first, what does not fit greyed with why),
+        // the session and the goal, pick, and the writes to GitHub.
+        Shot(
+            id: "github/browse-menu", subject: .browseMenu(0), size: CGSize(width: 400, height: 900), keys: "gb",
+            crop: .contextMenu, cropPadding: 20
+        ),
         // Four items picked: the reader is the bulk panel (design 4).
         Shot(id: "github/browse-bulk", keys: "gb<Space>j<Space>jjj<Space>jjjj<Space>"),
         // Half width (720): icon rail and list, the reader pushed over them (designs 11, 12).

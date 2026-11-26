@@ -284,7 +284,7 @@ public enum Commands {
         .init("jump.back", "back", .views),
         .init(
             "open.browser",
-            "open in the browser: the item under the cursor; in Sessions its PR or issue (a picker when there are several, its repo when there are none)",
+            "open in the browser: the item under the cursor; in Sessions its PR or issue (a picker when there are several, its repo when there are none); in Browse the item, or every picked one (asks above five)",
             .views
         ),
         .init("open.repo", "open the repo under the cursor on GitHub", .views),
@@ -1042,6 +1042,27 @@ public enum Commands {
         ),
         .init("browse.run.review.discard", "Browse: throw the drafted review away; nothing is posted", .selection),
         .init("browse.select.all", "Browse: pick every item in the view (again: none)", .selection),
+        .init(
+            "browse.copy.link",
+            "Browse: copy the link of the item under the cursor, or of every picked one, one per line",
+            .selection
+        ),
+        .init(
+            "browse.copy.ref",
+            "Browse: copy org/repo#number of the item under the cursor, or of every picked one, one per line",
+            .selection
+        ),
+        .init("browse.query.count", "Browse: ask GitHub for the saved query's count again", .selection),
+        .init(
+            "browse.org.open",
+            "Browse: open the org of the rail row (or the scope you are in) on GitHub",
+            .selection
+        ),
+        .init(
+            "browse.scope.own",
+            "Browse: only the repos of the org you have checked out (the rail row's org, or the one you are in)",
+            .selection
+        ),
         .init(
             "browse.bulk.session",
             "Browse, with items picked: one session for all of them, in every repo they are in, its prompt listing each issue with a Closes line",

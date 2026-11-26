@@ -428,6 +428,8 @@ public enum DefaultKeys {
         ("c", "browse.clone.only"), ("d", "browse.clone.folder"),
         // Pick: space toggles, v a range (⎋ keeps it), a every item in the view, ⎋ clears.
         ("a", "browse.select.all"),
+        // Copy: y the link (every picked one's, a line each), Y org/repo#number. gB opens it on GitHub, gR its repo.
+        ("y", "browse.copy.link"), ("Y", "browse.copy.ref"),
     ]
 
     /// Browse with two items picked or more: the reader is the bulk panel. s is one session for all the picks, S one

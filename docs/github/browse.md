@@ -127,6 +127,35 @@ items.
 
 `T` cycles the sort: updated, created, comments, oldest. `⌘F` narrows the rows by words over titles, repos and labels.
 
+### Open it on GitHub, copy its link
+
+`gB` opens the item under the cursor on GitHub, whatever the reader shows (a run included). With items picked it opens
+every picked item, and above five it asks first (`↩` opens them, `⎋` cancels). The reader has the same thing as a
+**GitHub** button with its key beside the title, and a click on the repo or the number above the title opens the item
+too. On a narrow window the button is in the reader's `···` menu as well.
+
+![The reader's GitHub button, with its key](../images/shots/github/browse-open.png)
+
+`y` copies the item's link and `Y` copies `org/repo#number`, one per line for every picked item; `y` in VISUAL copies
+the links of the range. `gR` opens the item's repo.
+
+### Right-click
+
+A right-click on a row opens a menu of what the keys do, with each key beside it: open on GitHub, copy the link and the
+reference, the agent choices, a session or a goal from it, read it, pick it, and the writes to GitHub (label, assign to
+you, comment, close). The agent choices lead with the one heed suggests, with its reason under it; those that do not fit
+are greyed with the reason (*Not a feature, so Fix fits better here.*). On an open pull request they are Get it green,
+Get it merged, Review and Chat.
+
+![A row's right-click menu](../images/shots/github/browse-menu.png)
+
+A right-click on a row that is not picked acts on that row alone, whatever is picked. A right-click on a picked row acts
+on all the picks, and the menu then leaves the agents out, which take one item. A GitHub write from a menu on one item
+shows its confirm step in the reader, as for picks.
+
+In the rail, a right-click on a saved query offers Rename, Delete, Move up, Move down and Refresh count; on an org it
+offers Open org on GitHub, Expand or Collapse, and Only my N repos.
+
 ## Staying current
 
 Browse asks GitHub again for the view you are on when you come back to it, so the list is not as old as your last
@@ -311,6 +340,12 @@ when someone who can write to the repo wrote it, or when `trusted_authors` names
 trusted unless it is yours. For anyone else the run is a Chat, whatever you pressed: it reads, edits nothing, runs none
 of the repo's code and has no GitHub login, and the header says why.
 
+**When a run cannot start,** the reader says so where the buttons were, with the reason and what to do about it
+(*gh is not signed in*, *the agent is not installed*, *the repo is not cloned*), and keeps saying it until you press
+the verb's key again or `⎋`. `t` shows what you type in its line under the buttons, and `↩` starts the run.
+
+![A run that could not start: the reason, what to do, try again or dismiss](../images/shots/github/browse-run-failed.png)
+
 **Keep it as a session.** `s` turns a run into a full session: its worktree moves to heed's usual naming (`fix/...`),
 its branch is renamed, and a session opens in it. Nothing is removed. `i` (or `↩`) steers a run or asks a follow-up.
 
@@ -408,6 +443,9 @@ Where you are, what you picked and the query survive a resize.
 | `T` | `browse.sort` | Next sort |
 | `⌘F` | `session.filter` | Narrow the rows by words |
 | `space` `v` `a` | | Pick one, pick a range, pick all |
+| `gB` | `open.browser` | Open the item, or every picked item, on GitHub (asks above five) |
+| `gR` | `open.repo` | Open the item's repo on GitHub |
+| `y` `Y` | `browse.copy.link` `browse.copy.ref` | Copy the link, or `org/repo#number`, of the item or the picked items |
 | `U` | `browse.read` | heed reads the item or the picked items |
 | `F` `I` `C` `R` | `browse.fix` `browse.implement` `browse.chat` `browse.review` | Fix, Implement, Chat, Review |
 | `t` | `browse.tell` | Tell an agent what to do, in your words |

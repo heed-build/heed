@@ -141,7 +141,7 @@ This page is generated from the code (`mise run shots`).
 | `pr.track` `<url>` | `gU` | track a PR by URL |
 | `pr.untrack` `[url]` |  | stop tracking a PR in this session (no rule adds it back) |
 | `jump.back` | `<C-o>` | back |
-| `open.browser` | `gB` | open in the browser: the item under the cursor; in Sessions its PR or issue (a picker when there are several, its repo when there are none) |
+| `open.browser` | `gB` | open in the browser: the item under the cursor; in Sessions its PR or issue (a picker when there are several, its repo when there are none); in Browse the item, or every picked one (asks above five) |
 | `open.repo` | `gR` | open the repo under the cursor on GitHub |
 | `links.pick` | `gl` | pick one of the session's PRs and issues to open in the browser |
 | `issue.add` `[url]` | `gI` | link an issue to the session (its URL, or the copied one) |
@@ -444,6 +444,11 @@ This page is generated from the code (`mise run shots`).
 | `browse.run.review.edit` | `E` (browse), `E` (browsebulk) | Browse: ask the agent to change the review it drafted before you post it |
 | `browse.run.review.discard` | `X` (browse), `X` (browsebulk) | Browse: throw the drafted review away; nothing is posted |
 | `browse.select.all` | `a` (browse), `a` (browsebulk) | Browse: pick every item in the view (again: none) |
+| `browse.copy.link` | `y` (browse), `y` (browsebulk) | Browse: copy the link of the item under the cursor, or of every picked one, one per line |
+| `browse.copy.ref` | `Y` (browse), `Y` (browsebulk) | Browse: copy org/repo#number of the item under the cursor, or of every picked one, one per line |
+| `browse.query.count` |  | Browse: ask GitHub for the saved query's count again |
+| `browse.org.open` |  | Browse: open the org of the rail row (or the scope you are in) on GitHub |
+| `browse.scope.own` |  | Browse: only the repos of the org you have checked out (the rail row's org, or the one you are in) |
 | `browse.bulk.session` | `s` (browsebulk) | Browse, with items picked: one session for all of them, in every repo they are in, its prompt listing each issue with a Closes line |
 | `browse.bulk.goal` | `G` (browsebulk) | Browse, with items picked: a goal from all of them, planned with you first |
 | `browse.bulk.each` | `S` (browsebulk) | Browse, with items picked: one session per repo (asks first above 5) |

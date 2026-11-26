@@ -3367,6 +3367,7 @@ final class AppModel {
              "browse.query.next", "browse.query.prev", "browse.query.save", "browse.older", "browse.refresh",
              "browse.sort", "browse.filter.add", "browse.filter.remove", "browse.query.rename", "browse.query.delete",
              "browse.query.up", "browse.query.down", "browse.view.new", "browse.read", "browse.fix", "browse.implement",
+             "browse.copy.link", "browse.copy.ref", "browse.query.count", "browse.org.open", "browse.scope.own",
              "browse.chat", "browse.review", "browse.tell", "browse.agents", "browse.from.sessions",
              "browse.from.goals",
              "browse.run.close", "browse.run.keep",
@@ -3473,7 +3474,7 @@ final class AppModel {
         case "command.complete": completeCommandLine(by: 1)
         case "command.complete.prev": completeCommandLine(by: -1)
         case "select.toggle": toggleRow()
-        case "select.copy": copySelectedPaths()
+        case "select.copy": if view == .browse { browseCopy(link: true) } else { copySelectedPaths() }
         case "select.open": openSelected()
         case "select.remove": confirmRemoveSelected()
         case "session.filter": startFilter()
@@ -5318,15 +5319,11 @@ final class AppModel {
 
     /// What `s`, `a`, `m` act on: the picked items, else the one under the cursor.
     func actionIDs(_ view: AppView) -> [String] {
-        let ids = itemIDs(view)
-        let chosen = pickedIDs(view)
         // A right-click on a row that is not picked acts on that row alone, as Finder does.
-        if let clicked = commandTarget?.row(in: view.rawValue), !chosen.contains(clicked) {
-            return ids.contains(clicked) ? [clicked] : []
-        }
-        if !chosen.isEmpty { return ids.filter(chosen.contains) }
-        let index = cursor(in: view)
-        return ids.indices.contains(index) ? [ids[index]] : []
+        ActionTargets.resolve(
+            ids: itemIDs(view), picked: pickedIDs(view), cursor: cursor(in: view),
+            clicked: commandTarget?.row(in: view.rawValue)
+        )
     }
 
     func clearPicks() {
@@ -5409,6 +5406,7 @@ final class AppModel {
         let index = cursor(in: view)
         switch view {
         case .attention: return attentionSelected?.item.url
+        case .browse: return browseSelected?.url
         case .prs: return pullRows.indices.contains(index) ? pullRows[index].url : nil
         case .watch: return pilotRows.indices.contains(index) ? pilotRows[index].ref.url : nil
         case .sessions: return currentSession?.trackedPRs.first?.url
@@ -5422,6 +5420,7 @@ final class AppModel {
     /// `gB`: what is under the cursor. In Sessions (outside the overlay and reader) the session's links: one opens,
     /// several offer the picker, none opens its repo.
     private func openInBrowser() {
+        if view == .browse { return browseOpenOnGitHub() }
         if view == .sessions, issueReader == nil, feedbackPull == nil, commandTarget?.url == nil,
            let session = currentSession
         {

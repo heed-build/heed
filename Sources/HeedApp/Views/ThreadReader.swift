@@ -24,6 +24,8 @@ struct ThreadHeader: View {
     var openedAt: Date?
     var chips: [Chip] = []
     var actions: [Action] = []
+    /// A command a click on the repo or the number runs (Browse: open it on GitHub); nil leaves them as text.
+    var openCommand: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -31,6 +33,8 @@ struct ThreadHeader: View {
                 RepoChip(repo: repo)
                 Text(verbatim: place).font(Theme.ui(12.5)).foregroundStyle(Theme.fg3).lineLimit(1)
             }
+            .contentShape(Rectangle())
+            .clickRuns(openCommand.map { CommandInvocation(name: $0) })
             Text(title).font(Theme.ui(18, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
             if !chips.isEmpty {

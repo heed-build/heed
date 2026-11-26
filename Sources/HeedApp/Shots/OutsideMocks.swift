@@ -149,7 +149,13 @@ struct ContextMenuMock: View {
         case let .item(item):
             HStack(spacing: 8) {
                 Text(item.checked ? "✓" : " ").frame(width: 10)
-                Text(item.title).lineLimit(1)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(item.title).lineLimit(1)
+                    if let reason = item.reason {
+                        Text(reason).font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.45)).lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
                 Spacer(minLength: 20)
                 Text(RightClickMenu.key(for: item.keyCommand, model, anywhere: menuBar))
                     .foregroundStyle(Color.white.opacity(0.45))

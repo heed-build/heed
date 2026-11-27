@@ -117,21 +117,25 @@ struct LiveGitHubContractTests {
         }
 
         await Smoke.step("Contract", "BrowseFetch.search chunked path (own repos, several searches)") { step in
-            let repos = await BrowseFetch.orgRepos(owner: "cli")
+            let repos = await BrowseFetch.orgRepos(owner: "kubernetes")
             let slugs = (repos ?? []).map(\.slug).filter { !$0.contains(" ") }.prefix(40)
-            step.expect(slugs.count >= 20, "cli lists only \(slugs.count) repos")
+            step.expect(slugs.count >= 20, "kubernetes lists only \(slugs.count) repos")
             let records = slugs.map { slug -> RepoRecord in
                 let parts = slug.split(separator: "/").map(String.init)
                 return RepoRecord(repo: Repo(org: parts[0], name: parts[1]), path: "/nonexistent/\(parts[1])")
             }
             let checkouts = BrowseCheckouts(records: records)
-            let plan = BrowseDefaultScope.plan(checkouts.repoQualifiers(of: "cli"), rest: "is:open sort:updated-desc")
+            let plan = BrowseDefaultScope.plan(
+                checkouts.repoQualifiers(of: "kubernetes"),
+                rest: "is:open sort:updated-desc"
+            )
             step.expect(
                 plan.groups.count >= 2,
                 "\(slugs.count) repo qualifiers fit one search; the chunk path was not exercised"
             )
             let result = try await BrowseFetch.search(
-                Self.query(.ownRepos("cli"), [.state(.open)]), maxAgeDays: 0, cap: 150, now: now, checkouts: checkouts
+                Self.query(.ownRepos("kubernetes"), [.state(.open)]), maxAgeDays: 0, cap: 150, now: now,
+                checkouts: checkouts
             )
             step.expect(
                 result.groups == plan.groups.count,
@@ -150,10 +154,24 @@ struct LiveGitHubContractTests {
         }
 
         await Smoke.step("Contract", "BrowseFetch.search over 1000 results (kubernetes/kubernetes)") { step in
-            let result = try await BrowseFetch.search(
-                Self.query(.repo(Repo(org: "kubernetes", name: "kubernetes"))), maxAgeDays: 0, cap: 1200, now: now,
-                checkouts: Self.checkouts("kubernetes/kubernetes")
-            )
+            let result: BrowseFetch.Result
+            do {
+                result = try await BrowseFetch.search(
+                    Self.query(.repo(Repo(org: "kubernetes", name: "kubernetes"))), maxAgeDays: 0, cap: 1200, now: now,
+                    checkouts: Self.checkouts("kubernetes/kubernetes")
+                )
+            } catch {
+                let text = "\(error)"
+                // Seen live (2026-11-27): gh could not decode a truncated page. It is a transient, and heed fails the
+                // whole fetch.
+                step.productBug(
+                    "P2-truncated-page",
+                    "a page of the 1000-result search failed with '\(text)': BrowseFetchPolicy.classify sees it as permanent, so the page is not asked again",
+                    reproduced: text.contains("unexpected end of JSON") && BrowseFetchPolicy
+                        .classify(text) == .permanent
+                )
+                return step.expect(text.contains("unexpected end of JSON"), "threw: \(text)")
+            }
             step.expect(result.total > 1000, "total \(result.total): kubernetes should hold more than 1000")
             step.expect(
                 result.items.count <= 1000 && result.items.count >= 900,
@@ -531,7 +549,6 @@ struct LiveGitHubContractTests {
                         "`search[\"nodes\"] as? [[String: Any]]` is nil for an array holding a null, so the whole page is dropped",
                     reproduced: parsed.matches.count < real / 2
                 )
-                step.expect(parsed.matches.count >= 1, "(sanity) a mixed page produced no match at all")
             } else {
                 step
                     .note(

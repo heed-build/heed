@@ -61,7 +61,9 @@ final class LiveBrowseRun: @unchecked Sendable {
 
     /// Everything up to and including the first turn's end. `extra` is added to the prompt after heed's own (a test's
     /// instruction to the model). Throws what the app would show as a failed run.
-    func go(worktreeRoot: String, extra: String = "", runFolderRoot: String) async throws {
+    func go(
+        worktreeRoot: String, extra: String = "", runFolderRoot: String, extraEnvironment: [String: String] = [:]
+    ) async throws {
         let started = Date()
         defer { seconds = Date().timeIntervalSince(started) }
         let id = run.id
@@ -124,6 +126,7 @@ final class LiveBrowseRun: @unchecked Sendable {
         )
         // Haiku only, the one thing the app does not do.
         environment["ANTHROPIC_MODEL"] = LiveSmoke.model
+        environment.merge(extraEnvironment) { _, new in new }
         let transport = try RecordingTransport(ACPProcessTransport(
             executable: executable, arguments: adapter.arguments, directory: path, environment: environment
         ))

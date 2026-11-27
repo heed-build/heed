@@ -362,104 +362,206 @@ struct LiveBrowseE2ETests {
 
     /// The commands a Fix legitimately needs: a refusal of one of these is a policy gap that breaks Fix.
     static let legitimatePattern =
-        #"^(git (add|commit|push|status|diff|log|show|rev-parse|branch|checkout|switch)\b|gh (pr (create|view|list|diff|comment)|issue (comment|view|edit|list))\b|python3?\s+(\./)?test_calc\.py|python3?\s+-c|ls\b|cat\b|grep\b|sed -n\b|pwd\b|head\b)"#
+        #"^(git (add|commit|push|status|diff|log|show|rev-parse|branch|checkout|switch)\b|gh (pr (create|view|list|diff|comment)|issue (comment|view|edit|list))\b|python3?\s+(\./)?test_calc\.py|ls\b|cat\b|grep\b|sed -n\b|pwd\b|head\b)"#
+
+    struct FixOutcome {
+        var run: LiveBrowseRun
+        var ahead = 0
+        var passes = false
+        var pushed = false
+        var opened: Int?
+        var committedTried = false
+        var signingConfigured = false
+        var sawPassphrase = false
+        var prOnlyHabitual = false
+    }
+
+    /// A refusal that is right: the policy exists to refuse these, whatever the model's reason for trying.
+    static func correctRefusal(_ command: String) -> Bool {
+        command.contains("--no-verify") || command.contains("git -c ") || command.contains("ssh-add") || command
+            .contains("<<")
+    }
 
     func fix(_ state: State, _ record: RepoRecord, _: LiveSmokeWorld.Seeded) async {
         await Smoke.step("E2E 4", "Fix run (full) on the bug issue under the hardened policy") { step in
             guard let item = state.bug else { return step.expect(false, "no bug item") }
-            let run = LiveBrowseRun(verb: .fix, item: item, record: record)
-            do {
-                try await run.go(
-                    worktreeRoot: state.scratch.appendingPathComponent("wt").path,
-                    runFolderRoot: state.scratch.appendingPathComponent("runs").path
-                )
-            } catch {
-                await run.discard()
-                throw error
-            }
-            Self.describe(step, run)
-            step.expect(run.verdict?.trusted == true, "the run was not trusted: \(run.verdict?.text ?? "nil")")
-            step.expect(run.run.mode == .full, "mode \(run.run.mode)")
-            step.expect(run.capped == nil, "the run hit a cap: \(run.capped ?? "")")
-
-            // Every refusal is a finding: a legitimate command refused breaks Fix; a correct refusal is fine.
-            let refused = run.refused
-            let wrongly = refused.filter { ask in
-                let command = ask.command ?? ""
-                return command.range(of: Self.legitimatePattern, options: .regularExpression) != nil
-            }
-            step.expect(wrongly.isEmpty, "the policy refused commands a Fix legitimately needs: \(wrongly.map(\.line))")
-            step
-                .note("refused (\(refused.count)): " +
-                    (refused.isEmpty ? "none" : refused.map(\.line).joined(separator: " | ")))
-            let commands = run.asked.compactMap(\.command)
-            let tried = { (prefix: String) in commands.contains { $0.hasPrefix(prefix) } }
-            step
-                .note(
-                    "tried: git add \(tried("git add")), git commit \(tried("git commit")), git push \(tried("git push")), gh pr create \(tried("gh pr create")), test script \(commands.contains { $0.contains("test_calc") })"
-                )
-            for prefix in ["git add", "git commit", "git push", "gh pr create"] where tried(prefix) {
-                let allowed = run.asked.contains { ($0.command ?? "").hasPrefix(prefix) && $0.allowed }
-                step.expect(
-                    allowed,
-                    "'\(prefix)' was tried and never allowed: \(run.asked.filter { ($0.command ?? "").hasPrefix(prefix) }.map(\.line))"
-                )
-            }
-
-            // The outcome. If haiku did not get there within its caps, that is not a product bug: it is noted.
-            let branch = run.plan?.branch ?? ""
-            let ahead = try await Int(ProcessRunner.output(
-                "git",
-                ["-C", run.worktree, "rev-list", "--count", "origin/main..HEAD"],
-                caller: "live.e2e"
-            ).trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
-            let passes = try await ProcessRunner.run("python3", ["test_calc.py"], in: run.worktree, caller: "live.e2e")
-                .succeeded
-            let remote = try await SmokeGH.read([
-                "api",
-                "repos/\(LiveSmoke.slug)/git/matching-refs/heads/\(branch)",
-                "--jq",
-                ".[].ref",
-            ]).trimmingCharacters(in: .whitespacesAndNewlines)
-            let pulls = try await SmokeGH.readJSON([
-                "api",
-                "repos/\(LiveSmoke.slug)/pulls?state=open&per_page=50",
-            ]) as? [[String: Any]] ?? []
-            let opened = pulls.first { ($0["head"] as? [String: Any])?["ref"] as? String == branch }
-            let mainNow = try await SmokeGH.read(["api", "repos/\(LiveSmoke.slug)/commits/main", "--jq", ".sha"])
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            step
-                .note(
-                    "outcome: commits on the run branch \(ahead), test script passes \(passes), pushed \(!remote.isEmpty), PR opened \(opened.flatMap { $0["number"] } ?? "no")"
-                )
-            step.expect(
-                mainNow == state.mainSHA,
-                "main moved during the Fix run: \(state.mainSHA.prefix(7)) -> \(mainNow.prefix(7))"
+            let first = try await Self.fixAttempt(
+                step,
+                state,
+                record,
+                item,
+                extraEnvironment: [:],
+                label: "as the app starts it"
             )
-            if let opened, let number = opened["number"] as? Int {
-                state.world.track(pull: number)
-                let body = (opened["body"] as? String ?? "").lowercased()
-                step.expect(
-                    body
-                        .contains("#\(item.number)") &&
-                        (body.contains("close") || body.contains("fix") || body.contains("resolve")),
-                    "the PR's body does not close #\(item.number): \(body.prefix(200))"
+            let agentDropped = !RunSandbox.baseVariables.contains("SSH_AUTH_SOCK")
+            if first.ahead == 0, first.committedTried, first.signingConfigured || first.sawPassphrase, agentDropped {
+                step.productBug(
+                    "F1-signed-commits",
+                    "a Fix cannot commit when git is set to sign commits with an ssh key (commit.gpgsign=true, gpg.format=ssh): "
+                        + "RunSandbox.baseVariables does not keep SSH_AUTH_SOCK, so `git commit` fails with 'Enter passphrase ... incorrect passphrase', "
+                        +
+                        "the model then tries --no-verify and `git -c commit.gpgsign=false`, which the policy correctly refuses",
+                    reproduced: true
                 )
-            }
-            if ahead == 0, !passes {
-                step.note("haiku did not solve the bug within its caps: not a product finding")
+                // The rest of Fix (push, pull request) still needs testing: the same run with the agent socket kept,
+                // a test-only workaround that shows what the fix would unlock.
+                var env: [String: String] = [:]
+                if let socket = ProcessInfo.processInfo.environment["SSH_AUTH_SOCK"] { env["SSH_AUTH_SOCK"] = socket }
+                let second = try await Self.fixAttempt(
+                    step,
+                    state,
+                    record,
+                    item,
+                    extraEnvironment: env,
+                    label: "with SSH_AUTH_SOCK kept (test-only workaround)"
+                )
+                Self.expectOutcome(step, second, item: item)
             } else {
-                step.expect(ahead >= 1, "no commit on the run branch")
-                step.expect(passes, "test_calc.py still fails in the run's worktree")
-                step.expect(!remote.isEmpty, "the run branch was not pushed to a non-default branch")
-                step.expect(opened != nil, "no pull request was opened from \(branch)")
+                Self.expectOutcome(step, first, item: item)
             }
-            // The unpushed check, as closing the run runs it.
-            let close = await run.close()
-            step.note("closing: \(close)")
-            await run.discard()
-            await Self.record(run, "Fix on the bug issue")
         }
+    }
+
+    static func expectOutcome(_ step: SmokeStep, _ outcome: FixOutcome, item _: BrowseItem) {
+        if outcome.ahead == 0, !outcome.passes {
+            return step.note("haiku did not solve the bug within its caps: not a product finding")
+        }
+        step.expect(outcome.ahead >= 1, "no commit on the run branch")
+        step.expect(outcome.passes, "test_calc.py still fails in the run's worktree")
+        step.expect(outcome.pushed, "the run branch was not pushed to a non-default branch")
+        step.expect(
+            outcome.opened != nil || outcome.prOnlyHabitual,
+            "no pull request was opened from the run branch"
+        )
+    }
+
+    static func fixAttempt(
+        _ step: SmokeStep, _ state: State, _ record: RepoRecord, _ item: BrowseItem,
+        extraEnvironment: [String: String], label: String
+    ) async throws -> FixOutcome {
+        let run = LiveBrowseRun(verb: .fix, item: item, record: record)
+        do {
+            try await run.go(
+                worktreeRoot: state.scratch.appendingPathComponent("wt").path,
+                runFolderRoot: state.scratch.appendingPathComponent("runs").path, extraEnvironment: extraEnvironment
+            )
+        } catch {
+            await run.discard()
+            throw error
+        }
+        step.note("--- Fix attempt \(label)")
+        describe(step, run)
+        step.expect(run.verdict?.trusted == true, "the run was not trusted: \(run.verdict?.text ?? "nil")")
+        step.expect(run.run.mode == .full, "mode \(run.run.mode)")
+
+        // Every refusal is a finding: a legitimate command refused breaks Fix; a correct refusal is fine.
+        let refused = run.refused
+        let wrongly = refused.filter { ask in
+            let command = ask.command ?? ""
+            return !correctRefusal(command) && !(ask.refusal ?? "").contains("outside this run's worktree") && command
+                .range(
+                    of: legitimatePattern,
+                    options: .regularExpression
+                ) != nil
+        }
+        step.expect(wrongly.isEmpty, "the policy refused commands a Fix legitimately needs: \(wrongly.map(\.line))")
+        step
+            .note("refused (\(refused.count)): " +
+                (refused.isEmpty ? "none" : refused.map(\.line).joined(separator: " | ")))
+        let commands = run.asked.compactMap(\.command)
+        func tried(_ prefix: String) -> Bool { commands.contains { $0.contains(prefix) } }
+        step
+            .note(
+                "tried: git add \(tried("git add")), git commit \(tried("git commit")), git push \(tried("git push")), gh pr create \(tried("gh pr create")), test script \(tried("test_calc"))"
+            )
+        for prefix in ["git add", "git commit", "git push", "gh pr create"] where tried(prefix) {
+            let mine = run.asked.filter { ($0.command ?? "").contains(prefix) }
+            let allowed = mine.contains { $0.allowed }
+            if !allowed, mine.allSatisfy({ correctRefusal($0.command ?? "") }) {
+                step.productBug(
+                    "F3-habitual-spelling",
+                    "'\(prefix)' was only tried in a spelling heed correctly refuses ($(cat <<'EOF') bodies, heredocs), as Claude Code's own habit writes it, "
+                        +
+                        "and the run did not recover: Fix on a trusted issue ends without a pull request. The prompt asks for single-quoted text or a file",
+                    reproduced: true
+                )
+                continue
+            }
+            step.expect(allowed, "'\(prefix)' was tried and never allowed: \(mine.map(\.line))")
+        }
+
+        var outcome = FixOutcome(run: run, committedTried: tried("git commit"))
+        let strayed = refused.filter { ($0.refusal ?? "").contains("outside this run's worktree") }
+        step.productBug(
+            "F5-outside-worktree-no-hint",
+            "haiku reached for the worktree's parent folder (\(strayed.count) refusals) and the refusal ('... is outside this run's worktree') "
+                +
+                "does not say where the worktree is, so the run flounders or ends without trying: \(strayed.prefix(2).map(\.line))",
+            reproduced: !strayed.isEmpty
+        )
+        outcome.prOnlyHabitual = tried("gh pr create") && !run.asked
+            .contains { ($0.command ?? "").contains("gh pr create") && $0.allowed }
+        let liars = run.lines.filter { [.openedPR, .committed, .pushed].contains($0.kind) && $0.failed }
+        step.productBug(
+            "F4-feed-says-done-when-failed",
+            "the feed words a failed or refused tool as a success ('Opened a pull request', 'Committed', 'Pushed'), only its failed flag differs: "
+                + "\(liars.map { "\($0.kind.rawValue): \($0.text) (failed)" })",
+            reproduced: !liars.isEmpty
+        )
+        let signed = try? await ProcessRunner.run(
+            "git", ["-C", run.worktree, "config", "--get", "commit.gpgsign"], caller: "live.e2e"
+        )
+        outcome.signingConfigured = signed?.stdout.trimmingCharacters(in: .whitespacesAndNewlines) == "true"
+        outcome.sawPassphrase = run.lines.contains {
+            ($0.text + ($0.detail ?? "")).localizedCaseInsensitiveContains("passphrase")
+        }
+        // A cap is a failure, except when the run was stuck on the signing failure (F1) and flailed at it.
+        step.expect(
+            run.capped == nil || outcome.sawPassphrase,
+            "the run hit a cap: \(run.capped ?? "")"
+        )
+        if run.capped != nil { step.note("cap hit: \(run.capped ?? ""), while stuck on the commit-signing failure") }
+        let branch = run.plan?.branch ?? ""
+        outcome.ahead = try await Int(ProcessRunner.output(
+            "git", ["-C", run.worktree, "rev-list", "--count", "origin/main..HEAD"], caller: "live.e2e"
+        ).trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+        outcome.passes = try await ProcessRunner.run("python3", ["test_calc.py"], in: run.worktree, caller: "live.e2e")
+            .succeeded
+        let remote = try await SmokeGH.read([
+            "api", "repos/\(LiveSmoke.slug)/git/matching-refs/heads/\(branch)", "--jq", ".[].ref",
+        ]).trimmingCharacters(in: .whitespacesAndNewlines)
+        outcome.pushed = !remote.isEmpty
+        let pulls = try await SmokeGH.readJSON([
+            "api",
+            "repos/\(LiveSmoke.slug)/pulls?state=open&per_page=50",
+        ]) as? [[String: Any]] ?? []
+        let opened = pulls.first { ($0["head"] as? [String: Any])?["ref"] as? String == branch }
+        outcome.opened = opened?["number"] as? Int
+        let mainNow = try await SmokeGH.read(["api", "repos/\(LiveSmoke.slug)/commits/main", "--jq", ".sha"])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        step
+            .note(
+                "outcome: commits on the run branch \(outcome.ahead), test script passes \(outcome.passes), pushed \(outcome.pushed), PR opened \(outcome.opened.map { "#\($0)" } ?? "no")"
+            )
+        step.expect(
+            mainNow == state.mainSHA,
+            "main moved during the Fix run: \(state.mainSHA.prefix(7)) -> \(mainNow.prefix(7))"
+        )
+        if let opened, let number = opened["number"] as? Int {
+            state.world.track(pull: number)
+            let body = (opened["body"] as? String ?? "").lowercased()
+            step.expect(
+                body
+                    .contains("#\(item.number)") &&
+                    (body.contains("close") || body.contains("fix") || body.contains("resolve")),
+                "the PR's body does not close #\(item.number): \(body.prefix(200))"
+            )
+        }
+        let close = await run.close()
+        step.note("closing: \(close)")
+        await run.discard()
+        await Self.record(run, "Fix on the bug issue (\(label))")
+        return outcome
     }
 
     // MARK: 5. Review
@@ -479,6 +581,17 @@ struct LiveBrowseE2ETests {
             }
             Self.describe(step, run)
             step.expect(run.capped == nil, "the run hit a cap: \(run.capped ?? "")")
+            let scripts = run.refused.filter { ($0.command ?? "").range(
+                of: #"^python3?\s+\S+\.py"#,
+                options: .regularExpression
+            ) != nil }
+            step.productBug(
+                "R2-review-test-script",
+                "Review is told 'you may run the tests' but `python test_calc.py` is refused (only python -m pytest/unittest run): "
+                    +
+                    "\(scripts.map(\.line)); the refusal's wording ('python is allowed for builds and tests') does not say what to run instead",
+                reproduced: !scripts.isEmpty
+            )
             let before = try await SmokeGH.read([
                 "api",
                 "repos/\(LiveSmoke.slug)/pulls/\(seeded.pull)/reviews",

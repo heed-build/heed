@@ -11,15 +11,12 @@ public enum BrowseTrust {
         public var text: String
         /// A pull request's head is this repo's own branch, so a push can go to it.
         public var canPush: Bool
+        /// The pull request's head when its author was checked: the worktree is made from exactly it.
+        public var headSHA: String?
     }
 
-    /// Whether a `trusted_authors` entry names this author. A bot is named by an entry that says `[bot]` and a person
-    /// by one that does not, and the author's type has to agree: nobody registers a login that a bot's name is, then
-    /// is trusted as the bot, and an app slug that is nobody's account yet is not a person's.
     static func listed(_ entry: String, login: String, isBot: Bool) -> Bool {
-        let namesABot = entry.lowercased().hasSuffix("[bot]")
-        guard namesABot == isBot else { return false }
-        return GateCheck.normalize(entry) == GateCheck.normalize(login)
+        PullTrust.listed(entry, login: login, isBot: isBot)
     }
 
     /// An issue: `canWrite` is what `gh` said about the author's permission on the repo (nil: not asked or not known).
@@ -54,7 +51,10 @@ public enum BrowseTrust {
             login: authorship.author, trust: authorship.by.trust, fork: authorship.crossRepository, viewer: viewer,
             canWrite: authorship.canWrite, trustedAuthors: trustedAuthors
         )
-        return Verdict(trusted: verdict.trusted, text: verdict.text, canPush: !authorship.crossRepository)
+        return Verdict(
+            trusted: verdict.trusted, text: verdict.text, canPush: !authorship.crossRepository,
+            headSHA: authorship.headSHA
+        )
     }
 
     /// The reason a Chat-only run gives.

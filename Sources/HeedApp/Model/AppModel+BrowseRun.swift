@@ -12,6 +12,13 @@ extension AppModel {
     /// the verb's prompt. One run per item; as many at once as `[browse] max_runs`.
     func startBrowseRun(_ verb: BrowseVerb, item: BrowseItem, words: String? = nil) {
         let runs = browse.runs
+        // The lowest level: whatever path got here (a key, a button, the menu, `t`), a write verb does not start while
+        // agent edits are off, and the reader says so where the buttons were.
+        if let why = BrowseVerbs.refusal(verb, runs: config.browse.runs) {
+            if !browse.layout.showsReaderBeside { browse.reading = true }
+            browse.startRefusals[item.id] = .init(verb: verb, why: why)
+            return say("\(verb.title): \(why)")
+        }
         let start = BrowseRuns.canStart(item: item.id, runs: runs.runs, max: config.browse.maxRuns)
         // From the list, the narrower layouts show the reader over it, so what the run says is seen.
         if !browse.layout.showsReaderBeside { browse.reading = true }
@@ -112,8 +119,12 @@ extension AppModel {
 
     /// The worktree, its setup, the agent, and the first turn: off the main actor except for what lands on the run.
     func prepareBrowseRun(_ id: String) async {
-        guard !(isFixture || tutor != nil) else { return playFakeRun(id) }
         let runs = browse.runs
+        if let run = runs.run(id), let why = BrowseVerbs.refusal(run.verb, runs: config.browse.runs) {
+            _ = runs.apply(id, .couldNotStart(why), at: Clock.now)
+            return say("\(run.verb.title) on #\(run.number): \(why)")
+        }
+        guard !(isFixture || tutor != nil) else { return playFakeRun(id) }
         guard var run = runs.run(id), let item = browseItem(run) else { return }
         func fail(_ why: String) {
             let effects = runs.apply(id, .couldNotStart(why), at: Clock.now)
@@ -166,6 +177,8 @@ extension AppModel {
             verdict = BrowseTrust.issue(item, viewer: viewer, canWrite: canWrite, trustedAuthors: trustedAuthors)
         }
         let mode = BrowseTrust.chatOnly(verdict)
+        // The verb the run really has: an untrusted author's run is a Chat whatever was pressed.
+        let effectiveVerb: BrowseVerb = if case .chatOnly = mode { .chat } else { run.verb }
         // A Fix on a pull request pushes to its branch only when it is this repo's own.
         let pushBranch = verdict.canPush ? prBranch : nil
         runs.update(id) {
@@ -196,7 +209,12 @@ extension AppModel {
         let worktree: String
         let trusted = verdict.trusted
         do {
-            worktree = try await BrowseWorktree.create(plan, in: record, untrusted: !trusted)
+            worktree = try await BrowseWorktree.create(
+                plan,
+                in: record,
+                untrusted: !trusted,
+                pinnedHead: verdict.headSHA
+            )
         } catch {
             return fail("could not make its worktree: \(error)")
         }
@@ -245,7 +263,7 @@ extension AppModel {
             try? RunFolder.prepare(folder)
             let environment = BrowseRunEnvironment.make(
                 ProcessInfo.processInfo.environment, agent: adapter.agent, folder: folder, trusted: trusted,
-                path: pathVariable
+                verb: runs.run(id)?.effectiveVerb ?? .chat, path: pathVariable
             )
             client = try ACPClient(transport: ACPProcessTransport(
                 executable: executable, arguments: adapter.arguments, directory: worktree, environment: environment
@@ -296,7 +314,21 @@ extension AppModel {
             prBranch: pushBranch,
             fork: item.kind == .pull && !verdict.canPush
         )
-        runBrowseTurn(id, BrowseRunPrompt.start(run, item: item, place: place))
+        // No agent fetches comments itself (a comment on a trusted author's item can be a stranger's): heed reads the
+        // thread and fences it, for every verb. When it cannot, a Chat is told so and the rest are told there are none.
+        let chat = run.effectiveVerb == .chat
+        var thread: Prompt? = chat ? BrowseThread.unavailable : nil
+        if let conversation = try? await GitHub.conversation(
+            repo: item.repo, number: item.number, caller: "browse.run.thread"
+        ) {
+            thread = BrowseThread.prompt(conversation, login: !chat)
+        } else {
+            runs.update(id) { $0.note(
+                "could not read the thread: the run works from the title and the repo",
+                at: Clock.now
+            ) }
+        }
+        runBrowseTurn(id, BrowseRunPrompt.start(run, item: item, place: place, thread: thread))
         let timeout = pilotSettings(for: PullRef(repo: item.repo, number: item.number)).runTimeout
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(timeout))
@@ -422,6 +454,7 @@ extension AppModel {
     func steerBrowseRun(_ id: String, _ text: String) {
         let runs = browse.runs
         guard let run = runs.run(id), run.canSteer else { return }
+        if let why = BrowseVerbs.refusal(run.verb, runs: config.browse.runs) { return say("\(run.verb.title): \(why)") }
         let max = config.browse.maxRuns
         if case .done = run.phase, max > 0, BrowseRuns.working(runs.runs) >= max {
             return say("\(max) runs are working: wait for one to finish")
@@ -463,7 +496,8 @@ extension AppModel {
                 guard let item = browse.items.first(where: { $0.id == id }) ?? Fixtures.Browse.cached
                     .first(where: { $0.id == id })
                 else { return }
-                startBrowseRun(browseVerbs(item).recommended?.verb ?? .chat, item: item, words: text)
+                let verb = config.browse.runs == .chat ? BrowseVerb.chat : browseVerbs(item).recommended?.verb ?? .chat
+                startBrowseRun(verb, item: item, words: text)
             } else {
                 steerBrowseRun(input.run, text)
             }
@@ -526,6 +560,9 @@ extension AppModel {
             return say("the run is not ready yet: keep it once it is working")
         }
         if let why = BrowseKeep.refusal(run) { return say(why) }
+        guard BrowseVerbs.mayKeep(runs: config.browse.runs) else {
+            return say("Not kept: \(BrowseVerbs.editsOff). A kept run is a full session, and a chat run stays a chat.")
+        }
         let id = run.id
         let runs = browse.runs
         guard !(isFixture || tutor != nil) else {

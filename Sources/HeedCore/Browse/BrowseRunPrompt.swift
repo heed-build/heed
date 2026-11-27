@@ -28,6 +28,8 @@ public enum BrowseRunPrompt {
         }
     }
 
+    /// `thread`: the item's thread as heed read it (`BrowseThread.prompt`), for every verb, so no agent fetches
+    /// comments itself; nil says heed shows none.
     public static func start(_ run: BrowseRun, item: BrowseItem, place: Place, thread: Prompt? = nil) -> Prompt {
         let verb = run.effectiveVerb
         var text: Prompt = "You are working for the user through heed, in a temporary git worktree at \(name: place.worktree) "

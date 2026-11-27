@@ -9,12 +9,17 @@ public enum BrowseRunEnvironment {
     /// `parent` filtered to the kept names, `PATH` set to the one heed found the agent's tools on. `folder` is the
     /// run's scratch folder: an untrusted run's `gh` is pointed at an empty config folder in it, so it has no login.
     /// A trusted run's `gh` finds your login where it always does (in `HOME`), which is how it opens pull requests.
+    /// Whether a run's `gh` has no login: an author heed does not trust, and every Chat, whoever wrote the item,
+    /// because Chat's policy has bypasses. The one place that decides it.
+    public static func emptyGitHubLogin(trusted: Bool, verb: BrowseVerb) -> Bool { !trusted || verb == .chat }
+
     public static func make(
-        _ parent: [String: String], agent: String, folder: String, trusted: Bool, path: String?
+        _ parent: [String: String], agent: String, folder: String, trusted: Bool, verb: BrowseVerb? = nil,
+        path: String?
     ) -> [String: String] {
         var environment = RunSandbox.kept(GitEnvironment.scrubbed(parent), agent: agent, folder: folder)
         if let path, !path.isEmpty { environment["PATH"] = path }
-        if trusted { environment["GH_CONFIG_DIR"] = nil }
+        if !emptyGitHubLogin(trusted: trusted, verb: verb ?? .fix) { environment["GH_CONFIG_DIR"] = nil }
         return environment
     }
 }

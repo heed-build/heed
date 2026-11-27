@@ -407,3 +407,29 @@ extension BrowseWorktreeTests {
         await BrowseWorktree.remove(path: path, branch: plan.branch, in: record)
     }
 }
+
+extension BrowseWorktreeTests {
+    @Test func aHeadThatMovedSinceTrustWasDecidedIsNotCheckedOut() async throws {
+        let base = FileManager.default.temporaryDirectory
+            .appendingPathComponent("heed-pin-\(UUID().uuidString)").resolvingSymlinksInPath().path
+        defer { try? FileManager.default.removeItem(atPath: base) }
+        let record = try await hostileWorld(base: base, marker: base + "/MARKER")
+        let item = BrowseItem(
+            repo: record.repo, number: 12, kind: .pull,
+            title: ExternalText("t", source: .pullTitle, author: .init(login: "mara", trust: .collaborator))
+        )
+        let plan = BrowseWorktree.plan(for: item, defaultBranch: "main", root: base + "/wt", suffix: "a01b2e")
+        await #expect(throws: (any Error).self) {
+            _ = try await BrowseWorktree.create(
+                plan, in: record, untrusted: false, pinnedHead: "0000000000000000000000000000000000000000"
+            )
+        }
+        #expect(!FileManager.default.fileExists(atPath: plan.path))
+        let head = try await ProcessRunner.output(
+            "git", ["-C", record.path, "rev-parse", "FETCH_HEAD"], caller: "test"
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+        let path = try await BrowseWorktree.create(plan, in: record, untrusted: false, pinnedHead: head)
+        #expect(FileManager.default.fileExists(atPath: path + "/a.txt"))
+        await BrowseWorktree.remove(path: path, branch: plan.branch, in: record)
+    }
+}

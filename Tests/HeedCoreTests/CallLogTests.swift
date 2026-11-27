@@ -423,3 +423,20 @@ struct CallLogViewTests {
         #expect(DefaultKeys.normal.allSatisfy { $0.1 != "view.log" })
     }
 }
+
+struct CallStoreModeTests {
+    @Test func theCallLogFileIsForItsOwnerOnly() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("heed-calllog-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let path = dir.appendingPathComponent("log.sqlite").path
+        _ = try CallStore(path: path)
+        for file in [path, path + "-wal", path + "-shm"] where FileManager.default.fileExists(atPath: file) {
+            let mode = try #require(
+                try FileManager.default.attributesOfItem(atPath: file)[.posixPermissions] as? Int
+            )
+            #expect(mode & 0o077 == 0, "\(file) is \(String(mode, radix: 8))")
+        }
+        let mode = try #require(try FileManager.default.attributesOfItem(atPath: path)[.posixPermissions] as? Int)
+        #expect(mode == 0o600)
+    }
+}

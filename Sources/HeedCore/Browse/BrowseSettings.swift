@@ -3,6 +3,13 @@ import Foundation
 /// `[browse]`: how far back a Browse search reaches, when an org has too many repos to browse at once, and how
 /// heed reads items.
 public struct BrowseSettings: Equatable, Sendable {
+    /// `runs`: what an agent run in Browse may do. Chat: it reads and answers, nothing that writes or posts is on
+    /// offer.
+    /// Full: Fix, Implement, Review and Get it green too (`BrowsePolicy` is a best-effort filter, not a sandbox).
+    public enum Runs: String, CaseIterable, Equatable, Sendable {
+        case chat, full
+    }
+
     public static let defaultMaxAgeDays = 90
     public static let defaultReadAhead = 20
     public static let defaultMaxRuns = 3
@@ -18,6 +25,8 @@ public struct BrowseSettings: Equatable, Sendable {
     public var readAhead: Int
     /// How many agent runs (Fix, Implement, Chat, Review) may work at once; 0: no limit.
     public var maxRuns: Int
+    /// `runs`: Chat only (the default) or Full.
+    public var runs: Runs
     /// `agent`: the agent Browse's runs use instead of `[helpers] agent`; nil: the helpers' choice.
     public var agent: String?
     /// `auto_refresh`: coming back to Browse (the view, the app, the window) asks GitHub for the view you are on again.
@@ -28,12 +37,14 @@ public struct BrowseSettings: Equatable, Sendable {
     public init(
         maxAgeDays: Int = BrowseSettings.defaultMaxAgeDays, manyRepos: Int = BrowseGuidance.defaultThreshold,
         reads: AttentionSummaryMode = .ahead, readAhead: Int = BrowseSettings.defaultReadAhead,
-        maxRuns: Int = BrowseSettings.defaultMaxRuns, agent: String? = nil, autoRefresh: Bool = true,
+        maxRuns: Int = BrowseSettings.defaultMaxRuns, runs: Runs = .chat, agent: String? = nil,
+        autoRefresh: Bool = true,
         refreshAfter: Int = BrowseSettings.defaultRefreshAfter
     ) {
         self.autoRefresh = autoRefresh
         self.refreshAfter = refreshAfter
         self.maxRuns = maxRuns
+        self.runs = runs
         self.agent = agent
         self.maxAgeDays = maxAgeDays
         self.manyRepos = manyRepos

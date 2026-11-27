@@ -250,7 +250,8 @@ public enum Git {
     /// symlink as a plain file holding its target (`core.symlinks=false`), so a head from a stranger that commits
     /// `../../.ssh/id_rsa` as a link has nothing to follow.
     public static func addPullWorktree(
-        _ record: RepoRecord, path: String, number: Int, runBranch: String, untrusted: Bool = false
+        _ record: RepoRecord, path: String, number: Int, runBranch: String, untrusted: Bool = false,
+        pinnedHead: String? = nil
     ) async throws -> String {
         let location = record.location
         let safe = foreignTreeConfig + (untrusted ? ["-c", "core.symlinks=false"] : [])
@@ -261,6 +262,13 @@ public enum Git {
         let head = try await ProcessRunner.output(
             on: location, "git", ["-C", record.path, "rev-parse", "FETCH_HEAD"], caller: "git.addPullWorktree"
         ).trimmingCharacters(in: .whitespacesAndNewlines)
+        // Trust was decided on one commit: a head pushed since then is someone's new code, not what was checked.
+        if let pinnedHead, !pinnedHead.isEmpty, head != pinnedHead {
+            throw GitHub.Failure(
+                description: "the pull request changed since heed checked who wrote it (\(pinnedHead.prefix(7)) became "
+                    + "\(head.prefix(7))): start again"
+            )
+        }
         let parent = (path as NSString).deletingLastPathComponent
         if location.isLocal {
             try FileManager.default.createDirectory(atPath: parent, withIntermediateDirectories: true)

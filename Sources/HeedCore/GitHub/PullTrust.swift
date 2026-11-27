@@ -52,11 +52,19 @@ public enum PullTrust {
             return Verdict(trusted: true, text: "opened by \(who), an organisation member who can write to the repo")
         case .member, .bot, .stranger:
             let isBot = trust == .bot
-            if let login, trustedAuthors.contains(where: { HeedMerge.listed($0, login: login, isBot: isBot) }) {
+            if let login, trustedAuthors.contains(where: { listed($0, login: login, isBot: isBot) }) {
                 return Verdict(trusted: true, text: "opened by \(who), one of trusted_authors")
             }
             return Verdict(trusted: false, text: "\(notAWriter(who, trust: trust)): \(byHand)")
         }
+    }
+
+    /// Whether a `trusted_authors` entry names this author. A bot is named by an entry that says `[bot]` and a person
+    /// by one that does not, and the author's type has to agree: nobody registers a login that a bot's name is, then
+    /// is trusted as the bot, and a plain entry never trusts a bot.
+    public static func listed(_ entry: String, login: String, isBot: Bool) -> Bool {
+        guard entry.lowercased().hasSuffix("[bot]") == isBot else { return false }
+        return GateCheck.normalize(entry) == GateCheck.normalize(login)
     }
 
     /// Why an author does not count: `@x isn't a collaborator`, and the like.
@@ -83,10 +91,14 @@ public struct PullAuthorship: Hashable, Sendable {
     /// For an organisation member: whether `gh` said their permission on the repo is write, maintain or admin; nil
     /// when not asked.
     public var canWrite: Bool?
+    /// The head commit when heed asked who opened it: a run checks out exactly this one.
+    public var headSHA: String?
 
     public init(
-        author: String?, association: String?, crossRepository: Bool, isBot: Bool = false, canWrite: Bool? = nil
+        author: String?, association: String?, crossRepository: Bool, isBot: Bool = false, canWrite: Bool? = nil,
+        headSHA: String? = nil
     ) {
+        self.headSHA = headSHA
         self.author = author
         self.association = association
         self.crossRepository = crossRepository
@@ -135,7 +147,8 @@ public struct PullAuthorship: Hashable, Sendable {
         return PullAuthorship(
             author: login, association: value["authorAssociation"]?.string,
             crossRepository: value["isCrossRepository"]?.bool ?? true,
-            isBot: value["author"]?["is_bot"]?.bool == true || (login?.hasSuffix("[bot]") ?? false)
+            isBot: value["author"]?["is_bot"]?.bool == true || (login?.hasSuffix("[bot]") ?? false),
+            headSHA: value["headSHA"]?.string
         )
     }
 
@@ -143,7 +156,7 @@ public struct PullAuthorship: Hashable, Sendable {
     /// isCrossRepository` answer (see `GitHub.pullFacts`).
     public static let restFields = """
     author: {login: .user.login, is_bot: (.user.type == "Bot")}, authorAssociation: .author_association, \
-    isCrossRepository: ((.head.repo.full_name // "") != .base.repo.full_name)
+    isCrossRepository: ((.head.repo.full_name // "") != .base.repo.full_name), headSHA: .head.sha
     """
 }
 

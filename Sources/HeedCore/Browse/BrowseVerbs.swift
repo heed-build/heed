@@ -108,7 +108,50 @@ public struct BrowseVerbs: Hashable, Sendable {
         recommended?.reason ?? (recommendsMerge ? merge?.reason : nil) ?? "No suggestion yet"
     }
 
-    public static func recommend(item: BrowseItem, read: BrowseRead?, viewer: String?) -> BrowseVerbs {
+    /// What heed says about the verbs under `[browse] runs`. With `.chat` (the default) only Chat is on offer: every
+    /// verb that edits, pushes or posts is unavailable, the reason says how to turn them on, and Chat leads wherever a
+    /// write verb would have. `.full` is the table below, unchanged.
+    public static func recommend(
+        item: BrowseItem, read: BrowseRead?, viewer: String?, runs: BrowseSettings.Runs
+    ) -> BrowseVerbs {
+        let full = table(item: item, read: read, viewer: viewer)
+        return runs == .full ? full : full.chatOnly()
+    }
+
+    /// Why a write verb is off while `[browse] runs` is "chat".
+    public static let editsOff = "Agent edits are off. Set [browse] runs = \"full\" to allow them (see docs)"
+    /// The line over the buttons when Chat leads only because the others are off.
+    public static let chatOnlyAction = "Chat is the only agent action while agent edits are off"
+
+    /// The rule at the lowest level, for every path that starts a run: nil when `verb` may run under `runs`, else the
+    /// reason it may not.
+    public static func refusal(_ verb: BrowseVerb, runs: BrowseSettings.Runs) -> String? {
+        runs == .full || verb == .chat ? nil : editsOff
+    }
+
+    /// Whether a run may be kept as a session (a full agent, with its own permissions): only under `.full`.
+    public static func mayKeep(runs: BrowseSettings.Runs) -> Bool { runs == .full }
+
+    private func chatOnly() -> BrowseVerbs {
+        var answer = self
+        let wasWrite = recommended.map { $0.verb != .chat } ?? false
+        for index in answer.advice.indices where answer.advice[index].verb != .chat {
+            if answer.advice[index].availability != .unavailable {
+                answer.advice[index].availability = .unavailable
+                answer.advice[index].reason = BrowseVerbs.editsOff
+            }
+        }
+        if let chat = answer.advice.firstIndex(where: { $0.verb == .chat }), wasWrite || recommendsMerge {
+            answer.advice[chat].availability = .recommended
+            answer.advice[chat].reason = BrowseVerbs.chatOnlyAction
+        }
+        if let merge = answer.merge, merge.availability != .unavailable {
+            answer.merge = .init(.unavailable, BrowseVerbs.editsOff)
+        }
+        return answer
+    }
+
+    static func table(item: BrowseItem, read: BrowseRead?, viewer: String?) -> BrowseVerbs {
         func suggest(
             fix: (BrowseAvailability, String), implement: (BrowseAvailability, String),
             chat: (BrowseAvailability, String), review: (BrowseAvailability, String)

@@ -755,3 +755,41 @@ extension BrowsePolicyHardeningTests {
         #expect(verdict.reason?.contains(".github/workflows/new.yml") == true)
     }
 }
+
+extension BrowsePolicyHardeningTests {
+    @Test func aChatHasAnEmptyGhLoginEvenForATrustedAuthor() {
+        let parent = ["PATH": "/usr/bin", "HOME": "/Users/you", "GH_TOKEN": "x"]
+        let chat = BrowseRunEnvironment.make(
+            parent, agent: "claude", folder: "/tmp/heed-run", trusted: true, verb: .chat, path: nil
+        )
+        #expect(chat["GH_CONFIG_DIR"]?.hasPrefix("/tmp/heed-run") == true)
+        #expect(chat["GH_TOKEN"] == nil)
+        let fix = BrowseRunEnvironment.make(
+            parent, agent: "claude", folder: "/tmp/heed-run", trusted: true, verb: .fix, path: nil
+        )
+        #expect(fix["GH_CONFIG_DIR"] == nil)
+    }
+}
+
+// MARK: Pull requests: bots and people are not each other (M1), the head is pinned (Low)
+
+extension BrowsePolicyHardeningTests {
+    @Test func aPullRequestsBotAndHumanEntriesAreNotEachOthers() {
+        func verdict(_ login: String, _ trust: ExternalText.Trust, _ entries: [String]) -> Bool {
+            PullTrust.author(
+                login: login, trust: trust, fork: false, viewer: "me", canWrite: nil, trustedAuthors: entries
+            ).trusted
+        }
+        #expect(!verdict("renovate", .stranger, ["renovate[bot]"]), "M1 a human with a bot's name")
+        #expect(!verdict("renovate[bot]", .bot, ["renovate"]), "M1 a bot named by a plain entry")
+        #expect(verdict("renovate[bot]", .bot, ["renovate[bot]"]))
+        #expect(verdict("alice", .stranger, ["Alice"]))
+        #expect(!verdict("alice", .bot, ["alice"]), "M1 a bot named like a person")
+    }
+
+    @Test func theAuthorshipPinsTheHeadItWasCheckedOn() throws {
+        let json = #"{"author":{"login":"mara","is_bot":false},"authorAssociation":"COLLABORATOR","isCrossRepository":false,"headSHA":"abc123"}"#
+        let authorship = try #require(PullAuthorship.parse(json))
+        #expect(BrowseTrust.pull(authorship, viewer: nil, trustedAuthors: []).headSHA == "abc123")
+    }
+}

@@ -476,6 +476,8 @@ With items picked:
 | `c` | `browse.bulk.comment` | Comment on all on GitHub |
 | `x` | `browse.bulk.close` | Close them on GitHub |
 
+In VISUAL (`v`) the range becomes picks. `o` opens the picks on GitHub, and `y` copies their links. `d` (remove) and `m` (pin) are for worktrees and do nothing in Browse; they, and `o` and `y` as paths, work in [Repos](../worktrees/index.md) only.
+
 [Keyboard reference](../keyboard/reference.md) lists every command and its key.
 
 ## Settings

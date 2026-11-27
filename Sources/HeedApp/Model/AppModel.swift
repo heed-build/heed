@@ -4633,6 +4633,7 @@ final class AppModel {
     }
 
     private func copySelectedPaths() {
+        if case let .say(text) = VisualSelectGuard.decide(command: "select.copy", view: view.rawValue) { return say(text) }
         let paths = actionRows.map(\.path)
         guard !paths.isEmpty else { return }
         NSPasteboard.general.clearContents()
@@ -4645,6 +4646,16 @@ final class AppModel {
     /// `↩` in Repos (`o` in VISUAL): a worktree with a session jumps to it; ones without are imported as sessions,
     /// resuming the agent session kept there when there is one. Asks first, showing what each will resume.
     private func openSelected() {
+        switch VisualSelectGuard.decide(command: "select.open", view: view.rawValue) {
+        case .run: break
+        case .openOnGitHub:
+            if mode == .visual {
+                engine.enter(.normal)
+                modeChanged(from: .visual)
+            }
+            return perform(CommandInvocation(name: "open.browser"))
+        case let .say(text): return say(text)
+        }
         let rows = actionRows
         if mode == .visual {
             engine.enter(.normal)
@@ -5035,6 +5046,16 @@ final class AppModel {
     }
 
     private func confirmRemoveSelected() {
+        switch VisualSelectGuard.decide(command: "select.remove", view: view.rawValue) {
+        case .run: break
+        case .openOnGitHub:
+            if mode == .visual {
+                engine.enter(.normal)
+                modeChanged(from: .visual)
+            }
+            return perform(CommandInvocation(name: "open.browser"))
+        case let .say(text): return say(text)
+        }
         let rows = actionRows
         if mode == .visual {
             engine.enter(.normal)
@@ -5276,6 +5297,16 @@ final class AppModel {
 
     /// VISUAL `m` in Repos: pins the sessions on the selected worktrees; when all are pinned already, unpins them.
     private func pinSelected() {
+        switch VisualSelectGuard.decide(command: "select.pin", view: view.rawValue) {
+        case .run: break
+        case .openOnGitHub:
+            if mode == .visual {
+                engine.enter(.normal)
+                modeChanged(from: .visual)
+            }
+            return perform(CommandInvocation(name: "open.browser"))
+        case let .say(text): return say(text)
+        }
         let targets = actionRows.compactMap(session(for:))
         if mode == .visual {
             engine.enter(.normal)

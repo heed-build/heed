@@ -867,11 +867,28 @@ enum Shots {
             model.browse.refilter()
         }),
         // heed's read of the item under the cursor, and the four verbs with the suggested one outlined (design 8).
-        Shot(id: "github/browse-read", keys: "gb", highlight: [.browseRead, .browseWork]),
+        Shot(
+            id: "github/browse-read",
+            keys: "gb",
+            highlight: [.browseRead, .browseWork],
+            prepare: { $0.applyConfig(source: "[browse]\nruns = \"full\"\n") }
+        ),
+        // The default: agent edits are off, so Chat is the only agent action and the others say how to turn them on.
+        Shot(id: "github/browse-runs-chat", keys: "gb", highlight: [.browseWork]),
         // An item under 50% agent-ready: Chat leads, Fix is on offer with a caveat (design 9).
-        Shot(id: "github/browse-chat", keys: "gbjjj", highlight: [.browseWork]),
+        Shot(
+            id: "github/browse-chat",
+            keys: "gbjjj",
+            highlight: [.browseWork],
+            prepare: { $0.applyConfig(source: "[browse]\nruns = \"full\"\n") }
+        ),
         // A pull request awaiting your review: Review leads (design 10).
-        Shot(id: "github/browse-review", keys: "gbjjjjjj", highlight: [.browseWork]),
+        Shot(
+            id: "github/browse-review",
+            keys: "gbjjjjjj",
+            highlight: [.browseWork],
+            prepare: { $0.applyConfig(source: "[browse]\nruns = \"full\"\n") }
+        ),
         // A Fix running in its temporary worktree: the feed, the steer line, Close and Keep as a session (design 6).
         Shot(id: "github/browse-run", keys: "gb", highlight: [.browseRun], prepare: { model in
             model.browse.runs.runs = [browseRun(2830, .fix)]
@@ -885,7 +902,10 @@ enum Shots {
             model.browse.runs.runs = [run]
         }),
         // `t`: the words are typed into the line under the buttons, where they can be seen.
-        Shot(id: "github/browse-tell", keys: "gbt" + typed("fix it on the 3.x branch too"), highlight: [.browseWork]),
+        Shot(
+            id: "github/browse-tell", keys: "gbt" + typed("fix it on the 3.x branch too"), highlight: [.browseWork],
+            prepare: { $0.applyConfig(source: "[browse]\nruns = \"full\"\n") }
+        ),
         // The repo is not on this Mac: the clone card comes first (design 7).
         Shot(id: "github/browse-clone", keys: "gbjjj", highlight: [.browseRun], prepare: { model in
             var run = browseRun(94, .chat, phase: .needsClone)

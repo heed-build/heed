@@ -77,6 +77,39 @@ import Testing
     }
 }
 
+@Suite(.scratch) struct BrowseStoreOpenTests {
+    @Test func aFileFromANewerBuildIsRefusedWithAReasonNotSilently() async throws {
+        let file = try Scratch.folder("browse-open").appendingPathComponent("browse.sqlite")
+        let database = try SQLiteDatabase(path: file.path)
+        try database.execute("PRAGMA user_version = 99")
+        let opened = await BrowseStore.open(at: file)
+        #expect(opened.store == nil)
+        #expect(opened.problem?.contains("newer") == true)
+    }
+
+    @Test func aFolderThatCannotBeMadeIsRefusedWithAReason() async throws {
+        let blocker = try Scratch.folder("browse-open").appendingPathComponent("a-file")
+        try Data("x".utf8).write(to: blocker)
+        let opened = await BrowseStore.open(at: blocker.appendingPathComponent("inside/browse.sqlite"))
+        #expect(opened.store == nil)
+        #expect(opened.problem?.isEmpty == false)
+    }
+
+    @Test func aFileThatOpensHasNoProblem() async throws {
+        let file = try Scratch.folder("browse-open").appendingPathComponent("browse.sqlite")
+        let opened = await BrowseStore.open(at: file)
+        #expect(opened.store != nil && opened.problem == nil)
+    }
+
+    @Test func theNoticeNamesTheReasonAndThatBrowseWorksWithoutTheCache() {
+        let text = BrowseCacheNotice.text(reason: "schema version 99 is newer than this build's 3.")
+        #expect(
+            text == "Browse's cache could not be opened: schema version 99 is newer than this build's 3."
+                + " Working without it."
+        )
+    }
+}
+
 struct BrowseFetchTests {
     private let answer = """
     {"data": {"search": {"issueCount": 47, "pageInfo": {"hasNextPage": true, "endCursor": "c1"}, "nodes": [
@@ -100,17 +133,49 @@ struct BrowseFetchTests {
     """
 
     @Test func anAnswerBecomesItemsWithEverythingTheListNeeds() throws {
-        let page = BrowseFetch.parse(Data(answer.utf8))
+        let page = try BrowseFetch.parse(Data(answer.utf8))
         #expect(page.total == 47 && page.next == "c1")
         #expect(page.items.count == 2)
         let issue = page.items[0]
         #expect(issue.id == "acme/docs-toolkit#2830" && issue.kind == .issue && issue.state == .open)
         #expect(issue.labels == ["bug"] && issue.assignees == ["jdoe"] && issue.milestone == "3.2")
-        #expect(issue.projects == ["Docs 2.0 board"] && issue.comments == 6 && issue.hasLinkedPull)
+        // An answer that carries projectItems (an old cache) is read, but Projects are not parsed: they were never
+        // asked for.
+        #expect(issue.projects.isEmpty && issue.comments == 6 && issue.hasLinkedPull)
         #expect(issue.title.author.trust == .member && issue.title.author.login == "mara-k")
         let pull = page.items[1]
         #expect(pull.kind == .pull && pull.state == .merged && pull.checks == .failing && pull.review == .approved)
         #expect(pull.authorIsBot && pull.title.author.trust == .bot && !pull.hasLinkedPull)
+    }
+
+    @Test func aRealEmptySearchIsAnEmptyPage() throws {
+        let page = try BrowseFetch
+            .parse(Data(#"{"data":{"search":{"issueCount":0,"pageInfo":{"hasNextPage":false},"nodes":[]}}}"#.utf8))
+        #expect(page.items.isEmpty && page.total == 0 && page.next == nil)
+    }
+
+    @Test func anAnswerWithNoSearchIsAFailureNotAnEmptyList() {
+        let answers = [
+            #"{"data":{"search":null},"errors":[{"message":"Something went wrong while executing your query."}]}"#,
+            #"{"data":null,"errors":[{"message":"timeout"}]}"#,
+            #"{"data":{}}"#,
+            #"{}"#,
+            "not json",
+        ]
+        for answer in answers {
+            #expect(throws: BrowseFetch.UnusableAnswer.self, "\(answer)") { try BrowseFetch.parse(Data(answer.utf8)) }
+        }
+    }
+
+    @Test func theFailureSaysWhatGitHubSaid() {
+        let answer = #"{"data":{"search":null},"errors":[{"message":"Something went wrong"}]}"#
+        do {
+            _ = try BrowseFetch.parse(Data(answer.utf8))
+            Issue.record("parse did not throw")
+        } catch {
+            #expect("\(error)".contains("Something went wrong"))
+            #expect(error.localizedDescription.contains("no search result"))
+        }
     }
 
     @Test func theSearchTextIsTheQueryNewestFirst() {

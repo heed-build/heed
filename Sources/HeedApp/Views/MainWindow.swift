@@ -784,6 +784,11 @@ struct StatusBar: View {
             "\(model.pickedIDs(model.view).count) selected · \(model.keyText(for: "pilot.pause")) pause or resume · space toggle · ⎋ cancel"
         case .visual where model.overlay == .diff:
             "\(model.diffCursor.selection?.count ?? 0) selected · \(model.keyText(for: "row.next")) \(model.keyText(for: "row.prev")) extend · \(model.keyText(for: "diff.ask", in: "diff")) note · \(model.keyText(for: "diff.ask.now", in: "diff")) ask now · \(model.keyText(for: "diff.copy", in: "diff")) copy path:lines · ⎋ cancel"
+        case .visual where VisualSelectGuard.hint(view: model.view.rawValue, selected: 0, open: nil, copy: nil) != nil:
+            VisualSelectGuard.hint(
+                view: model.view.rawValue, selected: model.pickedIDs(model.view).count,
+                open: model.keyText(for: "select.open"), copy: model.keyText(for: "select.copy")
+            ) ?? ""
         case .visual:
             "\(model.selectedRows.count) selected · space toggle · \(model.keyText(for: "select.copy")) copy path · "
                 + "\(model.keyText(for: "select.open")) open session · ⎋ cancel"

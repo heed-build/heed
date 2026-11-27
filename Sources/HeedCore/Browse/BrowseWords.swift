@@ -76,7 +76,8 @@ public enum BrowseWords {
                 guard let value = clean(filter["value"]) else { drop("milestone: no usable name"); continue }
                 add(.milestone(value))
             case "project":
-                if let value = clean(filter["value"]) { add(.project(value)) } else { drop("project: no usable name") }
+                // heed cannot read an item's Projects, so there is nothing to filter on: said, not applied.
+                drop("project: not a filter Browse can apply")
             case "created", "updated", "activity", "age":
                 let op = (filter["op"] as? String)?.lowercased()
                 guard let days = (filter["days"] as? Int) ?? (filter["days"] as? Double).map({ Int($0) }),

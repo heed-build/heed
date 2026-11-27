@@ -173,7 +173,11 @@ final class AppModel {
     }
 
     // What the pilot knows decides Watching and Stalled in the sidebar, so each change rebuilds the list.
-    private(set) var github = GitHubState() { didSet { listRebuild.request() } }
+    private(set) var github = GitHubState() { didSet {
+        listRebuild.request()
+        // `@me` in a Browse query is judged against who you are, which arrives after the first draw.
+        if github.viewer != oldValue.viewer { browse.setViewer(github.viewer) }
+    } }
     private(set) var pullDetails: [String: PullDetail] = [:] {
         didSet {
             listRebuild.request()
@@ -844,7 +848,16 @@ final class AppModel {
         startMindmap()
         startStandup()
         if !isFixture { await attention.open(beside: file) }
-        if !isFixture { await browse.open(beside: file) }
+        if !isFixture {
+            await browse.open(beside: file)
+            // Entered before the cache was open: nothing asked GitHub then (the policy holds back until it is), so ask
+            // now.
+            if view == .browse {
+                browse.setViewer(github.viewer)
+                browseAutoRefresh(.viewSwitch)
+                browse.startCounts { [weak self] in self?.view == .browse }
+            }
+        }
         // Before resume is offered: sessions on a goal resume told so.
         if !isFixture {
             await startGoals(beside: file)
@@ -3616,7 +3629,7 @@ final class AppModel {
     }
 
     /// `<Esc>` in NORMAL: the reader, an overlay, then back from a view to Sessions.
-    private func closeTopmost() {
+    func closeTopmost() {
         if issueReader != nil {
             issueReader = nil
         } else if reader != nil {
@@ -4387,23 +4400,38 @@ final class AppModel {
     /// ⌘Q or Quit in the menu bar with agents running: Heed comes forward and asks. True when it asked (the quit
     /// waits for the answer), false when nothing runs and quitting can go ahead.
     func confirmQuitIfAgentsRun() -> Bool {
-        // With zmx, quitting leaves the agents running: heed reattaches to them on its next launch.
-        if TerminalSurfaces.shared.persist == .zmx { return false }
-        let running = sessions.filter { [.working, .blocked, .asking].contains($0.state.state) }
-        guard !running.isEmpty, confirmation == nil else { return confirmation != nil }
+        // With zmx, quitting leaves the session agents running: heed reattaches to them on its next launch. Browse's
+        // runs are ACP processes of this app, so they stop either way.
+        let running = TerminalSurfaces.shared.persist == .zmx ? [] : sessions.filter {
+            [.working, .blocked, .asking].contains($0.state.state)
+        }
+        let browseLines = BrowseQuitNotice.lines(for: browse.runs.runs)
+        guard !running.isEmpty || !browseLines.isEmpty, confirmation == nil else { return confirmation != nil }
         activateHeed()
-        ask(Confirmation(
-            title: "Quit Heed?",
-            lines: ["\(running.count) agent\(running.count == 1 ? " is" : "s are") running and will stop"]
+        var lines: [String] = []
+        if !running.isEmpty {
+            lines += ["\(running.count) agent\(running.count == 1 ? " is" : "s are") running and will stop"]
                 + running.prefix(5).map { "\($0.title) · \($0.state.state.rawValue)" }
                 + (running.count > 5 ? ["and \(running.count - 5) more"] : [])
-                + ["Sessions stay and can resume on the next launch"],
-            accept: "Quit"
-        ) { [weak self] in
+                + ["Sessions stay and can resume on the next launch"]
+        }
+        lines += browseLines
+        ask(Confirmation(title: "Quit Heed?", lines: lines, accept: "Quit") { [weak self] in
             self?.quitConfirmed = true
             NSApp.terminate(nil)
         })
         return true
+    }
+
+    /// On the way out: Browse's agents are closed, so no ACP process outlives the app. Their worktrees stay for the
+    /// next launch's sweep, which keeps any that hold work.
+    func closeBrowseAgents() async {
+        let runs = browse.runs
+        let clients = runs.clients
+        for (id, client) in clients {
+            if let session = runs.sessionIDs[id] { await client.cancel(sessionID: session) }
+            await client.close()
+        }
     }
 
     private func confirmClose() {
@@ -4618,6 +4646,8 @@ final class AppModel {
     }
 
     private func copySelectedPaths() {
+        if case let .say(text) = VisualSelectGuard
+            .decide(command: "select.copy", view: view.rawValue) { return say(text) }
         let paths = actionRows.map(\.path)
         guard !paths.isEmpty else { return }
         NSPasteboard.general.clearContents()
@@ -4630,6 +4660,16 @@ final class AppModel {
     /// `↩` in Repos (`o` in VISUAL): a worktree with a session jumps to it; ones without are imported as sessions,
     /// resuming the agent session kept there when there is one. Asks first, showing what each will resume.
     private func openSelected() {
+        switch VisualSelectGuard.decide(command: "select.open", view: view.rawValue) {
+        case .run: break
+        case .openOnGitHub:
+            if mode == .visual {
+                engine.enter(.normal)
+                modeChanged(from: .visual)
+            }
+            return perform(CommandInvocation(name: "open.browser"))
+        case let .say(text): return say(text)
+        }
         let rows = actionRows
         if mode == .visual {
             engine.enter(.normal)
@@ -5020,6 +5060,16 @@ final class AppModel {
     }
 
     private func confirmRemoveSelected() {
+        switch VisualSelectGuard.decide(command: "select.remove", view: view.rawValue) {
+        case .run: break
+        case .openOnGitHub:
+            if mode == .visual {
+                engine.enter(.normal)
+                modeChanged(from: .visual)
+            }
+            return perform(CommandInvocation(name: "open.browser"))
+        case let .say(text): return say(text)
+        }
         let rows = actionRows
         if mode == .visual {
             engine.enter(.normal)
@@ -5261,6 +5311,16 @@ final class AppModel {
 
     /// VISUAL `m` in Repos: pins the sessions on the selected worktrees; when all are pinned already, unpins them.
     private func pinSelected() {
+        switch VisualSelectGuard.decide(command: "select.pin", view: view.rawValue) {
+        case .run: break
+        case .openOnGitHub:
+            if mode == .visual {
+                engine.enter(.normal)
+                modeChanged(from: .visual)
+            }
+            return perform(CommandInvocation(name: "open.browser"))
+        case let .say(text): return say(text)
+        }
         let targets = actionRows.compactMap(session(for:))
         if mode == .visual {
             engine.enter(.normal)
@@ -5712,6 +5772,8 @@ final class AppModel {
     }
 
     private func openReader() {
+        // Browse's reader is the pane beside the list, which ↩ loads: "Read it" must not open GitHub.
+        if view == .browse { return perform(CommandInvocation(name: "browse.open")) }
         if view == .attention, commandTarget == nil { openedAttentionItem() }
         // An agent in Attention has no thread to read: its session is where you answer it.
         if view == .attention, commandTarget == nil, attentionSelected?.item.kind == .agent {

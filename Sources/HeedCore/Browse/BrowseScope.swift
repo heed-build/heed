@@ -71,13 +71,15 @@ public enum BrowseScope: Hashable, Sendable, Codable, Identifiable {
         }
     }
 
-    /// Whether an item belongs to it, as far as the item says (a Project is matched by its title).
+    /// Whether an item belongs to it, as far as the item says (a Project is not: heed cannot read them, so GitHub
+    /// decides).
     /// `checkouts` is what an org's own repos are read from; without them that scope holds nothing.
     public func contains(_ item: BrowseItem, checkouts: BrowseCheckouts? = nil) -> Bool {
         switch self {
         case let .org(org): item.repo.org.caseInsensitiveCompare(org) == .orderedSame
         case let .repo(repo): item.repo.slug.caseInsensitiveCompare(repo.slug) == .orderedSame
-        case let .project(_, _, title): item.projects.contains { $0.caseInsensitiveCompare(title) == .orderedSame }
+        // Not readable here (see BrowseField.offered): GitHub judged it, so every item it listed belongs.
+        case .project: true
         case let .view(view): view.contains(item.repo)
         case let .ownRepos(org):
             checkouts?.org(org)?.repos

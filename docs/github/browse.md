@@ -24,7 +24,7 @@ last one takes the org away.
   inside every org you have a checkout in. The chip over the list says *All checkouts* and how many orgs that is. GitHub
   limits a search to 256 characters, so many orgs are searched in groups of at most 240 characters, up to six, and the
   counts are added up; past six groups the line over the list says so, and `⌘K` narrows to one org.
-- **A scope or a place you type wins.** A saved query with its own `org:`, `repo:` or Project is neither widened nor
+- **A scope or a place you type wins.** A saved query with its own `org:` or `repo:` is neither widened nor
   narrowed by the scope you are in. Picking a scope replaces the default, and the query you are on goes with you.
 - **An org with no checkout is refused, not searched.** Pick it, or type `org:`, `repo:` or `user:` for it, and the list
   says *`<name>` isn't checked out*, with a button that opens Add or clone on that name. Nothing is sent to GitHub. A repo
@@ -191,14 +191,14 @@ of which becomes a GitHub search qualifier.
 
 ![The filter popover: what you typed, what heed understood, and the fields to add one by hand](../images/shots/github/browse-build-type.png)
 
-**The fields:** Label, Type, State, Assignee, Author, Repo, Age, Activity, Linked PR, Project and Milestone, the
+**The fields:** Label, Type, State, Assignee, Author, Repo, Age, Activity, Linked PR and Milestone, the
 three heed fields (class, size, agent-ready), and GitHub query. Type to narrow the list of fields, or press `1` to `9`
 for one.
 
-**Project takes text, not a list.** heed does not read the Projects on an item (that needs a GitHub token scope its
-default token does not have), so Project asks for the board's `owner/number`, as in
-`github.com/orgs/acme/projects/7`: type `acme/7`. `↩` keeps only the items on that Project, and an empty field
-removes the filter. The query shows it as `project:acme/7`, and it can be saved like any other.
+**There is no Project field.** heed cannot read the Projects an item is on (that needs a GitHub token scope its
+default token does not have), so a filter on them could only ever show nothing. A raw `project:owner/N` in a GitHub
+query works only for classic Projects, and GitHub does the matching; a saved query that already has one keeps running,
+with the chip as it was.
 
 **Value pickers show counts.** Pick a field and a list of its values appears, each with how many of the items you
 have would match. Label takes several values and reads them as *any of*, *all of* or *none of* (`⇥` switches).
@@ -290,8 +290,14 @@ or merged gets Chat only.
 `pr-<number>-<hex>` for a PR, on a branch `heed/browse/<name>`, under the same root as helper worktrees. The reader
 is split in two: the issue or PR stays on top, so you can keep reading what the agent is working on, and the run's
 feed sits below it: what it read, edited (with the diff), ran, tested, commented, pushed and opened. Closing the run
-(`⎋`) removes the worktree and its local branch. A branch it pushed stays on GitHub. If commits were never pushed,
-heed says so as it closes.
+(`⎋`) removes the worktree and its local branch; a branch it pushed stays on GitHub. A worktree that holds work
+nothing else has, commits no remote has or changes not committed, is not removed: the run closes, and the reader shows
+a card (below) until you deal with it.
+
+![A closed run whose worktree was kept because it holds commits that were never pushed](../images/shots/github/browse-close-kept.png)
+
+The card says how many commits are not pushed and where the worktree is kept. Push it from there, keep it as a session
+(`s`), discard it (`X` twice, within a few seconds), or dismiss the card with `⎋`, which leaves the worktree where it is.
 
 **What it needs.** A run talks to its agent over [ACP](../autopilot/helpers.md#how-heed-talks-to-them), which the agent's
 own command line does not speak, so for claude heed needs the ACP adapter on your login shell's `PATH`:
@@ -449,7 +455,7 @@ Where you are, what you picked and the query survive a resize.
 
 ## Keys
 
-`gb` opens Browse. These keys work inside it, and you can rebind each (`:keys`, [Customizing](../keyboard/customizing.md)).
+`gb` (or `:browse`, or `:view browse`) opens Browse. These keys work inside it, and you can rebind each (`:keys`, [Customizing](../keyboard/customizing.md)).
 
 | Key | Command | Does |
 |---|---|---|
@@ -480,8 +486,8 @@ Where you are, what you picked and the query survive a resize.
 | `O` | `browse.from.goals` | Only the items that are in a goal, and back |
 | `s` | `browse.run.keep` | Keep the run as a session |
 | `i` | `browse.run.steer` | Steer the run |
-| `⎋` | `browse.run.close` | Close the run and remove its worktree; with items picked, clear them; on a pushed reader, go back |
-| `P` `E` `X` | `browse.run.review.post` `.edit` `.discard` | Post, edit or discard the drafted review |
+| `⎋` | `browse.run.close` | Close the run and remove its worktree (kept, with a card, when it holds unpushed work); in this order, the first that applies: close help or a reader that is open, cancel a bulk step, go back from a pushed reader, clear the picks, close the scope sheet, then close the item's run |
+| `P` `E` `X` | `browse.run.review.post` `.edit` `.discard` | Post, edit or discard the drafted review; twice, discard a kept worktree |
 | `c` `d` | `browse.clone.only` `browse.clone.folder` | On the clone card: only clone, choose the folder |
 
 With items picked:
@@ -495,6 +501,8 @@ With items picked:
 | `A` | `browse.bulk.assign` | Assign them to you on GitHub |
 | `c` | `browse.bulk.comment` | Comment on all on GitHub |
 | `x` | `browse.bulk.close` | Close them on GitHub |
+
+In VISUAL (`v`) the range becomes picks. `o` opens the picks on GitHub, and `y` copies their links. `d` (remove) and `m` (pin) are for worktrees and do nothing in Browse; they, and `o` and `y` as paths, work in [Repos](../worktrees/index.md) only.
 
 [Keyboard reference](../keyboard/reference.md) lists every command and its key.
 
@@ -522,6 +530,10 @@ the [configuration reference](../configuration/reference.md).
 - **It fetches when you come back or ask, not on a timer.** A list you leave open and watch does not change by
   itself: coming back to it (see Staying current) or `r` asks again, and the line over the list says how old it is.
 - **It brings in at most 300 items per search.** A longer result is filtered, not read: narrow the query.
+- **An answer that is not an answer never empties the list.** When GitHub replies with errors and no search result, or only some of an "All checkouts" view's owners were searched, Browse says what went wrong (or keeps every row) instead of treating the missing rows as gone; the cache keeps them.
+- **A cache that cannot be opened does not stop Browse.** If `browse.sqlite` is locked, unwritable or from a newer heed, Browse works from memory (everything fetched this run, nothing kept for the next) and a line over the list says why.
+
+  ![The line over the list when Browse's cache could not be opened](../images/shots/github/browse-cache-notice.png)
 - **GitHub can time out on a very large search.** When it answers HTTP 502 or 504, Browse asks the same page again in
   smaller pages (100, then 50, 25 and 10, then ten without the checks and requested reviewers, which then show as
   unknown), waiting a moment between tries, and keeps the smaller size for that scope and query. If every size fails it
@@ -530,15 +542,16 @@ the [configuration reference](../configuration/reference.md).
   query GitHub refuses.
 - **An org view is a filter GitHub applies,** language and archived. It has no topic or team filter, because GitHub's
   issue search has none, and it keeps no list of repos.
-- **Projects are a filter you type, not a scope.** Reading Project titles needs a GitHub token scope heed's default
-  does not have, so heed neither lists the Projects on an item nor offers them as values, and the rail has no Project
-  rows. The Project filter takes `owner/number` and GitHub does the matching.
+- **Projects are not a filter or a scope.** heed cannot read an item's Projects, so it offers no Project field, no
+  Project rows in the rail and no Project value in the words box. `project:owner/N` typed as a raw GitHub query works
+  for classic Projects only (Projects v2 need a token scope heed does not ask for).
 - **Heed's fields are local.** The counts for queries that use them come from what this Mac has fetched and read, not
   from GitHub.
 - **Words need the model.** With model calls off, a sentence is searched as text.
 - **Agent actions take one item,** and an agent never starts on an item whose Fix, Implement or Review does not fit
   it: the button says why.
 - **A run is not a sandbox,** and it is not free: it spends against `[helpers] spend_cap`.
-- **A crash can leave a run's worktree behind.** heed removes it when you close the run, not on its own at startup.
+- **Quitting stops the runs.** With a run live, ⌘Q asks first (also when sessions persist through zmx, which keeps sessions but not Browse's agents), names the runs, and closes their agents on the way out. A worktree stays where it is; the next launch's sweep removes only the ones holding nothing.
+- **A crash can leave a run's worktree behind.** heed removes it when you close the run, not on its own at startup (the next launch's sweep removes the ones with nothing unpushed or uncommitted in them).
 
 **Next:** [Reading](reading.md), or [start a session from an item](../start-work/from-github.md).

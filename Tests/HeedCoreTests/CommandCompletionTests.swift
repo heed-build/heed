@@ -46,6 +46,13 @@ struct CommandCompletionTests {
         #expect(CommandCompletions.candidates("view.watch").first?.line == "view.watch")
     }
 
+    @Test func browseIsAViewYouCanTypeAndComplete() {
+        #expect(CommandAliases.resolve("browse") == CommandInvocation(name: "view", arguments: ["browse"]))
+        #expect(CommandAliases.listed.contains { $0.name == "browse" })
+        #expect(CommandCompletions.candidates("view b", CompletionContext()).map(\.label).contains("browse"))
+        #expect(Commands.spec("view.browse") != nil)
+    }
+
     @Test func argumentsAfterASpace() {
         var context = CompletionContext()
         context.sessions = ["Fix the docs", "Release notes"]
@@ -56,7 +63,8 @@ struct CommandCompletionTests {
         context.mergeRepos = ["acme/api"]
 
         #expect(CommandCompletions.candidates("view ", context).map(\.label) == CommandAliases.views)
-        #expect(CommandCompletions.candidates("view w", context).map(\.line) == ["view watch"])
+        // Words match anywhere, the ones starting with them first: browse has a w in it.
+        #expect(CommandCompletions.candidates("view w", context).map(\.line) == ["view watch", "view browse"])
         // Words match anywhere in a title, the ones starting with them first.
         #expect(CommandCompletions.candidates("session.open no", context).map(\.label) == ["Release notes"])
         #expect(CommandCompletions.candidates("session.open ", context).count == 2)

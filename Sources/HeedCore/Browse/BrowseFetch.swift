@@ -187,7 +187,7 @@ public enum BrowseFetch {
                     }
                 }
             }
-            let page = parse(data)
+            let page = try parse(data)
             result.items += page.items
             fetched += page.items.count
             result.hidden += page.hidden
@@ -219,7 +219,7 @@ public enum BrowseFetch {
                     countQuery, operation: "browse count", variables: ["q": text], caller: "browse.count"
                 )
             }
-            total += parse(data).total ?? 0
+            total += try parse(data).total ?? 0
         }
         return total
     }
@@ -250,11 +250,23 @@ public enum BrowseFetch {
         var hidden = 0
     }
 
-    /// One answer's items (the ones that decode), the search's count, and the cursor of the next page.
-    static func parse(_ data: Data) -> Page {
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let search = (json["data"] as? [String: Any])?["search"] as? [String: Any]
-        else { return Page() }
+    /// An answer with no search in it: not "no results" (that is a search whose `nodes` is empty), and never something
+    /// to treat as an empty list.
+    public struct UnusableAnswer: Error, Equatable, CustomStringConvertible, LocalizedError {
+        public let description: String
+        public var errorDescription: String? { description }
+    }
+
+    /// One answer's items (the ones that decode), the search's count, and the cursor of the next page. Throws when
+    /// `data.search` is missing or null (GitHub answered with errors instead): a failed fetch, so the list and the
+    /// cache keep what they have.
+    static func parse(_ data: Data) throws -> Page {
+        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        guard let json, let search = (json["data"] as? [String: Any])?["search"] as? [String: Any] else {
+            let said = ((json?["errors"] as? [Any])?.first as? [String: Any])?["message"] as? String
+            throw UnusableAnswer(description: "GitHub's answer had no search result in it"
+                + (said.map { ": \($0)" } ?? ". Try again in a moment."))
+        }
         var page = Page(hidden: GitHub.hiddenCount(json))
         page.total = search["issueCount"] as? Int
         let info = search["pageInfo"] as? [String: Any]
@@ -285,9 +297,6 @@ public enum BrowseFetch {
         } else {
             (node["closedByPullRequestsReferences"] as? [String: Any])?["totalCount"] as? Int ?? 0
         }
-        let projects = ((node["projectItems"] as? [String: Any])?["nodes"] as? [Any] ?? []).compactMap {
-            (($0 as? [String: Any])?["project"] as? [String: Any])?["title"] as? String
-        }
         let rollup = ((((node["commits"] as? [String: Any])?["nodes"] as? [Any])?.first as? [String: Any])?["commit"]
             as? [String: Any])?["statusCheckRollup"] as? [String: Any]
         let checks: BrowseItem.Checks? = switch (rollup?["state"] as? String)?.uppercased() {
@@ -301,7 +310,7 @@ public enum BrowseFetch {
             title: ExternalText(title, source: pull ? .pullTitle : .issueTitle, author: who),
             url: node["url"] as? String, state: state, author: who.login, authorIsBot: who.trust == .bot,
             labels: names("labels", "name"), assignees: names("assignees", "login"),
-            milestone: (node["milestone"] as? [String: Any])?["title"] as? String, projects: projects,
+            milestone: (node["milestone"] as? [String: Any])?["title"] as? String,
             comments: (node["comments"] as? [String: Any])?["totalCount"] as? Int ?? 0,
             createdAt: GitHub.date(node["createdAt"] as? String), updatedAt: GitHub.date(node["updatedAt"] as? String),
             hasLinkedPull: linked > 0, isDraft: node["isDraft"] as? Bool ?? false, checks: checks,

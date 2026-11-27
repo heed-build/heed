@@ -245,15 +245,24 @@ extension AppModel {
         }
     }
 
-    /// ⎋ in Browse, from the inside out: a bulk step, the picks, the jump sheet, a run's reader, a pushed reader.
+    /// ⎋ in Browse, from the inside out (`BrowseEscape`): help or a reader on top, a bulk step, a pushed reader, the
+    /// picks, the jump sheet, then the run on the item.
     private func browseEscape() {
-        if browse.bulk != nil { return browse.bulk = nil }
-        if !pickedIDs(.browse).isEmpty { return clearPicks() }
-        if browse.jumpSheet { return browse.jumpSheet = false }
-        if let item = browseSelected, browse.runs.current(for: item.id) != nil
-            || browse.runs.runs.contains(where: { $0.itemID == item.id }) { return closeBrowseRun() }
-        if browse.reading, !browse.layout.showsReaderBeside { return browse.reading = false }
-        closeBrowseRun()
+        var state = BrowseEscape.State()
+        state.overlay = overlay != nil
+        state.reader = reader != nil || issueReader != nil
+        state.bulk = browse.bulk != nil
+        state.pushedReader = browse.reading && !browse.layout.showsReaderBeside
+        state.picks = !pickedIDs(.browse).isEmpty
+        state.jumpSheet = browse.jumpSheet
+        switch BrowseEscape.next(state: state) {
+        case .closeTopmost: closeTopmost()
+        case .cancelBulk: browse.bulk = nil
+        case .backFromReader: browse.reading = false
+        case .clearPicks: clearPicks()
+        case .closeJumpSheet: browse.jumpSheet = false
+        case .closeRun: closeBrowseRun()
+        }
     }
 
     private func browseQueryChanged() {

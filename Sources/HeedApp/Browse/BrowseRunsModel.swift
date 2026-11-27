@@ -28,6 +28,8 @@ final class BrowseRunsModel {
     /// The commit each run's worktree began at: what its push guard measures from.
     @ObservationIgnored var startCommits: [String: String] = [:]
     /// The fake world's scripts under way, so closing a run stops its script.
+    /// Runs being closed: their worktree is being looked at before it goes.
+    @ObservationIgnored var closing: Set<String> = []
     @ObservationIgnored var scripts: [String: Task<Void, Never>] = [:]
 
     func run(_ id: String?) -> BrowseRun? {
@@ -64,6 +66,7 @@ final class BrowseRunsModel {
         startCommits[id] = nil
         scripts[id]?.cancel()
         scripts[id] = nil
+        closing.remove(id)
         if input?.run == id { input = nil }
     }
 

@@ -29,6 +29,13 @@ struct BrowseWordsTests {
         #expect(result.dropped == ["sort: not a filter heed knows"])
     }
 
+    @Test func aProjectIsDroppedAndSaidNotApplied() {
+        let result = BrowseWords
+            .understand(#"{"filters":[{"field":"project","value":"acme/7"},{"field":"state","value":"open"}]}"#)
+        #expect(result.tokens == [.state(.open)])
+        #expect(result.dropped == ["project: not a filter Browse can apply"])
+    }
+
     @Test func heedsOwnFieldsBecomeLocalTokens() {
         let result = BrowseWords.understand(
             #"{"filters":[{"field":"agent_ready","min":70},{"field":"class","value":"bug"},{"field":"size","values":["S","small","M"]}]}"#

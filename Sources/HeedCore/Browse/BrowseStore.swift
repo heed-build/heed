@@ -47,7 +47,7 @@ public actor BrowseStore {
                 try FileManager.default.createDirectory(
                     at: file.deletingLastPathComponent(), withIntermediateDirectories: true
                 )
-                return Opened(store: try BrowseStore(path: file.path), problem: nil)
+                return try Opened(store: BrowseStore(path: file.path), problem: nil)
             } catch {
                 NSLog("heed: could not open \(file.path) (\(error)); Browse keeps no cache")
                 return Opened(store: nil, problem: BrowseCacheNotice.reason(for: error))

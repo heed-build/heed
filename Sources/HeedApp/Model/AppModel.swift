@@ -850,7 +850,8 @@ final class AppModel {
         if !isFixture { await attention.open(beside: file) }
         if !isFixture {
             await browse.open(beside: file)
-            // Entered before the cache was open: nothing asked GitHub then (the policy holds back until it is), so ask now.
+            // Entered before the cache was open: nothing asked GitHub then (the policy holds back until it is), so ask
+            // now.
             if view == .browse {
                 browse.setViewer(github.viewer)
                 browseAutoRefresh(.viewSwitch)
@@ -4645,7 +4646,8 @@ final class AppModel {
     }
 
     private func copySelectedPaths() {
-        if case let .say(text) = VisualSelectGuard.decide(command: "select.copy", view: view.rawValue) { return say(text) }
+        if case let .say(text) = VisualSelectGuard
+            .decide(command: "select.copy", view: view.rawValue) { return say(text) }
         let paths = actionRows.map(\.path)
         guard !paths.isEmpty else { return }
         NSPasteboard.general.clearContents()

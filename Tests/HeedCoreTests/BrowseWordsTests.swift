@@ -30,7 +30,8 @@ struct BrowseWordsTests {
     }
 
     @Test func aProjectIsDroppedAndSaidNotApplied() {
-        let result = BrowseWords.understand(#"{"filters":[{"field":"project","value":"acme/7"},{"field":"state","value":"open"}]}"#)
+        let result = BrowseWords
+            .understand(#"{"filters":[{"field":"project","value":"acme/7"},{"field":"state","value":"open"}]}"#)
         #expect(result.tokens == [.state(.open)])
         #expect(result.dropped == ["project: not a filter Browse can apply"])
     }

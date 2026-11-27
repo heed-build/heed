@@ -26,7 +26,8 @@ public enum VisualSelectGuard {
         if view == "browse" {
             switch command {
             case "select.open": return .openOnGitHub
-            case "select.remove", "select.pin": return .say("\(word) does nothing in Browse: it works on worktrees, in Repos")
+            case "select.remove",
+                 "select.pin": return .say("\(word) does nothing in Browse: it works on worktrees, in Repos")
             default: break
             }
         }

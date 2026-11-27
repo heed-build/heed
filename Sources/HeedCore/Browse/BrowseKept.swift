@@ -47,7 +47,8 @@ public struct BrowseKept: Equatable, Sendable {
     /// How long the first X waits for the second.
     public static let discardWindow: TimeInterval = 8
 
-    /// X: the first press arms, a second within `discardWindow` says to delete. Returns true when the worktree should go.
+    /// X: the first press arms, a second within `discardWindow` says to delete. Returns true when the worktree should
+    /// go.
     public mutating func pressDiscard(at time: Date) -> Bool {
         if let armedAt, time.timeIntervalSince(armedAt) <= Self.discardWindow { return true }
         armedAt = time

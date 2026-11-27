@@ -230,7 +230,8 @@ final class BrowseModel {
     /// Opens `browse.sqlite` beside the domain file, then draws what it kept: queries, scopes, items, and where you
     /// were.
     func open(beside file: URL) async {
-        let opened = await BrowseStore.open(at: file.deletingLastPathComponent().appendingPathComponent("browse.sqlite"))
+        let opened = await BrowseStore
+            .open(at: file.deletingLastPathComponent().appendingPathComponent("browse.sqlite"))
         store = opened.store
         guard let store else {
             // Memory only: what is fetched this run is kept this run. Browse is not inert, and the list says why.

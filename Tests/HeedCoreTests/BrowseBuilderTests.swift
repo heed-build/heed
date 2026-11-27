@@ -53,7 +53,7 @@ struct BrowseBuilderTests {
         // GitHub judged it: every item it listed stays, instead of none (an item carries no Projects here).
         let kept = BrowseFilter(query: query, viewer: "you", maxAgeDays: 90, checkouts: nil)
             .apply(to: items, sort: .updated, now: now)
-        #expect(kept.count == items.filter { $0.state == .open && $0.repo.org == "acme" }.count)
+        #expect(kept.count == items.count(where: { $0.state == .open && $0.repo.org == "acme" }))
         #expect(!kept.isEmpty)
         #expect(BrowseScope.project(owner: "acme", number: 7, title: "Board").contains(items[0]))
     }

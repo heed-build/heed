@@ -32,7 +32,8 @@ struct VisualSelectGuardTests {
     }
 
     @Test func otherListsSayWhereTheCommandWorks() {
-        #expect(VisualSelectGuard.decide(command: "select.remove", view: "attention") == .say("select.remove works in Repos"))
+        #expect(VisualSelectGuard
+            .decide(command: "select.remove", view: "attention") == .say("select.remove works in Repos"))
     }
 
     @Test func theStatusLineCountsThePicksOfTheListYouAreIn() {
@@ -40,7 +41,8 @@ struct VisualSelectGuardTests {
             VisualSelectGuard.hint(view: "browse", selected: 3, open: "o", copy: "y")
                 == "3 selected · space toggle · o open on GitHub · y copy link · ⎋ cancel"
         )
-        #expect(VisualSelectGuard.hint(view: "attention", selected: 2, open: nil, copy: nil)?.hasPrefix("2 selected") == true)
+        #expect(VisualSelectGuard.hint(view: "attention", selected: 2, open: nil, copy: nil)?
+            .hasPrefix("2 selected") == true)
         #expect(VisualSelectGuard.hint(view: "repos", selected: 2, open: nil, copy: nil) == nil)
     }
 }

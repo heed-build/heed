@@ -884,7 +884,8 @@ enum Shots {
             )
             model.browse.runs.runs = [run]
         }),
-        // browse.sqlite could not be opened (a build with a newer schema wrote it): Browse works from memory and says so.
+        // browse.sqlite could not be opened (a build with a newer schema wrote it): Browse works from memory and says
+        // so.
         Shot(id: "github/browse-cache-notice", keys: "gb", prepare: { model in
             model.browse.showCacheProblem("schema version 9 is newer than this build's 3")
         }),

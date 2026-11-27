@@ -753,7 +753,8 @@ struct BrowseRefreshBanner: View {
         VStack(spacing: 0) {
             if let problem = model.browse.cacheProblem {
                 line {
-                    Image(systemName: "externaldrive.badge.xmark").font(.system(size: 10.5)).foregroundStyle(Theme.block)
+                    Image(systemName: "externaldrive.badge.xmark").font(.system(size: 10.5))
+                        .foregroundStyle(Theme.block)
                     Text(problem).font(Theme.ui(12)).foregroundStyle(Theme.fg2).lineLimit(1)
                         .help(problem)
                     Spacer(minLength: 0)

@@ -25,13 +25,11 @@ struct BrowseEscapeTests {
             let s = state(
                 overlay: on(0), reader: on(1), bulk: on(2), pushed: on(3), picks: on(4), sheet: on(5)
             )
-            let expected: BrowseEscape.Step =
-                if on(0) || on(1) { .closeTopmost }
-                else if on(2) { .cancelBulk }
-                else if on(3) { .backFromReader }
-                else if on(4) { .clearPicks }
-                else if on(5) { .closeJumpSheet }
-                else { .closeRun }
+            let order: [(Bool, BrowseEscape.Step)] = [
+                (on(0) || on(1), .closeTopmost), (on(2), .cancelBulk), (on(3), .backFromReader),
+                (on(4), .clearPicks), (on(5), .closeJumpSheet),
+            ]
+            let expected = order.first { $0.0 }?.1 ?? .closeRun
             #expect(BrowseEscape.next(state: s) == expected, "bits \(bits)")
         }
     }

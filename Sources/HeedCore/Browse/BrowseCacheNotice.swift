@@ -1,6 +1,7 @@
 import Foundation
 
-/// What the list says when `browse.sqlite` cannot be opened: Browse still works, from memory, and says so for as long as
+/// What the list says when `browse.sqlite` cannot be opened: Browse still works, from memory, and says so for as long
+/// as
 /// that is true.
 public enum BrowseCacheNotice {
     /// A person's words for what went wrong.

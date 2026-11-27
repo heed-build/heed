@@ -429,7 +429,7 @@ Where you are, what you picked and the query survive a resize.
 
 ## Keys
 
-`gb` opens Browse. These keys work inside it, and you can rebind each (`:keys`, [Customizing](../keyboard/customizing.md)).
+`gb` (or `:browse`, or `:view browse`) opens Browse. These keys work inside it, and you can rebind each (`:keys`, [Customizing](../keyboard/customizing.md)).
 
 | Key | Command | Does |
 |---|---|---|

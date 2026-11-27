@@ -189,3 +189,43 @@ struct AttentionSeenStoreTests {
         #expect(try await again.seen().leftAt == now.addingTimeInterval(30))
     }
 }
+
+struct AttentionRecordWritesTests {
+    private let now = Date(timeIntervalSince1970: 2_000_000_000)
+
+    private func item(_ title: String) -> AttentionItem {
+        AttentionItem(
+            id: "a", kind: .pr, repo: Repo(org: "acme", name: "docs"), number: 1, title: title, url: nil,
+            reasons: [.reviewRequested], updatedAt: now, notificationID: nil, unread: false, activity: nil
+        )
+    }
+
+    private func store() throws -> AttentionStore {
+        try AttentionStore(path: ":memory:")
+    }
+
+    @Test func anItemFoundAsItWasWithinTheHourIsNotWrittenAgain() async throws {
+        let store = try store()
+        try await store.record([item("same")], now: now)
+        try await store.record([item("same")], now: now.addingTimeInterval(600))
+        let stored = try #require(try await store.items(now: now).first)
+        #expect(stored.lastSeen == now, "the row was left as it was")
+    }
+
+    @Test func itIsRefreshedOnceTheHourHasPassedSoRetentionStillHolds() async throws {
+        let store = try store()
+        try await store.record([item("same")], now: now)
+        let later = now.addingTimeInterval(2 * 3600)
+        try await store.record([item("same")], now: later)
+        #expect(try await store.items(now: later).first?.lastSeen == later)
+    }
+
+    @Test func aChangedItemIsWrittenAtOnce() async throws {
+        let store = try store()
+        try await store.record([item("before")], now: now)
+        try await store.record([item("after")], now: now.addingTimeInterval(60))
+        let stored = try #require(try await store.items(now: now).first)
+        #expect(stored.item.title == "after")
+        #expect(stored.firstSeen == now)
+    }
+}

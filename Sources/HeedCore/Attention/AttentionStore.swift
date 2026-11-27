@@ -21,6 +21,9 @@ public actor AttentionStore {
     private let database: SQLiteDatabase
 
     public static let retention: TimeInterval = 30 * 24 * 60 * 60
+    /// A sync that finds an item as it was rewrites its row only if `last_seen` is this old: the sync runs every few
+    /// minutes, the retention is a month, and each commit puts pages in the write-ahead log.
+    static let refreshSeen = 60 * 60
 
     /// `~/Library/Application Support/Heed/attention.sqlite`.
     public static func defaultFile() -> URL {
@@ -108,6 +111,7 @@ public actor AttentionStore {
             let upsert = try database.prepare("""
             INSERT INTO items (id, first_seen, last_seen, updated_at, item) VALUES (?1, ?2, ?2, ?3, ?4)
             ON CONFLICT (id) DO UPDATE SET last_seen = ?2, updated_at = ?3, item = ?4
+            WHERE item IS NOT ?4 OR last_seen < ?2 - \(Self.refreshSeen)
             """)
             for item in items {
                 try upsert.bind([.text(item.id), SQLiteValue(now), SQLiteValue(item.updatedAt), .text(Self.json(item))])

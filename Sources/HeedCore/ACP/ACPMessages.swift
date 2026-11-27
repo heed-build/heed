@@ -16,6 +16,7 @@ public enum ACP {
         public static let sessionUpdate = "session/update"
         public static let requestPermission = "session/request_permission"
         public static let sessionSetConfigOption = "session/set_config_option"
+        public static let sessionSetMode = "session/set_mode"
     }
 
     /// The id of the session config option that picks the model (ACP v1's session config options; claude's adapter
@@ -36,8 +37,30 @@ public enum ACP {
         ]
     }
 
-    public static func newSessionParams(cwd: String) -> JSONValue {
-        ["cwd": .string(cwd), "mcpServers": []]
+    /// `session/new`. `locked`: for claude-agent-acp, whose `_meta.claudeCode.options` become the options of the Claude
+    /// Code query behind the session: no setting sources (so the user's `~/.claude/settings.json`, and the repo's
+    /// `.claude/settings.json`, `.claude/settings.local.json`, `.mcp.json` and CLAUDE.md are not read: their hooks,
+    /// allow rules, MCP servers and default mode are the repo's and the user's, not heed's), settings given here
+    /// instead with no allow rules and no hooks, and no bypass mode. Other adapters ignore `_meta`.
+    public static func newSessionParams(cwd: String, locked: Bool = false) -> JSONValue {
+        guard locked else { return ["cwd": .string(cwd), "mcpServers": []] }
+        return [
+            "cwd": .string(cwd), "mcpServers": [],
+            "_meta": ["claudeCode": ["options": [
+                "settingSources": [],
+                "allowDangerouslySkipPermissions": false,
+                "settings": [
+                    "permissions": ["allow": [], "defaultMode": "default"],
+                    "disableAllHooks": true,
+                    "enableAllProjectMcpServers": false,
+                    "enabledMcpjsonServers": [],
+                ],
+            ]]],
+        ]
+    }
+
+    public static func setModeParams(sessionID: String, mode: String) -> JSONValue {
+        ["sessionId": .string(sessionID), "modeId": .string(mode)]
     }
 
     public static func promptParams(sessionID: String, text: String) -> JSONValue {
@@ -163,10 +186,16 @@ public struct ACPToolCall: Hashable, Sendable, Codable {
     public var command: String?
     /// The page, when the tool fetches one (its raw input's `url`).
     public var url: String?
+    /// The paths a tool's raw input names (`path`, `file_path`, `notebook_path`): Glob and Grep report these and no
+    /// `locations`, so a policy that only looks at `paths` never sees them.
+    public var inputPaths: [String]?
+    /// A search tool's raw `pattern` or `glob`: a glob can name a place outside the worktree.
+    public var patterns: [String]?
 
     public init(
         id: String, title: String? = nil, kind: ACPToolKind? = nil, status: ACPToolStatus? = nil,
-        content: [ACPToolContent]? = nil, paths: [String]? = nil, command: String? = nil, url: String? = nil
+        content: [ACPToolContent]? = nil, paths: [String]? = nil, command: String? = nil, url: String? = nil,
+        inputPaths: [String]? = nil, patterns: [String]? = nil
     ) {
         self.id = id
         self.title = title
@@ -176,6 +205,8 @@ public struct ACPToolCall: Hashable, Sendable, Codable {
         self.paths = paths
         self.command = command
         self.url = url
+        self.inputPaths = inputPaths
+        self.patterns = patterns
     }
 
     init?(_ value: JSONValue) {
@@ -189,6 +220,10 @@ public struct ACPToolCall: Hashable, Sendable, Codable {
         let input = value["rawInput"]
         command = input?["command"]?.string ?? input?["command"]?.array?.compactMap(\.string).joined(separator: " ")
         url = input?["url"]?.string
+        let named = ["path", "file_path", "notebook_path", "directory"].compactMap { input?[$0]?.string }
+        inputPaths = named.isEmpty ? nil : named
+        let globs = ["pattern", "glob"].compactMap { input?[$0]?.string }
+        patterns = globs.isEmpty ? nil : globs
     }
 }
 

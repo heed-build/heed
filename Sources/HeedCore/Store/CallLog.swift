@@ -174,6 +174,15 @@ public actor CallStore {
     public init(path: String) throws {
         database = try SQLiteDatabase(path: path)
         try database.migrate(Self.schema)
+        Self.restrict(path)
+    }
+
+    /// The log holds command lines, prompts and responses: only its owner reads it (and the WAL and shared-memory
+    /// files beside it, which hold the same rows).
+    static func restrict(_ path: String) {
+        for file in [path, path + "-wal", path + "-shm"] where FileManager.default.fileExists(atPath: file) {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file)
+        }
     }
 
     static let schema = [

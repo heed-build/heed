@@ -208,8 +208,14 @@ extension AppModel {
             $0.note("making its worktree \(plan.name)", at: Clock.now)
         }
         let worktree: String
+        let trusted = verdict.trusted
         do {
-            worktree = try await BrowseWorktree.create(plan, in: record)
+            worktree = try await BrowseWorktree.create(
+                plan,
+                in: record,
+                untrusted: !trusted,
+                pinnedHead: verdict.headSHA
+            )
         } catch {
             return fail("could not make its worktree: \(error)")
         }
@@ -219,7 +225,26 @@ extension AppModel {
             await BrowseWorktree.remove(path: worktree, branch: plan.branch, in: record)
             return
         }
-        let trusted = verdict.trusted
+        // A link in the tree that leads out of it is read by the agent's own tools without asking heed: an untrusted
+        // head does not start (checkout wrote its links as plain files, so this is the belt), a trusted one is noted.
+        let escaping = await Task.detached { PathResolver.escapingLinks(in: worktree) }.value
+        if !escaping.isEmpty {
+            let list = escaping.prefix(3).joined(separator: ", ")
+            if !trusted {
+                await BrowseWorktree.remove(path: worktree, branch: plan.branch, in: record)
+                return fail(
+                    "its checkout holds a link that leads outside it (\(list)): heed does not start an agent in it"
+                )
+            }
+            runs.update(id) {
+                $0.note(
+                    "its checkout holds a link that leads outside it (\(list)): heed refuses reads through it",
+                    at: Clock.now
+                )
+            }
+        }
+        let head = await Task.detached { GitPushGuard.head(of: worktree) }.value
+        runs.startCommits[id] = head
         let setup = HelperSetup.steps(trusted: trusted, commands: self.settings.setup.commands(for: item.repo) ?? [])
         if setup.copyIncludes { _ = await WorktreeInclude.copy(from: record.path, to: worktree) }
         for command in setup.commands {
@@ -233,15 +258,14 @@ extension AppModel {
         // Its agent.
         let client: ACPClient
         do {
-            var environment = GitEnvironment.scrubbed(ProcessInfo.processInfo.environment)
-            environment["PATH"] = pathVariable
-            // Chat's policy has bypasses, so a Chat never gets the owner's gh login or cloud logins, whoever wrote the
-            // item.
-            if BrowseThread.scrubbedEnvironment(trusted: trusted, verb: effectiveVerb) {
-                let folder = RunFolder.path(run: "heed-browse-\(id)", root: NSTemporaryDirectory())
-                try? RunFolder.prepare(folder)
-                environment = HelperSetup.environment(environment, agent: adapter.agent, folder: folder)
-            }
+            // Every run, trusted or not, starts with what `RunSandbox.kept` keeps and nothing else: no tokens, no
+            // GIT_*, proxy or loader variables. An untrusted run's gh also has no login.
+            let folder = RunFolder.path(run: "heed-browse-\(id)", root: NSTemporaryDirectory())
+            try? RunFolder.prepare(folder)
+            let environment = BrowseRunEnvironment.make(
+                ProcessInfo.processInfo.environment, agent: adapter.agent, folder: folder, trusted: trusted,
+                verb: runs.run(id)?.effectiveVerb ?? .chat, path: pathVariable
+            )
             client = try ACPClient(transport: ACPProcessTransport(
                 executable: executable, arguments: adapter.arguments, directory: worktree, environment: environment
             ))
@@ -257,7 +281,20 @@ extension AppModel {
         }
         do {
             let info = try await client.initialize(clientVersion: appVersion)
-            let session = try await client.newSession(cwd: worktree)
+            // Locked: no setting sources, no hooks, no allow rules, no bypass (claude-agent-acp). Then the mode is set
+            // to default: the adapter starts in `auto`, or in what the repo's settings name, otherwise.
+            let session = try await client.newSession(cwd: worktree, locked: true)
+            do {
+                try await client.setMode(sessionID: session, mode: "default")
+            } catch where adapter.agent == "claude" {
+                await client.close()
+                return fail("could not set \(adapter.title)'s permission mode to default: \(error)")
+            } catch {
+                runs.update(id) { $0.note(
+                    "\(adapter.title) has no permission mode to set; heed answers its asks",
+                    at: Clock.now
+                ) }
+            }
             runs.sessionIDs[id] = session
             _ = runs.apply(
                 id,
@@ -278,19 +315,19 @@ extension AppModel {
             prBranch: pushBranch,
             fork: item.kind == .pull && !verdict.canPush
         )
-        // A Chat has no gh login: heed reads the thread and puts it in the prompt.
-        var thread = BrowseThread.unavailable
-        if run.effectiveVerb == .chat {
-            if let conversation = try? await GitHub.conversation(
-                repo: item.repo, number: item.number, caller: "browse.run.thread"
-            ) {
-                thread = BrowseThread.prompt(conversation)
-            } else {
-                runs.update(id) { $0.note(
-                    "could not read the thread: the chat works from the title and the repo",
-                    at: Clock.now
-                ) }
-            }
+        // No agent fetches comments itself (a comment on a trusted author's item can be a stranger's): heed reads the
+        // thread and fences it, for every verb. When it cannot, a Chat is told so and the rest are told there are none.
+        let chat = run.effectiveVerb == .chat
+        var thread: Prompt? = chat ? BrowseThread.unavailable : nil
+        if let conversation = try? await GitHub.conversation(
+            repo: item.repo, number: item.number, caller: "browse.run.thread"
+        ) {
+            thread = BrowseThread.prompt(conversation, login: !chat)
+        } else {
+            runs.update(id) { $0.note(
+                "could not read the thread: the run works from the title and the repo",
+                at: Clock.now
+            ) }
         }
         runBrowseTurn(id, BrowseRunPrompt.start(run, item: item, place: place, thread: thread))
         let timeout = pilotSettings(for: PullRef(repo: item.repo, number: item.number)).runTimeout
@@ -376,7 +413,7 @@ extension AppModel {
             let context = BrowsePolicy.Context(
                 verb: run.effectiveVerb, worktree: run.worktree, repo: run.repo,
                 defaultBranch: runs.defaultBranches[id] ?? "main", trusted: run.mode == .full, canPush: run.canPush,
-                resolve: { URL(fileURLWithPath: $0).resolvingSymlinksInPath().path }
+                branch: run.branch, pushGuard: GitPushGuard(start: runs.startCommits[id])
             )
             // Symlinks are looked up off the main actor.
             Task { [weak self] in
@@ -570,6 +607,7 @@ extension AppModel {
         guard run.phase != .needsClone, run.phase != .cloning, run.phase != .preparing else {
             return say("the run is not ready yet: keep it once it is working")
         }
+        if let why = BrowseKeep.refusal(run) { return say(why) }
         guard BrowseVerbs.mayKeep(runs: config.browse.runs) else {
             return say("Not kept: \(BrowseVerbs.editsOff). A kept run is a full session, and a chat run stays a chat.")
         }
@@ -722,16 +760,5 @@ extension AppModel {
             ) }
             _ = browse.runs.apply(id, .turnEnded(.endTurn, cancel: nil, connected: true), at: Clock.now)
         }
-    }
-}
-
-/// What a kept run's session is told: where the run got to, so its agent picks up from the worktree.
-enum BrowseKeep {
-    static func prompt(_ run: BrowseRun, item: BrowseItem) -> String {
-        var text = BrowseWorkPrompts.prompt(run.verb, item: item).text
-        text += "\n\nAn agent already worked on this in this worktree: read `git log` and `git status` to see where it got to, and carry on from there."
-        if let branch = run
-            .prBranch { text += " Push to the pull request's branch with `git push origin HEAD:\(branch)`." }
-        return text
     }
 }

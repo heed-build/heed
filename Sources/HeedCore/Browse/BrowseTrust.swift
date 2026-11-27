@@ -11,6 +11,12 @@ public enum BrowseTrust {
         public var text: String
         /// A pull request's head is this repo's own branch, so a push can go to it.
         public var canPush: Bool
+        /// The pull request's head when its author was checked: the worktree is made from exactly it.
+        public var headSHA: String?
+    }
+
+    static func listed(_ entry: String, login: String, isBot: Bool) -> Bool {
+        PullTrust.listed(entry, login: login, isBot: isBot)
     }
 
     /// An issue: `canWrite` is what `gh` said about the author's permission on the repo (nil: not asked or not known).
@@ -25,7 +31,7 @@ public enum BrowseTrust {
             return Verdict(trusted: true, text: "opened by you", canPush: true)
         }
         if item.authorIsBot {
-            if trustedAuthors.contains(where: { HeedMerge.listed($0, login: login, isBot: true) }) {
+            if trustedAuthors.contains(where: { listed($0, login: login, isBot: true) }) {
                 return Verdict(trusted: true, text: "opened by \(who), one of trusted_authors", canPush: true)
             }
             return Verdict(trusted: false, text: "\(who) isn't in trusted_authors", canPush: true)
@@ -33,7 +39,7 @@ public enum BrowseTrust {
         if canWrite == true {
             return Verdict(trusted: true, text: "opened by \(who), who can write to the repo", canPush: true)
         }
-        if trustedAuthors.contains(where: { HeedMerge.listed($0, login: login, isBot: false) }) {
+        if trustedAuthors.contains(where: { listed($0, login: login, isBot: false) }) {
             return Verdict(trusted: true, text: "opened by \(who), one of trusted_authors", canPush: true)
         }
         return Verdict(trusted: false, text: "\(who) can't write to \(item.repo.slug)", canPush: true)
@@ -45,7 +51,10 @@ public enum BrowseTrust {
             login: authorship.author, trust: authorship.by.trust, fork: authorship.crossRepository, viewer: viewer,
             canWrite: authorship.canWrite, trustedAuthors: trustedAuthors
         )
-        return Verdict(trusted: verdict.trusted, text: verdict.text, canPush: !authorship.crossRepository)
+        return Verdict(
+            trusted: verdict.trusted, text: verdict.text, canPush: !authorship.crossRepository,
+            headSHA: authorship.headSHA
+        )
     }
 
     /// The reason a Chat-only run gives.

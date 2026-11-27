@@ -25,6 +25,8 @@ final class BrowseRunsModel {
     @ObservationIgnored var cancelling: [String: BrowseRun.Cancel] = [:]
     @ObservationIgnored var records: [String: RepoRecord] = [:]
     @ObservationIgnored var defaultBranches: [String: String] = [:]
+    /// The commit each run's worktree began at: what its push guard measures from.
+    @ObservationIgnored var startCommits: [String: String] = [:]
     /// The fake world's scripts under way, so closing a run stops its script.
     /// Runs being closed: their worktree is being looked at before it goes.
     @ObservationIgnored var closing: Set<String> = []
@@ -61,6 +63,7 @@ final class BrowseRunsModel {
         cancelling[id] = nil
         records[id] = nil
         defaultBranches[id] = nil
+        startCommits[id] = nil
         scripts[id]?.cancel()
         scripts[id] = nil
         closing.remove(id)

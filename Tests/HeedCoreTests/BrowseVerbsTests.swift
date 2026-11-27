@@ -334,10 +334,10 @@ struct BrowseRunsModeTests {
 
     @Test func aChatNeverGetsTheOwnersLoginsWhoeverWroteTheItem() {
         for trusted in [true, false] {
-            #expect(BrowseThread.scrubbedEnvironment(trusted: trusted, verb: .chat))
+            #expect(BrowseRunEnvironment.emptyGitHubLogin(trusted: trusted, verb: .chat))
         }
-        #expect(BrowseThread.scrubbedEnvironment(trusted: false, verb: .fix))
-        #expect(!BrowseThread.scrubbedEnvironment(trusted: true, verb: .fix))
+        #expect(BrowseRunEnvironment.emptyGitHubLogin(trusted: false, verb: .fix))
+        #expect(!BrowseRunEnvironment.emptyGitHubLogin(trusted: true, verb: .fix))
     }
 
     @Test func aChatPromptCarriesTheFencedThreadAndNeverSendsTheAgentToGh() {
@@ -368,6 +368,18 @@ struct BrowseRunsModeTests {
             phase: .preparing, startedAt: now, cap: 0
         )
         #expect(BrowseRunPrompt.start(fix, item: issue, place: place).text.contains("gh issue view"))
-        #expect(BrowseRunPrompt.start(run, item: issue, place: place).text.contains("could not read the thread"))
+        #expect(BrowseRunPrompt.start(run, item: issue, place: place).text.contains("heed shows you no comments"))
+        #expect(BrowseRunPrompt.start(run, item: issue, place: place, thread: BrowseThread.unavailable).text
+            .contains("could not read the thread"))
+        // A run with a login gets the fenced thread too, and is told not to fetch comments itself.
+        let withLogin = BrowseRunPrompt.start(
+            fix,
+            item: issue,
+            place: place,
+            thread: BrowseThread.prompt(thread, login: true)
+        )
+        .text
+        #expect(withLogin.contains("It crashes") && withLogin.contains("Do not fetch its comments yourself"))
+        #expect(!withLogin.contains("--comments"))
     }
 }

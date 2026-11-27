@@ -84,8 +84,10 @@ public actor ACPClient {
     }
 
     /// `session/new` in `cwd`: the session's id.
-    public func newSession(cwd: String, timeout: Duration = .seconds(60)) async throws -> String {
-        let result = try await request(ACP.Method.sessionNew, ACP.newSessionParams(cwd: cwd), timeout: timeout)
+    public func newSession(cwd: String, locked: Bool = false, timeout: Duration = .seconds(60)) async throws -> String {
+        let result = try await request(
+            ACP.Method.sessionNew, ACP.newSessionParams(cwd: cwd, locked: locked), timeout: timeout
+        )
         guard let id = result["sessionId"]?.string else { throw ACPError.badResponse(ACP.Method.sessionNew) }
         return id
     }
@@ -108,6 +110,15 @@ public actor ACPClient {
         _ = try await request(
             ACP.Method.sessionSetConfigOption,
             ACP.configOptionParams(sessionID: sessionID, configID: ACP.modelConfigID, value: model), timeout: timeout
+        )
+    }
+
+    /// `session/set_mode`: the session's permission mode (`default`: every tool the agent has not been told to allow
+    /// is asked about). claude-agent-acp starts in `auto` when nothing else is set, and in whatever the repo's
+    /// `.claude/settings.json` names, so a run sets it after `session/new`.
+    public func setMode(sessionID: String, mode: String, timeout: Duration = .seconds(30)) async throws {
+        _ = try await request(
+            ACP.Method.sessionSetMode, ACP.setModeParams(sessionID: sessionID, mode: mode), timeout: timeout
         )
     }
 

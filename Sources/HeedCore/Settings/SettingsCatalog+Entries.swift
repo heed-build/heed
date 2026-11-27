@@ -669,6 +669,13 @@ extension SettingsCatalog {
             since: "0.48.0"
         ) { .integer($0.browse.maxRuns) },
         global(
+            "browse.runs", .github, "Browse", "Browse: agent runs",
+            "Chat: the only agent action in Browse is Chat, which reads and answers. Full: Fix, Implement, Review and "
+                + "Get it green too, which edit files, push branches and comment through gh. Browse's permission "
+                + "policy is a best-effort filter, not a sandbox.",
+            since: "0.52.0"
+        ) { .text($0.browse.runs.rawValue) },
+        global(
             "browse.auto_refresh", .github, "Browse", "Browse: refresh when you come back",
             "Coming back to Browse (switching to it, the app coming forward, the window regaining focus) asks GitHub "
                 + "for the view you are on again. Changes to rows you can see land at once; new, gone and reordered "

@@ -40,6 +40,12 @@ struct GitHubPage: View {
                     step: 1
                 )
             }
+            SettingRow("browse.runs") {
+                SegmentedChoice(
+                    path: ["browse", "runs"], value: model.config.browse.runs,
+                    options: [(.chat, "Chat only"), (.full, "Full")], name: \.rawValue
+                )
+            }
             SettingRow("browse.auto_refresh") {
                 ConfigSwitch(path: ["browse", "auto_refresh"], isOn: model.config.browse.autoRefresh)
             }

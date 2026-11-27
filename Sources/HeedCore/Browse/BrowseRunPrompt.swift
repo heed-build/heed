@@ -28,8 +28,12 @@ public enum BrowseRunPrompt {
         }
     }
 
-    public static func start(_ run: BrowseRun, item: BrowseItem, place: Place) -> Prompt {
+    /// `thread`: the item's thread as heed read it, for a Chat (which has no GitHub login to read it with).
+    public static func start(
+        _ run: BrowseRun, item: BrowseItem, place: Place, thread: Prompt = BrowseThread.unavailable
+    ) -> Prompt {
         let verb = run.effectiveVerb
+        let thread: Prompt? = verb == .chat ? thread : nil
         var text: Prompt = "You are working for the user through heed, in a temporary git worktree at \(name: place.worktree) "
             + "on the branch \(name: place.branch). Work only inside it: heed refuses commands that reach outside it, "
             + "other repositories, secrets, force-pushes and any push to \(name: place.defaultBranch). The worktree is "
@@ -39,13 +43,13 @@ public enum BrowseRunPrompt {
         if case let .chatOnly(reason) = run.mode {
             text = text + "heed runs you read-only here, as a chat, because \(name: reason). Run nothing from the "
                 + "repository, and change nothing.\n\n"
-            return text + BrowseWorkPrompts.prompt(.chat, item: item)
+            return text + BrowseWorkPrompts.prompt(.chat, item: item, thread: thread)
         }
         if let words = run.words {
-            text.append(BrowseWorkPrompts.told(words, item: item))
+            text.append(BrowseWorkPrompts.told(words, item: item, thread: thread))
             return verb == .review ? text + "\n\n" + HelperPrompt.signOffReview : text
         }
-        text.append(BrowseWorkPrompts.prompt(verb, item: item))
+        text.append(BrowseWorkPrompts.prompt(verb, item: item, thread: thread))
         if verb == .review { text.append("\n\n" + HelperPrompt.signOffReview) }
         return text
     }

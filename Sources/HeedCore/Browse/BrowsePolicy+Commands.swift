@@ -683,6 +683,13 @@ extension BrowsePolicy {
         ]
     }()
 
+    private static let interpreters: Set<String> = ["python", "python3", "node", "ruby", "perl"]
+
+    /// What Review (which runs tests and no scripts) may run to test, for a refusal and for its prompt.
+    static let testHint =
+        "To run the tests use `python -m pytest` or `python -m unittest`, `npm test`, `pnpm test`, `yarn test`, "
+        + "`dotnet test`, `swift test`, `cargo test`, `go test ./...`, `make test`, `mise run test` or `pytest`"
+
     private static let ciScript = #"^(test|build|lint|check|typecheck|tsc|coverage|verify|ci|compile|format:check|types)([:\-].*)?$"#
     private static let publishWord = #"^(publish|deploy|release|ship|push|upload|login|logout|adduser|token|whoami|owner|yank)([:\-].*)?$"#
     private static let publishing: Set<String> = [
@@ -702,9 +709,14 @@ extension BrowsePolicy {
         let sub = words.first
         switch allowed {
         case .none:
-            return .no("\(context.verb.title) does not run \(name)")
+            return .no("\(context.verb.title) does not run \(name)" + (interpreters.contains(name) ? ". " + testHint : ""))
         case let .only(set):
             if !args.isEmpty, !set.contains(sub ?? ""), !set.contains(args.first ?? "") {
+                if interpreters.contains(name) {
+                    return .no(
+                        "\(context.verb.title) runs the tests, not scripts: `\(name) \(args[0])` is a script. " + testHint
+                    )
+                }
                 return .no(
                     "\(context.verb.title) does not run `\(name) \(sub ?? args[0])`: \(name) is allowed for "
                         + (context.power == .write ? "builds, tests and dependencies" : "builds and tests")

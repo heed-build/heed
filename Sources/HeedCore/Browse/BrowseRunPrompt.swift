@@ -73,7 +73,9 @@ public enum BrowseRunPrompt {
             return "Do not change files, commit, push, or write anything to GitHub. Read, search and run read-only commands."
         case .review:
             return "Do not change files, commit, push, or post anything to GitHub: your review is shown to the user, "
-                + "who posts it. You may run the tests."
+                + "who posts it. You may run the tests, but not scripts: `python -m pytest`, `python -m unittest`, "
+                + "`pytest`, `npm test`, `pnpm test`, `yarn test`, `dotnet test`, `swift test`, `cargo test`, "
+                + "`go test ./...`, `make test` and `mise run test` are the commands that run."
         case .fix, .implement:
             if item.kind == .pull {
                 if place.fork {

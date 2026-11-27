@@ -80,3 +80,37 @@ struct BrowsePolicyTeachingTests {
         #expect(rules.contains("closes #21") && rules.contains("single quotes"))
     }
 }
+
+/// R2: Review runs tests, not scripts, and a refusal says which commands run.
+extension BrowsePolicyTeachingTests {
+    @Test(arguments: ["python test_calc.py", "python3 ./test_calc.py", "node test.js", "ruby test.rb"])
+    func aScriptRefusedInAReviewNamesTheTestCommands(_ command: String) {
+        let verdict = decide(command, .review)
+        #expect(!verdict.allowed)
+        let reason = verdict.reason ?? ""
+        #expect(
+            reason.contains("python -m pytest") && reason.contains("python -m unittest") && reason.contains("npm test"),
+            Comment(rawValue: reason)
+        )
+    }
+
+    @Test(arguments: ["python -m pytest", "python3 -m unittest", "npm test", "pytest -q", "dotnet test", "make test"])
+    func theTestCommandsTheHintNamesRunInAReview(_ command: String) {
+        let verdict = decide(command, .review)
+        #expect(verdict.allowed, Comment(rawValue: "\(command): \(verdict.reason ?? "")"))
+    }
+
+    @Test func aWriterMayRunItsScript() {
+        #expect(decide("python3 test_calc.py", .fix).allowed)
+    }
+
+    @Test func theReviewPromptListsTheTestCommands() {
+        let item = BrowseItem(
+            repo: Hardening.repo, number: 4, kind: .pull,
+            title: ExternalText("t", source: .pullTitle, author: .unknown), author: "me"
+        )
+        let place = BrowseRunPrompt.Place(worktree: Hardening.worktree, branch: Hardening.branch, defaultBranch: "main")
+        let text = BrowseRunPrompt.rules(.review, item: item, place: place).text
+        #expect(text.contains("python -m pytest") && text.contains("npm test") && text.contains("not scripts"))
+    }
+}

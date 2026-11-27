@@ -563,12 +563,10 @@ struct LiveBrowseE2ETests {
                 of: #"^python3?\s+\S+\.py"#,
                 options: .regularExpression
             ) != nil }
-            step.productBug(
-                "R2-review-test-script",
-                "Review is told 'you may run the tests' but `python test_calc.py` is refused (only python -m pytest/unittest run): "
-                    +
-                    "\(scripts.map(\.line)); the refusal's wording ('python is allowed for builds and tests') does not say what to run instead",
-                reproduced: !scripts.isEmpty
+            // R2 (fixed): a script Review is refused says what runs instead.
+            step.expect(
+                scripts.allSatisfy { ($0.refusal ?? "").contains("python -m pytest") },
+                "R2: a refused script does not name the test commands: \(scripts.map(\.line))"
             )
             let before = try await SmokeGH.read([
                 "api",

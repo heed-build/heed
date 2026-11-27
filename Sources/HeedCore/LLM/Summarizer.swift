@@ -249,7 +249,7 @@ public struct Summarizer: Sendable {
             one of {"field":"type","value":"issues"|"pulls"}, {"field":"state","value":"open"|"closed"|"merged"}, \
             {"field":"label","mode":"any"|"all"|"none","values":["…"]}, {"field":"repo","value":"org/name"}, \
             {"field":"assignee","value":"login or @me"}, {"field":"author","value":"login or @me"}, \
-            {"field":"milestone","value":"…"}, {"field":"project","value":"…"}, \
+            {"field":"milestone","value":"…"}, \
             {"field":"created","op":"newer"|"older","days":N} (when it was opened), \
             {"field":"updated","op":"newer"|"older","days":N} (when it last changed; "no reply in 30 days" is older \
             30), {"field":"linked_pr","value":true|false}, and the fields of heed's own read of an item: \

@@ -15,7 +15,7 @@ Heed has six views, named along the top with their keys. Every view key starts w
 | `gG` | [Goals](../goals/index.md) |
 | `gi` | [Attention](../github/attention.md), on Issues |
 | `gp` | [Attention](../github/attention.md), on My PRs |
-| `gb` | Browse: the issues and PRs of an org, a repo or a Project, searched on GitHub |
+| `gb` | Browse: the issues and PRs of an org or a repo, searched on GitHub |
 | `gw` | [Autopilot](../autopilot/index.md): Can do `C`, Where `W`, Now `N`, Done `D` |
 | `gr` | [Repos](../worktrees/index.md) |
 | `gh` | [Insights](../insights/index.md), on its [dashboard](../insights/dashboard.md) |

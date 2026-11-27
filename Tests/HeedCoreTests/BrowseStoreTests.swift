@@ -139,7 +139,8 @@ struct BrowseFetchTests {
         let issue = page.items[0]
         #expect(issue.id == "acme/docs-toolkit#2830" && issue.kind == .issue && issue.state == .open)
         #expect(issue.labels == ["bug"] && issue.assignees == ["jdoe"] && issue.milestone == "3.2")
-        #expect(issue.projects == ["Docs 2.0 board"] && issue.comments == 6 && issue.hasLinkedPull)
+        // An answer that carries projectItems (an old cache) is read, but Projects are not parsed: they were never asked for.
+        #expect(issue.projects.isEmpty && issue.comments == 6 && issue.hasLinkedPull)
         #expect(issue.title.author.trust == .member && issue.title.author.login == "mara-k")
         let pull = page.items[1]
         #expect(pull.kind == .pull && pull.state == .merged && pull.checks == .failing && pull.review == .approved)

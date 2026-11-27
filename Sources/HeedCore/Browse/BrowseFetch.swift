@@ -297,9 +297,6 @@ public enum BrowseFetch {
         } else {
             (node["closedByPullRequestsReferences"] as? [String: Any])?["totalCount"] as? Int ?? 0
         }
-        let projects = ((node["projectItems"] as? [String: Any])?["nodes"] as? [Any] ?? []).compactMap {
-            (($0 as? [String: Any])?["project"] as? [String: Any])?["title"] as? String
-        }
         let rollup = ((((node["commits"] as? [String: Any])?["nodes"] as? [Any])?.first as? [String: Any])?["commit"]
             as? [String: Any])?["statusCheckRollup"] as? [String: Any]
         let checks: BrowseItem.Checks? = switch (rollup?["state"] as? String)?.uppercased() {
@@ -313,7 +310,7 @@ public enum BrowseFetch {
             title: ExternalText(title, source: pull ? .pullTitle : .issueTitle, author: who),
             url: node["url"] as? String, state: state, author: who.login, authorIsBot: who.trust == .bot,
             labels: names("labels", "name"), assignees: names("assignees", "login"),
-            milestone: (node["milestone"] as? [String: Any])?["title"] as? String, projects: projects,
+            milestone: (node["milestone"] as? [String: Any])?["title"] as? String,
             comments: (node["comments"] as? [String: Any])?["totalCount"] as? Int ?? 0,
             createdAt: GitHub.date(node["createdAt"] as? String), updatedAt: GitHub.date(node["updatedAt"] as? String),
             hasLinkedPull: linked > 0, isDraft: node["isDraft"] as? Bool ?? false, checks: checks,

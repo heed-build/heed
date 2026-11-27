@@ -34,42 +34,28 @@ struct BrowseBuilderTests {
         ]
     }
 
-    @Test func theProjectFieldTakesOwnerSlashNumberAsText() {
-        for (typed, ref) in [
-            ("acme/7", "acme/7"), (" project:acme/7 ", "acme/7"), (
-                "https://github.com/orgs/acme/projects/7/views/1",
-                "acme/7"
-            ),
-        ] {
-            #expect(BrowseBuilder.projectRef(typed) == ref, "\(typed)")
-        }
-        for typed in ["", "acme", "acme/", "acme/x", "acme/0", "acme/07", "a b/7", "acme/7/8"] {
-            #expect(BrowseBuilder.projectRef(typed) == nil, "\(typed)")
-        }
+    @Test func theProjectFieldIsNotOffered() {
+        #expect(!BrowseField.offered.contains(.project))
+        #expect(!builder().fields.contains(.project))
+        // Typing its name finds nothing to pick, and the number keys name the fields the popover shows.
+        var typed = builder()
+        type("proj", into: &typed)
+        #expect(!typed.fields.contains(.project))
         var b = builder()
         b.open(.project)
-        #expect(b.stage == .project)
-        for ch in "acme/x" {
-            _ = b.handle(KeyStroke(String(ch)))
-        }
-        #expect(b.handle(KeyStroke("CR")) == .changed && b.projectError != nil && b.stage == .project)
-        for _ in 0 ..< 1 {
-            _ = b.handle(KeyStroke("BS"))
-        }
-        for ch in "9" {
-            _ = b.handle(KeyStroke(String(ch)))
-        }
-        guard case let .apply(query) = b.handle(KeyStroke("CR")) else { Issue.record("not applied"); return }
-        #expect(query.tokens.contains(.project("acme/9")))
-        #expect(query.rendered(maxAgeDays: 90, now: now).contains("project:acme/9"))
-        // Opening it again edits what is there; emptying it removes the filter.
-        b.open(.project)
-        #expect(b.input.text == "acme/9")
-        for _ in 0 ..< 6 {
-            _ = b.handle(KeyStroke("BS"))
-        }
-        guard case let .apply(cleared) = b.handle(KeyStroke("CR")) else { Issue.record("not applied"); return }
-        #expect(!cleared.tokens.contains(.project("acme/9")))
+        #expect(b.stage == .fields)
+        #expect(BrowseField.offered.count == BrowseField.allCases.count - 1)
+    }
+
+    @Test func aStoredProjectTokenStillRendersForGitHubAndIsNotJudgedLocally() {
+        let query = BrowseQuery(scope: .org("acme"), tokens: [.state(.open), .project("acme/7")])
+        #expect(query.rendered(maxAgeDays: 90, now: now).contains("project:acme/7"))
+        // GitHub judged it: every item it listed stays, instead of none (an item carries no Projects here).
+        let kept = BrowseFilter(query: query, viewer: "you", maxAgeDays: 90, checkouts: nil)
+            .apply(to: items, sort: .updated, now: now)
+        #expect(kept.count == items.filter { $0.state == .open && $0.repo.org == "acme" }.count)
+        #expect(!kept.isEmpty)
+        #expect(BrowseScope.project(owner: "acme", number: 7, title: "Board").contains(items[0]))
     }
 
     private func builder(_ base: BrowseQuery? = nil, off: String? = nil) -> BrowseBuilder {
@@ -195,7 +181,7 @@ struct BrowseBuilderTests {
 
     @Test func theHeedFieldsOpenAPickerLikeTheOthers() {
         var picked = builder()
-        #expect(BrowseField.allCases.filter { $0.disabledReason != nil }.isEmpty)
+        #expect(BrowseField.offered.filter { $0.disabledReason != nil }.isEmpty)
         picked.open(.heedClass)
         #expect(picked.stage == .values(.heedClass))
         #expect(picked.picker?.options.map(\.value) == ["bug", "feature", "docs", "question", "chore"])

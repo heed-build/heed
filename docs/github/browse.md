@@ -24,7 +24,7 @@ last one takes the org away.
   inside every org you have a checkout in. The chip over the list says *All checkouts* and how many orgs that is. GitHub
   limits a search to 256 characters, so many orgs are searched in groups of at most 240 characters, up to six, and the
   counts are added up; past six groups the line over the list says so, and `⌘K` narrows to one org.
-- **A scope or a place you type wins.** A saved query with its own `org:`, `repo:` or Project is neither widened nor
+- **A scope or a place you type wins.** A saved query with its own `org:` or `repo:` is neither widened nor
   narrowed by the scope you are in. Picking a scope replaces the default, and the query you are on goes with you.
 - **An org with no checkout is refused, not searched.** Pick it, or type `org:`, `repo:` or `user:` for it, and the list
   says *`<name>` isn't checked out*, with a button that opens Add or clone on that name. Nothing is sent to GitHub. A repo
@@ -191,14 +191,14 @@ of which becomes a GitHub search qualifier.
 
 ![The filter popover: what you typed, what heed understood, and the fields to add one by hand](../images/shots/github/browse-build-type.png)
 
-**The fields:** Label, Type, State, Assignee, Author, Repo, Age, Activity, Linked PR, Project and Milestone, the
+**The fields:** Label, Type, State, Assignee, Author, Repo, Age, Activity, Linked PR and Milestone, the
 three heed fields (class, size, agent-ready), and GitHub query. Type to narrow the list of fields, or press `1` to `9`
 for one.
 
-**Project takes text, not a list.** heed does not read the Projects on an item (that needs a GitHub token scope its
-default token does not have), so Project asks for the board's `owner/number`, as in
-`github.com/orgs/acme/projects/7`: type `acme/7`. `↩` keeps only the items on that Project, and an empty field
-removes the filter. The query shows it as `project:acme/7`, and it can be saved like any other.
+**There is no Project field.** heed cannot read the Projects an item is on (that needs a GitHub token scope its
+default token does not have), so a filter on them could only ever show nothing. A raw `project:owner/N` in a GitHub
+query works only for classic Projects, and GitHub does the matching; a saved query that already has one keeps running,
+with the chip as it was.
 
 **Value pickers show counts.** Pick a field and a list of its values appears, each with how many of the items you
 have would match. Label takes several values and reads them as *any of*, *all of* or *none of* (`⇥` switches).
@@ -515,9 +515,9 @@ the [configuration reference](../configuration/reference.md).
   query GitHub refuses.
 - **An org view is a filter GitHub applies,** language and archived. It has no topic or team filter, because GitHub's
   issue search has none, and it keeps no list of repos.
-- **Projects are a filter you type, not a scope.** Reading Project titles needs a GitHub token scope heed's default
-  does not have, so heed neither lists the Projects on an item nor offers them as values, and the rail has no Project
-  rows. The Project filter takes `owner/number` and GitHub does the matching.
+- **Projects are not a filter or a scope.** heed cannot read an item's Projects, so it offers no Project field, no
+  Project rows in the rail and no Project value in the words box. `project:owner/N` typed as a raw GitHub query works
+  for classic Projects only (Projects v2 need a token scope heed does not ask for).
 - **Heed's fields are local.** The counts for queries that use them come from what this Mac has fetched and read, not
   from GitHub.
 - **Words need the model.** With model calls off, a sentence is searched as text.

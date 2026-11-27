@@ -16,7 +16,7 @@ with `gh auth login` and heed keeps the data in sync. The view on screen refresh
 when its checks or review threads change.
 
 [Attention](attention.md) brings you what involves you, so you can pick it up without going looking. [Browse](browse.md)
-is where you go and get the rest: the issues and PRs of an org, a repo or a Project, searched on GitHub. Attention
+is where you go and get the rest: the issues and PRs of an org or a repo, searched on GitHub. Attention
 still lists only what involves you, not every issue in a repo. `:inbox` and `:issues`, the views that were, open
 Attention's Everything tab and its issues.
 
@@ -25,7 +25,7 @@ Attention's Everything tab and its issues.
 - [Attention](attention.md) (`gm`): everything that wants you, in one feed: notifications, issues assigned to you or
   mentioning you, your PRs and agents waiting on you. `gi` opens it on issues, `gp` on My PRs.
 - [Attention rules](attention-rules.md): tell heed what matters, team mentions included.
-- [Browse](browse.md) (`gb`): search the issues and PRs of an org, a repo or a Project, read each with heed, and put an agent on one or a group.
+- [Browse](browse.md) (`gb`): search the issues and PRs of an org or a repo, read each with heed, and put an agent on one or a group.
 - [Pull requests](pull-requests.md) (`:prs`): your open PRs and the ones your sessions track.
 - [Reading](reading.md): read a PR or an issue without leaving heed, and start a session from it.
 - [Review feedback](review-feedback.md): review comments and failing checks, fed back to the agent that opened the PR.

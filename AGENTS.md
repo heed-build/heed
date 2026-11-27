@@ -21,6 +21,17 @@
 - `mise run live` (`HEED_LIVE=1`) runs the live checks in `Tests/HeedCoreTests/Live`: helpers, approvals, the goal wizard and
   OpenTelemetry against real Claude Code on haiku, in throwaway repos. They call a model, so `mise run test` and CI skip
   them; turn what they capture into a scrubbed fixture under `Fixtures/live` when the agents change.
+- `HEED_LIVE=1 mise run live-browse` is the live smoke suite for Browse (`LiveGitHubContractTests`, `LiveBrowseE2ETests`): the real
+  HeedCore reads against real GitHub with your `gh`, then an end-to-end run (trust, worktrees, Chat, Fix and Review through
+  the real ACP adapter on haiku under the hardened policy, bulk writes, the resume line) on one throwaway repository,
+  `Mpdreamz/heed-smoke`. It finds what fakes cannot: a field that needs another token scope, a flag gh lacks, a policy that
+  refuses a legitimate command. It needs HEED_LIVE=1 and sets HEED_LIVE_BROWSE=1 itself, so `mise run live` and
+  `mise run test` skip it. Writes go through `SmokeGH.write`, which refuses every repository but `LiveSmoke.slug` (tested in
+  `LiveSmokeGuardTests`, which runs everywhere); models are haiku only, with a spend and tool-call cap per run and a wall-clock
+  cap. Whatever a run makes there is closed or deleted when it ends, and the next run sweeps what a crashed one left
+  (`heed-live-smoke` labels and `heed-live-*`, `heed/browse/*` branches older than an hour). The report is written to
+  `$HEED_LIVE_REPORT` or `~/Projects/heed-plans/browse/audit/live-smoke-<date>.md`. `LiveRunDriver.swift` runs a Browse run the
+  way `AppModel+BrowseRun.swift` does (same HeedCore pieces, same order): change it with the app's glue.
 - `mise run bench` (`HEED_BENCH=1`) runs `Tests/HeedCoreTests/Bench`: timings, in an optimized build, one at a time. A test in
   the suite never asserts a duration (the suite runs in parallel on loaded machines); it checks what a cost comes from
   (reads, sizes, counts) and the timing goes to a bench.

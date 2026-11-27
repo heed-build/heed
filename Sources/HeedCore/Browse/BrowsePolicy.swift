@@ -291,7 +291,12 @@ public enum BrowsePolicy {
         if real.split(separator: "/").contains("..") { real = canonical(folded(real)) }
         guard inside(real, root) || inside(real, written) else {
             let leads = inside(folded(place), written) || inside(folded(place), root)
-            return .no(leads ? "\(path) leads outside this run's worktree" : "\(path) is outside this run's worktree")
+            let here = "the worktree is ./ (\(context.worktree)): use paths inside it"
+            return .no(
+                leads
+                    ? "\(path) leads outside this run's worktree; \(here)"
+                    : "\(path) is outside this run's worktree; \(here)"
+            )
         }
         if forWriting {
             for candidate in [real, folded(place)] {

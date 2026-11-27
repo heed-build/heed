@@ -459,13 +459,12 @@ struct LiveBrowseE2ETests {
             let mine = run.asked.filter { ($0.command ?? "").contains(prefix) }
             let allowed = mine.contains { $0.allowed }
             if !allowed, mine.allSatisfy({ correctRefusal($0.command ?? "") }) {
-                step.productBug(
-                    "F3-habitual-spelling",
-                    "'\(prefix)' was only tried in a spelling heed correctly refuses ($(cat <<'EOF') bodies, heredocs), as Claude Code's own habit writes it, "
-                        +
-                        "and the run did not recover: Fix on a trusted issue ends without a pull request. The prompt asks for single-quoted text or a file",
-                    reproduced: true
+                // F3 (fixed): the refusal of the habitual spelling teaches the one heed allows.
+                step.expect(
+                    prefix != "gh pr create" || mine.allSatisfy { ($0.refusal ?? "").contains("--body-file") },
+                    "F3: '\(prefix)' was refused without naming the allowed spelling: \(mine.map(\.line))"
                 )
+                step.note("'\(prefix)' was only tried in a spelling heed refuses; the refusal taught the alternative")
                 continue
             }
             step.expect(allowed, "'\(prefix)' was tried and never allowed: \(mine.map(\.line))")
@@ -473,12 +472,10 @@ struct LiveBrowseE2ETests {
 
         var outcome = FixOutcome(run: run, committedTried: tried("git commit"))
         let strayed = refused.filter { ($0.refusal ?? "").contains("outside this run's worktree") }
-        step.productBug(
-            "F5-outside-worktree-no-hint",
-            "haiku reached for the worktree's parent folder (\(strayed.count) refusals) and the refusal ('... is outside this run's worktree') "
-                +
-                "does not say where the worktree is, so the run flounders or ends without trying: \(strayed.prefix(2).map(\.line))",
-            reproduced: !strayed.isEmpty
+        // F5 (fixed): the refusal says where the worktree is.
+        step.expect(
+            strayed.allSatisfy { ($0.refusal ?? "").contains(run.worktree) },
+            "F5: an 'outside this run's worktree' refusal does not name the worktree: \(strayed.prefix(2).map(\.line))"
         )
         outcome.prOnlyHabitual = tried("gh pr create") && !run.asked
             .contains { ($0.command ?? "").contains("gh pr create") && $0.allowed }

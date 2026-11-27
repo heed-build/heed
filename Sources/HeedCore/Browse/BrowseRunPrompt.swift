@@ -88,7 +88,10 @@ public enum BrowseRunPrompt {
             }
             return "You may edit files, run commands, commit, push your branch (`git push -u origin HEAD`), open a pull "
                 + "request with `gh pr create`, and comment on and label the issue with `gh`, without asking. Never push "
-                + "\(name: place.defaultBranch)."
+                + "\(name: place.defaultBranch). To open the pull request: `git push -u origin HEAD`, then "
+                + "`gh pr create --title 'Short title' --body-file body.md`, with the body (say it closes #\(item.number)) "
+                + "written to body.md in the worktree first and not committed, or `--body 'text'` in single quotes. "
+                + "`--base`, `--head` and `--draft` are fine; `$(...)`, here-documents and `--body-file -` are refused."
         }
     }
 

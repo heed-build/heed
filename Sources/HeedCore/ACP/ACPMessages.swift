@@ -16,6 +16,7 @@ public enum ACP {
         public static let sessionUpdate = "session/update"
         public static let requestPermission = "session/request_permission"
         public static let sessionSetConfigOption = "session/set_config_option"
+        public static let sessionSetMode = "session/set_mode"
     }
 
     /// The id of the session config option that picks the model (ACP v1's session config options; claude's adapter
@@ -36,8 +37,30 @@ public enum ACP {
         ]
     }
 
+    /// `session/new`. `locked`: for claude-agent-acp, whose `_meta.claudeCode.options` become the options of the Claude
+    /// Code query behind the session: no setting sources (so the user's `~/.claude/settings.json`, and the repo's
+    /// `.claude/settings.json`, `.claude/settings.local.json`, `.mcp.json` and CLAUDE.md are not read: their hooks,
+    /// allow rules, MCP servers and default mode are the repo's and the user's, not heed's), settings given here
+    /// instead with no allow rules and no hooks, and no bypass mode. Other adapters ignore `_meta`.
     public static func newSessionParams(cwd: String, locked: Bool = false) -> JSONValue {
-        ["cwd": .string(cwd), "mcpServers": []]
+        guard locked else { return ["cwd": .string(cwd), "mcpServers": []] }
+        return [
+            "cwd": .string(cwd), "mcpServers": [],
+            "_meta": ["claudeCode": ["options": [
+                "settingSources": [],
+                "allowDangerouslySkipPermissions": false,
+                "settings": [
+                    "permissions": ["allow": [], "defaultMode": "default"],
+                    "disableAllHooks": true,
+                    "enableAllProjectMcpServers": false,
+                    "enabledMcpjsonServers": [],
+                ],
+            ]]],
+        ]
+    }
+
+    public static func setModeParams(sessionID: String, mode: String) -> JSONValue {
+        ["sessionId": .string(sessionID), "modeId": .string(mode)]
     }
 
     public static func promptParams(sessionID: String, text: String) -> JSONValue {

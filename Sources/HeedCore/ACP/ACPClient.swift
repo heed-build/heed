@@ -113,6 +113,15 @@ public actor ACPClient {
         )
     }
 
+    /// `session/set_mode`: the session's permission mode (`default`: every tool the agent has not been told to allow
+    /// is asked about). claude-agent-acp starts in `auto` when nothing else is set, and in whatever the repo's
+    /// `.claude/settings.json` names, so a run sets it after `session/new`.
+    public func setMode(sessionID: String, mode: String, timeout: Duration = .seconds(30)) async throws {
+        _ = try await request(
+            ACP.Method.sessionSetMode, ACP.setModeParams(sessionID: sessionID, mode: mode), timeout: timeout
+        )
+    }
+
     /// `session/cancel`: the turn under way stops; its `prompt` answers `cancelled`.
     public func cancel(sessionID: String) async {
         try? await notify(ACP.Method.sessionCancel, ACP.cancelParams(sessionID: sessionID))

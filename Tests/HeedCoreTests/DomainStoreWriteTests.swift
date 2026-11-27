@@ -73,4 +73,54 @@ struct DomainStoreWriteTests {
         await store.flushAll()
         #expect(await DomainStore.load(from: file).sessions.count == 2)
     }
+
+    @Test func aQuietChangeWaitsOutTheQuietInterval() async throws {
+        let file = try file()
+        let sessions = Fixtures.main.sessions
+        try #require(sessions.count >= 2)
+        let store = DomainStore(
+            file: file, writeDelay: .milliseconds(1), minimumInterval: .zero, quietInterval: .seconds(60)
+        )
+        await store.apply(.sessionUpserted(sessions[0]))
+        #expect(await eventually { await DomainStore.load(from: file).sessions.count == 1 })
+        await store.apply(.sessionUpserted(sessions[1]), quiet: true)
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(await DomainStore.load(from: file).sessions.count == 1, "the quiet change was not written yet")
+        let stats = await store.takeStats()
+        #expect(stats.writes == 1)
+    }
+
+    @Test func aChangeThatCannotWaitBringsTheQuietOneAlong() async throws {
+        let file = try file()
+        let sessions = Fixtures.main.sessions
+        try #require(sessions.count >= 3)
+        let store = DomainStore(
+            file: file, writeDelay: .milliseconds(1), minimumInterval: .zero, quietInterval: .seconds(60)
+        )
+        await store.apply(.sessionUpserted(sessions[0]))
+        #expect(await eventually { await DomainStore.load(from: file).sessions.count == 1 })
+        await store.apply(.sessionUpserted(sessions[1]), quiet: true)
+        await store.apply(.sessionUpserted(sessions[2]))
+        #expect(await eventually { await DomainStore.load(from: file).sessions.count == 3 })
+    }
+
+    @Test func aThousandQuietChangesCostOneWriteAtQuit() async throws {
+        let file = try file()
+        let session = try #require(Fixtures.main.sessions.first)
+        let store = DomainStore(
+            file: file, writeDelay: .milliseconds(1), minimumInterval: .zero, quietInterval: .seconds(60)
+        )
+        await store.apply(.sessionUpserted(session))
+        #expect(await eventually { await DomainStore.load(from: file).sessions.count == 1 })
+        _ = await store.takeStats()
+        for tick in 0 ..< 1000 {
+            var ticking = session
+            ticking.lastActivity = Date(timeIntervalSince1970: 1_800_000_000 + Double(tick))
+            await store.apply(.sessionUpserted(ticking), quiet: true)
+        }
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(await store.takeStats().writes == 0, "ticks of activity write nothing while the app runs")
+        await store.flushAll()
+        #expect(await store.takeStats().writes == 1)
+    }
 }

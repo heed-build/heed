@@ -1176,7 +1176,7 @@ final class AppModel {
             if state.sameData(as: github) {
                 // Nothing new: only the stamp moves. It is saved as every sync is, and the domain is left alone.
                 githubStamp = state.stamp
-                if let store { Task { await store.apply([.githubSynced(state)]) } }
+                if let store { Task { await store.apply([.githubSynced(state)], quiet: true) } }
                 commit(pullChanges)
             } else {
                 commit([.githubSynced(state)] + pullChanges)
@@ -1864,7 +1864,7 @@ final class AppModel {
         listRebuild.batch {
             write(after, over: before, changed: (historyChanged, githubChanged, detailsChanged, sessionsChanged))
         }
-        if let store { Task { await store.apply(changes) } }
+        if let store { Task { await store.apply(changes, quiet: activityOnly) } }
         if !replacingDomain, !activityOnly, historyChanged || githubChanged || detailsChanged || sessionsChanged {
             noticeLedger(before: before, after: after)
         }

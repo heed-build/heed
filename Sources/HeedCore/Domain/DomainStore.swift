@@ -16,6 +16,11 @@ public actor DomainStore {
     private var writeScheduled = false
     private let writeDelay: Duration
     private let minimumInterval: Duration
+    private let quietInterval: Duration
+    /// When the write now scheduled will run, and which scheduled task may run it: a change that cannot wait brings
+    /// it forward, and the task it replaces then finds it has been superseded.
+    private var writeAt: ContinuousClock.Instant?
+    private var writeToken = 0
     private var lastWrite: ContinuousClock.Instant?
     private let log: EventLog?
     private var pendingLog: [EventLogWrite] = []
@@ -26,10 +31,11 @@ public actor DomainStore {
     /// `file` nil keeps everything in memory (fixtures, tests).
     public init(
         domain: Domain = .empty, file: URL?, log: EventLog? = nil, writeDelay: Duration = .milliseconds(250),
-        minimumInterval: Duration = .seconds(5)
+        minimumInterval: Duration = .seconds(5), quietInterval: Duration = .seconds(60)
     ) {
         self.domain = domain
         self.minimumInterval = minimumInterval
+        self.quietInterval = quietInterval
         self.file = file
         self.log = log
         self.writeDelay = writeDelay
@@ -95,23 +101,41 @@ public actor DomainStore {
         public var writes = 0
         public var bytes = 0
         public var changes: [String: Int] = [:]
+        /// What each part of the domain weighs when encoded, largest first (taken with the stats, only if it wrote).
+        public var sizes: [FieldSize] = []
 
         /// "12 writes, 34.5 MB; changes: sessionUpserted ×40, ...", the five most frequent kinds.
         public var summary: String {
             let top = changes.sorted { ($0.value, $1.key) > ($1.value, $0.key) }.prefix(5)
                 .map { "\($0.key) ×\($0.value)" }.joined(separator: ", ")
             let size = String(format: "%.1f", Double(bytes) / 1_048_576)
+            let heaviest = sizes.prefix(4).map { "\($0.name) \(Self.kb($0.bytes))" }.joined(separator: ", ")
             return "\(writes) writes, \(size) MB" + (top.isEmpty ? "" : "; changes: " + top)
+                + (heaviest.isEmpty ? "" : "; heaviest: " + heaviest)
         }
+
+        private static func kb(_ bytes: Int) -> String {
+            bytes >= 1_048_576 ? String(format: "%.1f MB", Double(bytes) / 1_048_576) : "\(bytes / 1024) KB"
+        }
+    }
+
+    public struct FieldSize: Sendable, Equatable {
+        public var name: String
+        public var bytes: Int
     }
 
     /// The counts so far, and starts them again.
     public func takeStats() -> Stats {
         defer { stats = Stats() }
-        return stats
+        var taken = stats
+        if taken.writes > 0 { taken.sizes = domain.leavingLog.fieldSizes() }
+        return taken
     }
 
-    public func apply(_ changes: [DomainChange]) {
+    /// `quiet` marks changes that are worth keeping but not worth a rewrite of the file soon: the next tool of a
+    /// working turn, a sync that found nothing new. They are written `quietInterval` after the last write, or
+    /// with the next change that cannot wait.
+    public func apply(_ changes: [DomainChange], quiet: Bool = false) {
         guard !changes.isEmpty else { return }
         for change in changes {
             stats.changes[Mirror(reflecting: change).children.first?.label ?? "\(change)", default: 0] += 1
@@ -126,10 +150,10 @@ public actor DomainStore {
             }
         }
         // Changes that left the domain as it was (a poll that found nothing new) do not rewrite the file.
-        if domain != before { scheduleWrite() }
+        if domain != before { scheduleWrite(quiet: quiet) }
     }
 
-    public func apply(_ change: DomainChange) { apply([change]) }
+    public func apply(_ change: DomainChange, quiet: Bool = false) { apply([change], quiet: quiet) }
 
     /// Events that are not domain changes (what a notification did), into the log in order with the rest.
     public func log(_ events: [LoggedEvent]) {
@@ -147,6 +171,7 @@ public actor DomainStore {
     /// Writes the domain now.
     public func flush() {
         writeScheduled = false
+        writeAt = nil
         guard let file else { return }
         let perf = Perf.begin("domain.flush")
         defer { perf.end() }
@@ -191,19 +216,45 @@ public actor DomainStore {
         }
     }
 
-    private func scheduleWrite() {
-        guard file != nil, !writeScheduled else { return }
-        writeScheduled = true
+    private func scheduleWrite(quiet: Bool) {
+        guard file != nil else { return }
+        let since = lastWrite.map { ContinuousClock.now - $0 }
         var delay = writeDelay
-        if let lastWrite { delay = max(delay, minimumInterval - (.now - lastWrite)) }
+        if let since { delay = max(delay, (quiet ? quietInterval : minimumInterval) - since) }
+        let due = ContinuousClock.now + delay
+        // Already scheduled for then or sooner: nothing to bring forward.
+        if writeScheduled, let writeAt, writeAt <= due { return }
+        writeScheduled = true
+        writeAt = due
+        writeToken += 1
+        let token = writeToken
         Task {
             try? await Task.sleep(for: delay)
-            self.flush()
+            self.flushScheduled(token)
         }
+    }
+
+    private func flushScheduled(_ token: Int) {
+        guard token == writeToken, writeScheduled else { return }
+        flush()
     }
 }
 
 extension Domain {
+    /// What each part encodes to, largest first: where the megabytes of `domain.json` come from.
+    func fieldSizes() -> [DomainStore.FieldSize] {
+        let encoder = JSONEncoder.heed
+        func size(_ name: String, _ value: some Encodable) -> DomainStore.FieldSize {
+            DomainStore.FieldSize(name: name, bytes: (try? encoder.encode(value).count) ?? 0)
+        }
+        return [
+            size("repos", repos), size("worktrees", worktrees), size("sessions", sessions), size("layouts", layouts),
+            size("history", history), size("github", github), size("pullDetails", pullDetails),
+            size("feedback", feedback), size("pilotLog", pilotLog), size("mergeRuns", mergeRuns), size("runs", runs),
+            size("registeredWorktrees", registeredWorktrees), size("archives", archives),
+        ].sorted { ($0.bytes, $1.name) > ($1.bytes, $0.name) }
+    }
+
     /// The domain as `domain.json` keeps it once the event log keeps history and timelines. The fields stay, empty,
     /// so an older build still reads the file.
     var leavingLog: Domain {

@@ -6,13 +6,21 @@ struct BrowsePolicyTests {
     private let worktree = "/Users/you/code/wt/heed/docs-toolkit/issue-2830-4f9c2e"
     private let repo = Repo(org: "acme", name: "docs-toolkit")
 
+    private let branch = "heed/browse/issue-2830-4f9c2e"
+
+    private struct Guard: BrowsePushGuard {
+        var branch: String
+        func changedFiles(in _: String) -> [String]? { ["src/Anchors.cs"] }
+        func currentBranch(in _: String) -> String? { branch }
+    }
+
     private func context(
         _ verb: BrowseVerb, trusted: Bool = true, canPush: Bool = true,
         resolve: @escaping @Sendable (String) -> String = { $0 }
     ) -> BrowsePolicy.Context {
         BrowsePolicy.Context(
             verb: verb, worktree: worktree, repo: repo, defaultBranch: "main", trusted: trusted, canPush: canPush,
-            resolve: resolve
+            branch: branch, pushGuard: Guard(branch: branch), resolve: resolve
         )
     }
 
@@ -127,7 +135,9 @@ struct BrowsePolicyTests {
     @Test func editsGoThroughTheEditToolNotIntoGit() {
         #expect(!call(.edit, paths: ["\(worktree)/.git/config"]).allowed)
         #expect(!call(.edit, paths: ["\(worktree)/.git/hooks/pre-commit"]).allowed)
-        #expect(call(.edit, paths: ["\(worktree)/.github/workflows/ci.yml"]).allowed)
+        // A workflow runs with the user's tokens on the next push: that edit is the user's to make.
+        #expect(!call(.edit, paths: ["\(worktree)/.github/workflows/ci.yml"]).allowed)
+        #expect(call(.edit, paths: ["\(worktree)/.githubby/readme.md"]).allowed)
     }
 
     @Test func aDiffsPathIsJudgedToo() {
@@ -197,9 +207,9 @@ struct BrowsePolicyTests {
     @Test func fixAndImplementEditRunCommitPushAndOpenPullRequestsWithoutAsking() {
         for verb in [BrowseVerb.fix, .implement] {
             expectAllowed([
-                "dotnet test", "git add -A", "git commit -m 'Keep anchors when a page moves'", "git push",
+                "dotnet test", "git add -A", "git commit -m 'Keep anchors when a page moves'",
                 "git push -u origin HEAD", "git push origin HEAD", "git push origin heed/browse/issue-2830-4f9c2e",
-                "git push origin HEAD:fix/anchors", "git push origin fix/anchors",
+                "git push origin HEAD:fix/anchors", "git push origin refs/heads/fix/anchors:fix/anchors",
                 "gh pr create --title 'Keep anchors' --body 'Closes #2830' --repo acme/docs-toolkit",
                 "gh pr create --fill", "gh issue comment 2830 --body 'Found it: anchors are keyed before redirects'",
                 "gh issue edit 2830 --add-label has-pr", "gh pr edit 2860 --add-label has-pr",
@@ -208,7 +218,7 @@ struct BrowsePolicyTests {
                 "git reset --hard origin/main", "git checkout origin/main -- src/a.cs", "git fetch origin",
                 "git pull origin main", "mkdir -p out && echo x > out/a.txt", "rm -rf bin obj",
                 "sed -i '' s/a/b/ src/a.cs",
-                "npm install && npm test", "VAR=1 dotnet test", "time dotnet test", "git -C . status",
+                "npm install && npm test", "CI=1 dotnet test", "time dotnet test", "git -C . status",
             ], verb)
         }
     }
@@ -222,7 +232,7 @@ struct BrowsePolicyTests {
             "git checkout -B main origin/main", "git branch -f main HEAD", "git branch -D main",
         ])
         #expect(run("git push origin HEAD:main-fix").allowed)
-        #expect(run("git push origin mainline").allowed)
+        #expect(run("git push origin HEAD:mainline").allowed)
     }
 
     @Test func forcePushesAndDeletingRemoteBranchesAreRefusedInEveryForm() {
@@ -267,12 +277,13 @@ struct BrowsePolicyTests {
             "gh api repos/acme/docs-toolkit/issues -X POST -f title=x",
             "gh api repos/acme/docs-toolkit/issues -f title=x",
             "gh api -X DELETE repos/acme/docs-toolkit/git/refs/heads/x", "gh api repos/acme/docs-toolkit/../other",
+            "gh api -X GET repos/acme/docs-toolkit/pulls/1/files",
             "gh search issues foo", "gh status", "gh browse",
         ])
         expectAllowed([
             "gh issue view 1 --repo acme/docs-toolkit", "gh -R acme/docs-toolkit issue view 1",
             "gh issue comment 1 -R ACME/Docs-Toolkit --body x", "gh api repos/acme/docs-toolkit/issues/1",
-            "gh api -X GET repos/acme/docs-toolkit/pulls/1/files",
+            "gh api repos/acme/docs-toolkit/pulls/1/files",
         ])
     }
 
@@ -314,7 +325,7 @@ struct BrowsePolicyTests {
         ])
         expectAllowed([
             "cd src && dotnet test", "cat src/a.cs", "echo x > out/a.txt", "ls \(worktree)/src", "cp a b",
-            "git -C \(worktree)/src status", "echo $?", "dotnet build --output=out", "echo x > /dev/null",
+            "git -C \(worktree)/src status", "dotnet build --output=out", "echo x > /dev/null",
             "ls > /dev/null 2>&1", "grep -rn 'a b' src", "/usr/bin/git status", "/opt/homebrew/bin/gh issue view 1",
         ])
     }
@@ -346,11 +357,11 @@ struct BrowsePolicyTests {
             "echo ok\ncat ~/.zshrc", "ls & cat /etc/passwd", "bash -c 'ls; cat /etc/passwd'",
             "bash -c \"bash -c 'bash -c \\\"bash -c ls\\\"'\"", "time cat /etc/passwd", "env FOO=1 cat /etc/passwd",
             "timeout 10 cat /etc/passwd", "nohup cat /etc/passwd", "xargs cat /etc/passwd",
-            "FOO=/etc/passwd cat x", "env -i cat x",
+            "FOO=/etc/passwd cat x", "env -i cat x", "env FOO=1 cat x",
         ])
         expectAllowed([
-            "dotnet build && dotnet test && git add -A && git commit -m x && git push", "ls; ls src",
-            "env FOO=1 dotnet test", "timeout 60 dotnet test", "bash -c 'dotnet build && dotnet test'",
+            "dotnet build && dotnet test && git add -A && git commit -m x && git push -u origin HEAD", "ls; ls src",
+            "env CI=1 dotnet test", "timeout 60 dotnet test", "bash -c 'dotnet build && dotnet test'",
             "git status | head -5", "echo a ; echo b",
         ])
     }

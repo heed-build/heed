@@ -194,8 +194,9 @@ extension AppModel {
             $0.note("making its worktree \(plan.name)", at: Clock.now)
         }
         let worktree: String
+        let trusted = verdict.trusted
         do {
-            worktree = try await BrowseWorktree.create(plan, in: record)
+            worktree = try await BrowseWorktree.create(plan, in: record, untrusted: !trusted)
         } catch {
             return fail("could not make its worktree: \(error)")
         }
@@ -205,7 +206,26 @@ extension AppModel {
             await BrowseWorktree.remove(path: worktree, branch: plan.branch, in: record)
             return
         }
-        let trusted = verdict.trusted
+        // A link in the tree that leads out of it is read by the agent's own tools without asking heed: an untrusted
+        // head does not start (checkout wrote its links as plain files, so this is the belt), a trusted one is noted.
+        let escaping = await Task.detached { PathResolver.escapingLinks(in: worktree) }.value
+        if !escaping.isEmpty {
+            let list = escaping.prefix(3).joined(separator: ", ")
+            if !trusted {
+                await BrowseWorktree.remove(path: worktree, branch: plan.branch, in: record)
+                return fail(
+                    "its checkout holds a link that leads outside it (\(list)): heed does not start an agent in it"
+                )
+            }
+            runs.update(id) {
+                $0.note(
+                    "its checkout holds a link that leads outside it (\(list)): heed refuses reads through it",
+                    at: Clock.now
+                )
+            }
+        }
+        let head = await Task.detached { GitPushGuard.head(of: worktree) }.value
+        runs.startCommits[id] = head
         let setup = HelperSetup.steps(trusted: trusted, commands: self.settings.setup.commands(for: item.repo) ?? [])
         if setup.copyIncludes { _ = await WorktreeInclude.copy(from: record.path, to: worktree) }
         for command in setup.commands {
@@ -219,13 +239,14 @@ extension AppModel {
         // Its agent.
         let client: ACPClient
         do {
-            var environment = GitEnvironment.scrubbed(ProcessInfo.processInfo.environment)
-            environment["PATH"] = pathVariable
-            if !trusted {
-                let folder = RunFolder.path(run: "heed-browse-\(id)", root: NSTemporaryDirectory())
-                try? RunFolder.prepare(folder)
-                environment = HelperSetup.environment(environment, agent: adapter.agent, folder: folder)
-            }
+            // Every run, trusted or not, starts with what `RunSandbox.kept` keeps and nothing else: no tokens, no
+            // GIT_*, proxy or loader variables. An untrusted run's gh also has no login.
+            let folder = RunFolder.path(run: "heed-browse-\(id)", root: NSTemporaryDirectory())
+            try? RunFolder.prepare(folder)
+            let environment = BrowseRunEnvironment.make(
+                ProcessInfo.processInfo.environment, agent: adapter.agent, folder: folder, trusted: trusted,
+                path: pathVariable
+            )
             client = try ACPClient(transport: ACPProcessTransport(
                 executable: executable, arguments: adapter.arguments, directory: worktree, environment: environment
             ))
@@ -241,7 +262,20 @@ extension AppModel {
         }
         do {
             let info = try await client.initialize(clientVersion: appVersion)
-            let session = try await client.newSession(cwd: worktree)
+            // Locked: no setting sources, no hooks, no allow rules, no bypass (claude-agent-acp). Then the mode is set
+            // to default: the adapter starts in `auto`, or in what the repo's settings name, otherwise.
+            let session = try await client.newSession(cwd: worktree, locked: true)
+            do {
+                try await client.setMode(sessionID: session, mode: "default")
+            } catch where adapter.agent == "claude" {
+                await client.close()
+                return fail("could not set \(adapter.title)'s permission mode to default: \(error)")
+            } catch {
+                runs.update(id) { $0.note(
+                    "\(adapter.title) has no permission mode to set; heed answers its asks",
+                    at: Clock.now
+                ) }
+            }
             runs.sessionIDs[id] = session
             _ = runs.apply(
                 id,
@@ -346,7 +380,7 @@ extension AppModel {
             let context = BrowsePolicy.Context(
                 verb: run.effectiveVerb, worktree: run.worktree, repo: run.repo,
                 defaultBranch: runs.defaultBranches[id] ?? "main", trusted: run.mode == .full, canPush: run.canPush,
-                resolve: { URL(fileURLWithPath: $0).resolvingSymlinksInPath().path }
+                branch: run.branch, pushGuard: GitPushGuard(start: runs.startCommits[id])
             )
             // Symlinks are looked up off the main actor.
             Task { [weak self] in
@@ -491,6 +525,7 @@ extension AppModel {
         guard run.phase != .needsClone, run.phase != .cloning, run.phase != .preparing else {
             return say("the run is not ready yet: keep it once it is working")
         }
+        if let why = BrowseKeep.refusal(run) { return say(why) }
         let id = run.id
         let runs = browse.runs
         guard !(isFixture || tutor != nil) else {

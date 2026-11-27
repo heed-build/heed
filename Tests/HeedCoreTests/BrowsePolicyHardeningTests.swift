@@ -12,7 +12,9 @@ struct BrowsePolicyHardeningTests {
 
     struct QuietGuard: BrowsePushGuard {
         var files: [String]?
+        var current: String? = BrowsePolicyHardeningTests.branch
         func changedFiles(in _: String) -> [String]? { files }
+        func currentBranch(in _: String) -> String? { current }
     }
 
     static func context(
@@ -350,7 +352,6 @@ struct BrowsePolicyHardeningTests {
             "echo ~/x",
             "echo {a,b}",
             "echo {1..3}",
-            "echo *",
             "echo ../*",
             "echo /etc/*",
             "ls /etc/pass?d",
@@ -470,14 +471,21 @@ struct BrowsePolicyHardeningTests {
             }
         }
         // A read that names nothing is not allowed: heed cannot tell what it reads.
-        #expect(!BrowsePolicy.decide(ACPToolCall(id: "1", kind: .read), Self.context(verb)).allowed, "M5 read of nothing")
-        #expect(!BrowsePolicy.decide(ACPToolCall(id: "1", kind: .search), Self.context(verb)).allowed, "M5 search of nothing")
+        #expect(
+            !BrowsePolicy.decide(ACPToolCall(id: "1", kind: .read), Self.context(verb)).allowed,
+            "M5 read of nothing"
+        )
+        #expect(
+            !BrowsePolicy.decide(ACPToolCall(id: "1", kind: .search), Self.context(verb)).allowed,
+            "M5 search of nothing"
+        )
         // Inside the worktree, and a search with only a pattern (it searches where the agent is), are fine.
         #expect(BrowsePolicy.decide(
             ACPToolCall(id: "1", kind: .search, inputPaths: ["\(Self.worktree)/src"], patterns: ["TODO"]),
             Self.context(verb)
         ).allowed)
-        #expect(BrowsePolicy.decide(ACPToolCall(id: "1", kind: .search, patterns: ["**/*.cs"]), Self.context(verb)).allowed)
+        #expect(BrowsePolicy.decide(ACPToolCall(id: "1", kind: .search, patterns: ["**/*.cs"]), Self.context(verb))
+            .allowed)
     }
 
     // MARK: The answer sent to the agent (M7)
@@ -663,7 +671,10 @@ struct BrowsePolicyHardeningTests {
         let text = BrowseKeep.prompt(run, item: issue(author: "stranger", bot: false))
         #expect(!text.contains("Reproduce the bug"), "M2 the kept prompt is the effective verb's, not the asked one")
         #expect(text.contains("Do not change any files"), "M2 a chat stays a chat")
-        #expect(BrowseKeep.refusal(run) != nil || !text.contains("git push"), "M2 and says why when it will not keep it")
+        #expect(
+            BrowseKeep.refusal(run) != nil || !text.contains("git push"),
+            "M2 and says why when it will not keep it"
+        )
     }
 
     // MARK: Prompts (H5)
@@ -690,5 +701,57 @@ struct BrowsePolicyHardeningTests {
         #expect(settings?["enableAllProjectMcpServers"]?.bool == false)
         // An unlocked session (helpers) is as it was.
         #expect(ACP.newSessionParams(cwd: "/w")["_meta"] == nil)
+    }
+}
+
+// MARK: The push guard asks real git (H4)
+
+extension BrowsePolicyHardeningTests {
+    private func git(_ path: String, _ args: [String]) throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["git", "-C", path] + args
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        #expect(process.terminationStatus == 0, "git \(args)")
+    }
+
+    @Test func theRealGuardNamesWhatTheRunsCommitsChanged() throws {
+        let path = FileManager.default.temporaryDirectory.appendingPathComponent("heed-guard-\(UUID().uuidString)").path
+        let fm = FileManager.default
+        try fm.createDirectory(atPath: path + "/.github/workflows", withIntermediateDirectories: true)
+        defer { try? fm.removeItem(atPath: path) }
+        try "a".write(toFile: path + "/a.txt", atomically: true, encoding: .utf8)
+        // The pull request's own workflow is already in the head the run starts from.
+        try "on: push".write(toFile: path + "/.github/workflows/old.yml", atomically: true, encoding: .utf8)
+        for args in [
+            ["init", "-q", "-b", "work"], ["config", "user.email", "t@t"], ["config", "user.name", "t"],
+            ["add", "."], ["commit", "-q", "-m", "start"],
+        ] {
+            try git(path, args)
+        }
+        let start = try #require(GitPushGuard.head(of: path))
+        let guardian = GitPushGuard(start: start)
+        #expect(guardian.changedFiles(in: path) == [])
+        #expect(guardian.currentBranch(in: path) == "work")
+        try "b".write(toFile: path + "/a.txt", atomically: true, encoding: .utf8)
+        try "on: push\njobs: {}".write(toFile: path + "/.github/workflows/new.yml", atomically: true, encoding: .utf8)
+        for args in [["add", "."], ["commit", "-q", "-m", "work"]] {
+            try git(path, args)
+        }
+        let changed = try #require(guardian.changedFiles(in: path))
+        #expect(Set(changed) == ["a.txt", ".github/workflows/new.yml"])
+        #expect(GitPushGuard(start: nil).changedFiles(in: path) == nil, "no start: heed cannot tell")
+        // And the policy refuses the push on it.
+        let context = BrowsePolicy.Context(
+            verb: .fix, worktree: path, repo: Self.repo, branch: "work", pushGuard: guardian
+        )
+        let verdict = BrowsePolicy.decide(
+            ACPToolCall(id: "1", kind: .execute, command: "git push -u origin HEAD"), context
+        )
+        #expect(!verdict.allowed)
+        #expect(verdict.reason?.contains(".github/workflows/new.yml") == true)
     }
 }

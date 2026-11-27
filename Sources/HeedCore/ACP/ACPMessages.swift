@@ -36,7 +36,7 @@ public enum ACP {
         ]
     }
 
-    public static func newSessionParams(cwd: String) -> JSONValue {
+    public static func newSessionParams(cwd: String, locked: Bool = false) -> JSONValue {
         ["cwd": .string(cwd), "mcpServers": []]
     }
 
@@ -163,10 +163,16 @@ public struct ACPToolCall: Hashable, Sendable, Codable {
     public var command: String?
     /// The page, when the tool fetches one (its raw input's `url`).
     public var url: String?
+    /// The paths a tool's raw input names (`path`, `file_path`, `notebook_path`): Glob and Grep report these and no
+    /// `locations`, so a policy that only looks at `paths` never sees them.
+    public var inputPaths: [String]?
+    /// A search tool's raw `pattern` or `glob`: a glob can name a place outside the worktree.
+    public var patterns: [String]?
 
     public init(
         id: String, title: String? = nil, kind: ACPToolKind? = nil, status: ACPToolStatus? = nil,
-        content: [ACPToolContent]? = nil, paths: [String]? = nil, command: String? = nil, url: String? = nil
+        content: [ACPToolContent]? = nil, paths: [String]? = nil, command: String? = nil, url: String? = nil,
+        inputPaths: [String]? = nil, patterns: [String]? = nil
     ) {
         self.id = id
         self.title = title
@@ -176,6 +182,8 @@ public struct ACPToolCall: Hashable, Sendable, Codable {
         self.paths = paths
         self.command = command
         self.url = url
+        self.inputPaths = inputPaths
+        self.patterns = patterns
     }
 
     init?(_ value: JSONValue) {
@@ -189,6 +197,10 @@ public struct ACPToolCall: Hashable, Sendable, Codable {
         let input = value["rawInput"]
         command = input?["command"]?.string ?? input?["command"]?.array?.compactMap(\.string).joined(separator: " ")
         url = input?["url"]?.string
+        let named = ["path", "file_path", "notebook_path", "directory"].compactMap { input?[$0]?.string }
+        inputPaths = named.isEmpty ? nil : named
+        let globs = ["pattern", "glob"].compactMap { input?[$0]?.string }
+        patterns = globs.isEmpty ? nil : globs
     }
 }
 

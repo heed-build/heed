@@ -28,12 +28,17 @@ public enum BrowsePolicy {
         public var trusted: Bool
         /// The run may push: false on a pull request from a fork, whose branch is not this repo's.
         public var canPush: Bool
+        /// The branch the run works on: the one `git push origin <branch>` may name.
+        public var branch: String?
+        /// Looks at what a push would publish. Nil: heed cannot, so a push is refused.
+        public var pushGuard: (any BrowsePushGuard)?
         /// Where a path really points, for symlinks (the app passes `resolvingSymlinksInPath`).
         public var resolve: @Sendable (String) -> String
 
         public init(
             verb: BrowseVerb, worktree: String, repo: Repo, defaultBranch: String = "main", trusted: Bool = true,
-            canPush: Bool = true, resolve: @escaping @Sendable (String) -> String = { $0 }
+            canPush: Bool = true, branch: String? = nil, pushGuard: (any BrowsePushGuard)? = nil,
+            resolve: @escaping @Sendable (String) -> String = { $0 }
         ) {
             self.verb = verb
             self.worktree = worktree
@@ -41,6 +46,8 @@ public enum BrowsePolicy {
             self.defaultBranch = defaultBranch
             self.trusted = trusted
             self.canPush = canPush
+            self.branch = branch
+            self.pushGuard = pushGuard
             self.resolve = resolve
         }
 

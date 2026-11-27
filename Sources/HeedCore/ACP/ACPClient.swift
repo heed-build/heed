@@ -84,8 +84,10 @@ public actor ACPClient {
     }
 
     /// `session/new` in `cwd`: the session's id.
-    public func newSession(cwd: String, timeout: Duration = .seconds(60)) async throws -> String {
-        let result = try await request(ACP.Method.sessionNew, ACP.newSessionParams(cwd: cwd), timeout: timeout)
+    public func newSession(cwd: String, locked: Bool = false, timeout: Duration = .seconds(60)) async throws -> String {
+        let result = try await request(
+            ACP.Method.sessionNew, ACP.newSessionParams(cwd: cwd, locked: locked), timeout: timeout
+        )
         guard let id = result["sessionId"]?.string else { throw ACPError.badResponse(ACP.Method.sessionNew) }
         return id
     }

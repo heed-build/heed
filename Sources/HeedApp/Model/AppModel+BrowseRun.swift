@@ -641,14 +641,3 @@ extension AppModel {
         }
     }
 }
-
-/// What a kept run's session is told: where the run got to, so its agent picks up from the worktree.
-enum BrowseKeep {
-    static func prompt(_ run: BrowseRun, item: BrowseItem) -> String {
-        var text = BrowseWorkPrompts.prompt(run.verb, item: item).text
-        text += "\n\nAn agent already worked on this in this worktree: read `git log` and `git status` to see where it got to, and carry on from there."
-        if let branch = run
-            .prBranch { text += " Push to the pull request's branch with `git push origin HEAD:\(branch)`." }
-        return text
-    }
-}

@@ -3616,7 +3616,7 @@ final class AppModel {
     }
 
     /// `<Esc>` in NORMAL: the reader, an overlay, then back from a view to Sessions.
-    private func closeTopmost() {
+    func closeTopmost() {
         if issueReader != nil {
             issueReader = nil
         } else if reader != nil {

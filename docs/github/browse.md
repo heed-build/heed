@@ -460,7 +460,7 @@ Where you are, what you picked and the query survive a resize.
 | `O` | `browse.from.goals` | Only the items that are in a goal, and back |
 | `s` | `browse.run.keep` | Keep the run as a session |
 | `i` | `browse.run.steer` | Steer the run |
-| `⎋` | `browse.run.close` | Close the run and remove its worktree (kept, with a card, when it holds unpushed work); with items picked, clear them; on a pushed reader, go back |
+| `⎋` | `browse.run.close` | Close the run and remove its worktree (kept, with a card, when it holds unpushed work); in this order, the first that applies: close help or a reader that is open, cancel a bulk step, go back from a pushed reader, clear the picks, close the scope sheet, then close the item's run |
 | `P` `E` `X` | `browse.run.review.post` `.edit` `.discard` | Post, edit or discard the drafted review; twice, discard a kept worktree |
 | `c` `d` | `browse.clone.only` `browse.clone.folder` | On the clone card: only clone, choose the folder |
 

@@ -750,6 +750,20 @@ struct BrowseRefreshBanner: View {
     var compact = false
 
     var body: some View {
+        VStack(spacing: 0) {
+            if let problem = model.browse.cacheProblem {
+                line {
+                    Image(systemName: "externaldrive.badge.xmark").font(.system(size: 10.5)).foregroundStyle(Theme.block)
+                    Text(problem).font(Theme.ui(12)).foregroundStyle(Theme.fg2).lineLimit(1)
+                        .help(problem)
+                    Spacer(minLength: 0)
+                }
+            }
+            banner
+        }
+    }
+
+    @ViewBuilder private var banner: some View {
         let browse = model.browse
         if let diff = browse.pending {
             line {

@@ -884,6 +884,10 @@ enum Shots {
             )
             model.browse.runs.runs = [run]
         }),
+        // browse.sqlite could not be opened (a build with a newer schema wrote it): Browse works from memory and says so.
+        Shot(id: "github/browse-cache-notice", keys: "gb", prepare: { model in
+            model.browse.showCacheProblem("schema version 9 is newer than this build's 3")
+        }),
         // Closing a run whose worktree holds unpushed commits keeps it, and the reader says so until it is dealt with.
         Shot(id: "github/browse-close-kept", keys: "gb", highlight: [.browseRun], prepare: { model in
             var run = browseRun(2830, .fix, phase: .working)

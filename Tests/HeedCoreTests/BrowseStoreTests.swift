@@ -77,6 +77,39 @@ import Testing
     }
 }
 
+@Suite(.scratch) struct BrowseStoreOpenTests {
+    @Test func aFileFromANewerBuildIsRefusedWithAReasonNotSilently() async throws {
+        let file = try Scratch.folder("browse-open").appendingPathComponent("browse.sqlite")
+        let database = try SQLiteDatabase(path: file.path)
+        try database.execute("PRAGMA user_version = 99")
+        let opened = await BrowseStore.open(at: file)
+        #expect(opened.store == nil)
+        #expect(opened.problem?.contains("newer") == true)
+    }
+
+    @Test func aFolderThatCannotBeMadeIsRefusedWithAReason() async throws {
+        let blocker = try Scratch.folder("browse-open").appendingPathComponent("a-file")
+        try Data("x".utf8).write(to: blocker)
+        let opened = await BrowseStore.open(at: blocker.appendingPathComponent("inside/browse.sqlite"))
+        #expect(opened.store == nil)
+        #expect(opened.problem?.isEmpty == false)
+    }
+
+    @Test func aFileThatOpensHasNoProblem() async throws {
+        let file = try Scratch.folder("browse-open").appendingPathComponent("browse.sqlite")
+        let opened = await BrowseStore.open(at: file)
+        #expect(opened.store != nil && opened.problem == nil)
+    }
+
+    @Test func theNoticeNamesTheReasonAndThatBrowseWorksWithoutTheCache() {
+        let text = BrowseCacheNotice.text(reason: "schema version 99 is newer than this build's 3.")
+        #expect(
+            text == "Browse's cache could not be opened: schema version 99 is newer than this build's 3."
+                + " Working without it."
+        )
+    }
+}
+
 struct BrowseFetchTests {
     private let answer = """
     {"data": {"search": {"issueCount": 47, "pageInfo": {"hasNextPage": true, "endCursor": "c1"}, "nodes": [

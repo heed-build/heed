@@ -502,6 +502,9 @@ the [configuration reference](../configuration/reference.md).
   itself: coming back to it (see Staying current) or `r` asks again, and the line over the list says how old it is.
 - **It brings in at most 300 items per search.** A longer result is filtered, not read: narrow the query.
 - **An answer that is not an answer never empties the list.** When GitHub replies with errors and no search result, or only some of an "All checkouts" view's owners were searched, Browse says what went wrong (or keeps every row) instead of treating the missing rows as gone; the cache keeps them.
+- **A cache that cannot be opened does not stop Browse.** If `browse.sqlite` is locked, unwritable or from a newer heed, Browse works from memory (everything fetched this run, nothing kept for the next) and a line over the list says why.
+
+  ![The line over the list when Browse's cache could not be opened](../images/shots/github/browse-cache-notice.png)
 - **GitHub can time out on a very large search.** When it answers HTTP 502 or 504, Browse asks the same page again in
   smaller pages (100, then 50, 25 and 10, then ten without the checks and requested reviewers, which then show as
   unknown), waiting a moment between tries, and keeps the smaller size for that scope and query. If every size fails it

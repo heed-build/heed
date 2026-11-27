@@ -5758,6 +5758,8 @@ final class AppModel {
     }
 
     private func openReader() {
+        // Browse's reader is the pane beside the list, which ↩ loads: "Read it" must not open GitHub.
+        if view == .browse { return perform(CommandInvocation(name: "browse.open")) }
         if view == .attention, commandTarget == nil { openedAttentionItem() }
         // An agent in Attention has no thread to read: its session is where you answer it.
         if view == .attention, commandTarget == nil, attentionSelected?.item.kind == .agent {

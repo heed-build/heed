@@ -173,7 +173,11 @@ final class AppModel {
     }
 
     // What the pilot knows decides Watching and Stalled in the sidebar, so each change rebuilds the list.
-    private(set) var github = GitHubState() { didSet { listRebuild.request() } }
+    private(set) var github = GitHubState() { didSet {
+        listRebuild.request()
+        // `@me` in a Browse query is judged against who you are, which arrives after the first draw.
+        if github.viewer != oldValue.viewer { browse.setViewer(github.viewer) }
+    } }
     private(set) var pullDetails: [String: PullDetail] = [:] {
         didSet {
             listRebuild.request()
@@ -844,7 +848,15 @@ final class AppModel {
         startMindmap()
         startStandup()
         if !isFixture { await attention.open(beside: file) }
-        if !isFixture { await browse.open(beside: file) }
+        if !isFixture {
+            await browse.open(beside: file)
+            // Entered before the cache was open: nothing asked GitHub then (the policy holds back until it is), so ask now.
+            if view == .browse {
+                browse.setViewer(github.viewer)
+                browseAutoRefresh(.viewSwitch)
+                browse.startCounts { [weak self] in self?.view == .browse }
+            }
+        }
         // Before resume is offered: sessions on a goal resume told so.
         if !isFixture {
             await startGoals(beside: file)

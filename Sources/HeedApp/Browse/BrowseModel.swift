@@ -295,10 +295,18 @@ final class BrowseModel {
     }
 
     func configure(_ settings: BrowseSettings, viewer: String?) {
-        let moved = settings.maxAgeDays != self.settings.maxAgeDays
+        let moved = settings.maxAgeDays != self.settings.maxAgeDays || viewer != self.viewer
         self.settings = settings
         self.viewer = viewer
         if moved { refilter() }
+    }
+
+    /// Who you are arrived (or changed) while Browse was already showing: what `@me` stands for moved, so the list and
+    /// the rail's counts are judged again.
+    func setViewer(_ viewer: String?) {
+        guard viewer != self.viewer else { return }
+        self.viewer = viewer
+        refilter()
     }
 
     // MARK: What the list shows

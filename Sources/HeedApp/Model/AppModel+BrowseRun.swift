@@ -313,7 +313,8 @@ extension AppModel {
         let place = BrowseRunPrompt.Place(
             worktree: worktree, branch: plan.branch, defaultBranch: record.defaultBranch ?? "main",
             prBranch: pushBranch,
-            fork: item.kind == .pull && !verdict.canPush
+            fork: item.kind == .pull && !verdict.canPush,
+            signing: await CommitSigning.detect(in: worktree, parent: ProcessInfo.processInfo.environment)
         )
         // No agent fetches comments itself (a comment on a trusted author's item can be a stranger's): heed reads the
         // thread and fences it, for every verb. When it cannot, a Chat is told so and the rest are told there are none.

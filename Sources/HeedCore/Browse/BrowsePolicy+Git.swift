@@ -83,6 +83,13 @@ extension BrowsePolicy {
         guard context.power == .write else {
             return .no("\(context.verb.title) changes no commits or branches: git \(sub) is a change")
         }
+        if sub == "commit",
+           args.contains(where: { $0 == "--no-gpg-sign" || $0 == "--gpg-sign" || $0.hasPrefix("--gpg-sign=") })
+        {
+            return .no(
+                "git commit signs as the user has configured: run `git commit -m 'message'`, without --gpg-sign or --no-gpg-sign"
+            )
+        }
         let parsed = spec.parse(args, command: "git \(sub)")
         let check = checkParsed(
             parsed, context, cwd: cwd, forWriting: false, positionalsAreText: ["commit", "tag", "stash"].contains(sub)
@@ -206,7 +213,6 @@ extension BrowsePolicy {
                 "porcelain",
                 "reset-author",
                 "no-status",
-                "no-gpg-sign",
             ],
             longValues: [
                 "message": .text,
@@ -219,7 +225,7 @@ extension BrowsePolicy {
                 "cleanup": .text,
                 "trailer": .text,
             ],
-            longOptional: ["untracked-files", "gpg-sign"]
+            longOptional: ["untracked-files"]
         ),
         "restore": table(
             flags: "SWq", shortValues: ["s": .text],

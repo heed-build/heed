@@ -393,32 +393,13 @@ struct LiveBrowseE2ETests {
                 extraEnvironment: [:],
                 label: "as the app starts it"
             )
-            let agentDropped = !RunSandbox.baseVariables.contains("SSH_AUTH_SOCK")
-            if first.ahead == 0, first.committedTried, first.signingConfigured || first.sawPassphrase, agentDropped {
-                step.productBug(
-                    "F1-signed-commits",
-                    "a Fix cannot commit when git is set to sign commits with an ssh key (commit.gpgsign=true, gpg.format=ssh): "
-                        + "RunSandbox.baseVariables does not keep SSH_AUTH_SOCK, so `git commit` fails with 'Enter passphrase ... incorrect passphrase', "
-                        +
-                        "the model then tries --no-verify and `git -c commit.gpgsign=false`, which the policy correctly refuses",
-                    reproduced: true
-                )
-                // The rest of Fix (push, pull request) still needs testing: the same run with the agent socket kept,
-                // a test-only workaround that shows what the fix would unlock.
-                var env: [String: String] = [:]
-                if let socket = ProcessInfo.processInfo.environment["SSH_AUTH_SOCK"] { env["SSH_AUTH_SOCK"] = socket }
-                let second = try await Self.fixAttempt(
-                    step,
-                    state,
-                    record,
-                    item,
-                    extraEnvironment: env,
-                    label: "with SSH_AUTH_SOCK kept (test-only workaround)"
-                )
-                Self.expectOutcome(step, second, item: item)
-            } else {
-                Self.expectOutcome(step, first, item: item)
-            }
+            // F1 (fixed): a Fix commits when git signs with an ssh key, because a trusted run that writes keeps the
+            // agent's socket (BrowseRunEnvironment). A passphrase prompt in the feed is a failure now.
+            step.expect(
+                !(first.ahead == 0 && first.committedTried && first.sawPassphrase),
+                "F1: the Fix could not commit: git asked for a passphrase (signing configured: \(first.signingConfigured))"
+            )
+            Self.expectOutcome(step, first, item: item)
         }
     }
 

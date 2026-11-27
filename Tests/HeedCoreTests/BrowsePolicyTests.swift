@@ -173,6 +173,7 @@ struct BrowsePolicyTests {
             "gh pr view 12 --repo acme/docs-toolkit",
             "gh pr diff 12", "gh pr checks 12", "gh api repos/acme/docs-toolkit/issues/12/comments",
             "git fetch origin main", "git remote -v", "git config --get remote.origin.url", "echo hi 2>&1",
+            "git config remote.origin.url", "git log -n5 --oneline", "git log --pretty=format:'%h %s' -3",
             "cd src && ls", "git log | head -20", "sed -n '1,20p' src/a.cs",
         ], .chat)
         expectRefused([

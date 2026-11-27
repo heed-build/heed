@@ -17,9 +17,14 @@ import Foundation
 /// What it does not defend, and what the OS sandbox (the next change) is for:
 /// - A program it allows that does something else than its name says: `dotnet test`, `npm test`, `make` and `pytest`
 ///   run whatever the repo's code does, which is why only trusted authors' runs get them at all.
-/// - A read the agent's own tools make without asking: Claude Code reads files in its working folder (and follows
-///   links there) without a permission request, so only the symlink scan at the start of a run (`PathResolver`) and the
-///   locked session (`ACP.newSessionParams`) stand between an untrusted checkout and those reads.
+/// - Whatever the agent's own tools do without asking. Checked live against claude-agent-acp 0.108 in `default`
+///   mode (2026-11): `echo`, `cat` and the Read tool on files in the working folder produced no
+///   `session/request_permission` at all, so this policy never saw them (it saw `cat ~/.ssh/config`, `grep` of
+///   `/etc/passwd` and a Read of `/etc/hosts`). Claude Code follows a link in the working folder on those reads, so
+///   only the symlink scan at the start of a run (`PathResolver`), a stranger's head being checked out with
+///   `core.symlinks=false`, and the locked session (`ACP.newSessionParams`) stand between a checkout and them.
+///   The adapter also starts in `auto` mode, in which a model decides what to ask: heed sets `default` after
+///   `session/new`, and a run is refused to start when that fails.
 /// - A glob that expands, once the shell runs it, to files this text-level check cannot list: it is refused when it
 ///   has `..`, and its literal prefix is checked, nothing more.
 /// - Anything an allowed command sends over the network: `git fetch`, `gh` and the build tools reach the network.

@@ -112,7 +112,7 @@ extension BrowsePolicy {
 
     static let readOptions: Options = {
         var spec = Options()
-        spec.flags = "abcdeghiklmnpqrstuvwxzABCDEFGHIKLMNPRSTUVWZL"
+        spec.flags = "abcdeghiklmnpqrstuvwxzABCDEFGHIKLMNPRSTUVWZL0123456789"
         spec.longs = [
             "oneline", "shortstat", "numstat", "name-only", "name-status", "summary", "patch", "no-patch",
             "patch-with-stat", "graph", "no-decorate", "abbrev-commit", "no-abbrev-commit", "all-match", "invert-grep",
@@ -501,6 +501,9 @@ extension BrowsePolicy {
             return .yes
         }
         if rest.count == 1, lists.contains(rest[0]) { return .yes }
+        // `git config user.name`: one key and nothing to set it to is a read.
+        if rest.count == 1, rest[0].range(of: key, options: .regularExpression) != nil,
+           rest[0].contains(".") { return .yes }
         if args
             .contains(where: {
                 $0 == "--file" || $0 == "-f" || $0.hasPrefix("--file=") || $0 == "--global" || $0 == "--system"

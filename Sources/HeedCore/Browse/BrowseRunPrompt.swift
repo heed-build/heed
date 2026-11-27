@@ -40,7 +40,9 @@ public enum BrowseRunPrompt {
             text = text + "The repository's own agent instructions (AGENTS.md, CLAUDE.md) are not loaded for you: "
                 + "read them first if it has them. heed does not let you change the files that run code by themselves "
                 + "(.github workflows, hooks, package.json, Makefile, mise.toml, agent settings): if one has to change, "
-                + "say so in your final message.\n\n"
+                + "say so in your final message. heed reads each command before it runs: write commit and comment text in "
+                + "single quotes or a file (`git commit -m 'message'`, `--body-file`), with no `$(...)`, no here-document "
+                + "and no `$` or `~` in a word, and name the branch you push (`git push -u origin HEAD`).\n\n"
         }
         if case let .chatOnly(reason) = run.mode {
             text = text + "heed runs you read-only here, as a chat, because \(name: reason). Run nothing from the "

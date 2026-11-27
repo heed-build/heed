@@ -192,6 +192,9 @@ struct BrowseRefreshApplyTests {
         #expect(BrowseRefreshApply.gone(shown: shown, fetched: fetched, capped: true) == [id(2)])
         #expect(BrowseRefreshApply.gone(shown: shown, fetched: [], capped: true).isEmpty)
         #expect(BrowseRefreshApply.gone(shown: shown, fetched: [], capped: false).count == 5)
+        // An answer that searched only some of the owners vouches for none of the rows.
+        #expect(BrowseRefreshApply.gone(shown: shown, fetched: fetched, capped: false, partial: true).isEmpty)
+        #expect(BrowseRefreshApply.gone(shown: shown, fetched: [], capped: false, partial: true).isEmpty)
     }
 }
 

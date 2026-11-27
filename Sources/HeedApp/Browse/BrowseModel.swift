@@ -513,7 +513,7 @@ final class BrowseModel {
                 failures += 1
                 failedAt = Date()
                 silent = false
-                load = .failed((error as? GitHub.Failure)?.description ?? error.localizedDescription)
+                load = .failed((error as? CustomStringConvertible)?.description ?? error.localizedDescription)
             }
         }
     }
@@ -550,7 +550,9 @@ final class BrowseModel {
         load = .idle
         silent = false
         fresh = []
-        let gone = BrowseRefreshApply.gone(shown: allRows, fetched: result.items, capped: result.capped)
+        let gone = BrowseRefreshApply.gone(
+            shown: allRows, fetched: result.items, capped: result.capped, partial: result.groups < result.groupsTotal
+        )
         let store = store
         let kept = result.items
         Task { try? await store?.record(kept, now: Date()) }

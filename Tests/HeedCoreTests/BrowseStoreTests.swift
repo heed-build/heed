@@ -100,7 +100,7 @@ struct BrowseFetchTests {
     """
 
     @Test func anAnswerBecomesItemsWithEverythingTheListNeeds() throws {
-        let page = BrowseFetch.parse(Data(answer.utf8))
+        let page = try BrowseFetch.parse(Data(answer.utf8))
         #expect(page.total == 47 && page.next == "c1")
         #expect(page.items.count == 2)
         let issue = page.items[0]
@@ -111,6 +111,35 @@ struct BrowseFetchTests {
         let pull = page.items[1]
         #expect(pull.kind == .pull && pull.state == .merged && pull.checks == .failing && pull.review == .approved)
         #expect(pull.authorIsBot && pull.title.author.trust == .bot && !pull.hasLinkedPull)
+    }
+
+    @Test func aRealEmptySearchIsAnEmptyPage() throws {
+        let page = try BrowseFetch.parse(Data(#"{"data":{"search":{"issueCount":0,"pageInfo":{"hasNextPage":false},"nodes":[]}}}"#.utf8))
+        #expect(page.items.isEmpty && page.total == 0 && page.next == nil)
+    }
+
+    @Test func anAnswerWithNoSearchIsAFailureNotAnEmptyList() {
+        let answers = [
+            #"{"data":{"search":null},"errors":[{"message":"Something went wrong while executing your query."}]}"#,
+            #"{"data":null,"errors":[{"message":"timeout"}]}"#,
+            #"{"data":{}}"#,
+            #"{}"#,
+            "not json",
+        ]
+        for answer in answers {
+            #expect(throws: BrowseFetch.UnusableAnswer.self, "\(answer)") { try BrowseFetch.parse(Data(answer.utf8)) }
+        }
+    }
+
+    @Test func theFailureSaysWhatGitHubSaid() {
+        let answer = #"{"data":{"search":null},"errors":[{"message":"Something went wrong"}]}"#
+        do {
+            _ = try BrowseFetch.parse(Data(answer.utf8))
+            Issue.record("parse did not throw")
+        } catch {
+            #expect("\(error)".contains("Something went wrong"))
+            #expect(error.localizedDescription.contains("no search result"))
+        }
     }
 
     @Test func theSearchTextIsTheQueryNewestFirst() {

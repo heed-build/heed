@@ -44,6 +44,10 @@ run = "scripts/text-check.sh"
 description = "The live checks: heed's helper, approvals, OpenTelemetry and the goal wizard against real Claude Code on haiku (calls a model)"
 run = "scripts/slot.sh swift build --product heed && HEED_LIVE=1 swift test --filter HeedCoreTests.Live"
 
+[tasks.live-browse]
+description = "The live smoke suite for Browse: real GitHub reads, and an end-to-end run on Mpdreamz/heed-smoke with the real agent on haiku (needs HEED_LIVE=1; calls a model, writes to that one repo)"
+run = "scripts/live-browse.sh"
+
 [tasks.bench]
 description = "Timings kept out of the test suite (a hook's budget and the like): optimized, one at a time"
 # Only the test product (HeedCore and its tests), not the app and MLX. A debug build with -O: optimized and testable,

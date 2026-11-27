@@ -290,8 +290,14 @@ or merged gets Chat only.
 `pr-<number>-<hex>` for a PR, on a branch `heed/browse/<name>`, under the same root as helper worktrees. The reader
 is split in two: the issue or PR stays on top, so you can keep reading what the agent is working on, and the run's
 feed sits below it: what it read, edited (with the diff), ran, tested, commented, pushed and opened. Closing the run
-(`⎋`) removes the worktree and its local branch. A branch it pushed stays on GitHub. If commits were never pushed,
-heed says so as it closes.
+(`⎋`) removes the worktree and its local branch; a branch it pushed stays on GitHub. A worktree that holds work
+nothing else has, commits no remote has or changes not committed, is not removed: the run closes, and the reader shows
+a card (below) until you deal with it.
+
+![A closed run whose worktree was kept because it holds commits that were never pushed](../images/shots/github/browse-close-kept.png)
+
+The card says how many commits are not pushed and where the worktree is kept. Push it from there, keep it as a session
+(`s`), discard it (`X` twice, within a few seconds), or dismiss the card with `⎋`, which leaves the worktree where it is.
 
 **What it needs.** A run talks to its agent over [ACP](../autopilot/helpers.md#how-heed-talks-to-them), which the agent's
 own command line does not speak, so for claude heed needs the ACP adapter on your login shell's `PATH`:
@@ -454,8 +460,8 @@ Where you are, what you picked and the query survive a resize.
 | `O` | `browse.from.goals` | Only the items that are in a goal, and back |
 | `s` | `browse.run.keep` | Keep the run as a session |
 | `i` | `browse.run.steer` | Steer the run |
-| `⎋` | `browse.run.close` | Close the run and remove its worktree; with items picked, clear them; on a pushed reader, go back |
-| `P` `E` `X` | `browse.run.review.post` `.edit` `.discard` | Post, edit or discard the drafted review |
+| `⎋` | `browse.run.close` | Close the run and remove its worktree (kept, with a card, when it holds unpushed work); with items picked, clear them; on a pushed reader, go back |
+| `P` `E` `X` | `browse.run.review.post` `.edit` `.discard` | Post, edit or discard the drafted review; twice, discard a kept worktree |
 | `c` `d` | `browse.clone.only` `browse.clone.folder` | On the clone card: only clone, choose the folder |
 
 With items picked:
@@ -512,6 +518,6 @@ the [configuration reference](../configuration/reference.md).
 - **Agent actions take one item,** and an agent never starts on an item whose Fix, Implement or Review does not fit
   it: the button says why.
 - **A run is not a sandbox,** and it is not free: it spends against `[helpers] spend_cap`.
-- **A crash can leave a run's worktree behind.** heed removes it when you close the run, not on its own at startup.
+- **A crash can leave a run's worktree behind.** heed removes it when you close the run, not on its own at startup (the next launch's sweep removes the ones with nothing unpushed or uncommitted in them).
 
 **Next:** [Reading](reading.md), or [start a session from an item](../start-work/from-github.md).

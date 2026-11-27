@@ -22,7 +22,8 @@ extension AppModel {
         }
         browse.startRefusals[item.id] = nil
         // A run of this item that failed is dismissed first (its worktree, if it got one, goes).
-        for old in runs.runs where old.itemID == item.id && old.phase.isOver {
+        // One that holds work nothing else has is kept (and says so), never silently dismissed.
+        for old in runs.runs where old.itemID == item.id && old.phase.isOver && old.kept == nil {
             closeBrowseRun(old.id)
         }
         let adapter = browseAdapter()
@@ -443,12 +444,15 @@ extension AppModel {
 
     // MARK: Closing
 
-    /// esc: the run closes and its worktree goes (a branch it pushed stays on its remote). On the clone card it is
-    /// "Not now". Without a run, esc is what it always was.
+    /// esc: the run closes and its worktree goes, unless it holds work nothing else has (commits no remote has, changes
+    /// not committed): then the worktree stays and the reader says so until you deal with it. On a kept run's card, esc
+    /// dismisses the card and leaves the worktree. On the clone card it is "Not now". Without a run, esc is what it
+    /// always was.
     func closeBrowseRun() {
         if let item = browseSelected, browse.startRefusals.removeValue(forKey: item.id) != nil { return }
         guard let item = browseSelected,
-              let run = browse.runs.current(for: item.id) ?? browse.runs.runs.first(where: { $0.itemID == item.id })
+              let run = browse.runs.current(for: item.id) ?? BrowseRuns.kept(for: item.id, in: browse.runs.runs)
+              ?? browse.runs.runs.last(where: { $0.itemID == item.id })
         else { return perform(CommandInvocation(name: "overlay.close")) }
         closeBrowseRun(run.id)
     }
@@ -456,28 +460,70 @@ extension AppModel {
     func closeBrowseRun(_ id: String) {
         let runs = browse.runs
         guard let run = runs.run(id) else { return }
+        if let kept = run.kept {
+            // The card is dismissed; the work stays where it is.
+            runs.remove(id)
+            return say("left the worktree at \(kept.path)")
+        }
+        guard runs.closing.insert(id).inserted else { return }
         let client = runs.clients[id]
         let record = runs.records[id]
         let sessionID = runs.sessionIDs[id]
         if run.phase == .needsClone { _ = runs.apply(id, .declined, at: Clock.now) } else {
             _ = runs.apply(id, .closed("closed"), at: Clock.now)
         }
-        runs.remove(id)
         let worktree = run.worktree
         let branch = run.branch
-        guard !isFixture, tutor == nil else { return }
+        guard !isFixture, tutor == nil else {
+            runs.closing.remove(id)
+            return runs.remove(id)
+        }
         Task {
             if let client, let sessionID { await client.cancel(sessionID: sessionID) }
             await client?.close()
-            guard let record, !worktree.isEmpty, FileManager.default.fileExists(atPath: worktree) else { return }
+            runs.clients[id] = nil
+            guard let record, !worktree.isEmpty, FileManager.default.fileExists(atPath: worktree) else {
+                runs.closing.remove(id)
+                return runs.remove(id)
+            }
             let unpushed = await Git.unpushedSinceCreation(record, branch: branch)
-            await BrowseWorktree.remove(path: worktree, branch: branch, in: record)
-            if unpushed > 0 {
-                say(
-                    "closed: \(unpushed) commit\(unpushed == 1 ? "" : "s") that were never pushed went with the worktree"
-                )
+            let status = try? await Git.status(at: worktree, on: record.location)
+            let dirty = status.map { $0.changedFiles + $0.untrackedFiles }
+            runs.closing.remove(id)
+            switch BrowseCloseDecision.decide(unpushed: unpushed, dirty: dirty) {
+            case .remove:
+                await BrowseWorktree.remove(path: worktree, branch: branch, in: record)
+                runs.remove(id)
+            case let .keep(unpushed, dirty):
+                let kept = BrowseKept(unpushed: unpushed, dirty: dirty, path: worktree)
+                guard runs.run(id) != nil else { return }
+                runs.update(id) { $0.kept = kept }
+                say(kept.message)
             }
         }
+    }
+
+    /// X on a kept run's card, twice: the worktree and its branch go, with the work in them.
+    func discardKeptRun() -> Bool {
+        guard let item = browseSelected, let run = BrowseRuns.kept(for: item.id, in: browse.runs.runs),
+              var kept = run.kept else { return false }
+        let delete = kept.pressDiscard(at: Clock.now)
+        browse.runs.update(run.id) { $0.kept = kept }
+        guard delete else {
+            say("X again to delete \(kept.what) with the worktree at \(kept.path)")
+            return true
+        }
+        let runs = browse.runs
+        let id = run.id
+        let record = runs.records[id]
+        let branch = run.branch
+        runs.remove(id)
+        guard !(isFixture || tutor != nil) else { return true }
+        Task {
+            if let record { await BrowseWorktree.remove(path: kept.path, branch: branch, in: record) }
+            say("discarded the worktree at \(kept.path)")
+        }
+        return true
     }
 
     // MARK: Keeping
@@ -485,7 +531,9 @@ extension AppModel {
     /// s: the run becomes a session. Its worktree moves under heed's usual naming, its branch is renamed, and a session
     /// opens in it; nothing is removed.
     func keepBrowseRun() {
-        guard let item = browseSelected, let run = browse.runs.current(for: item.id) else {
+        guard let item = browseSelected,
+              let run = browse.runs.current(for: item.id) ?? BrowseRuns.kept(for: item.id, in: browse.runs.runs)
+        else {
             return browseTell()
         }
         guard run.phase != .needsClone, run.phase != .cloning, run.phase != .preparing else {
@@ -595,6 +643,7 @@ extension AppModel {
 
     /// X: throw the draft away; nothing is posted.
     func discardBrowseReview() {
+        if discardKeptRun() { return }
         guard let item = browseSelected, let run = browse.runs.current(for: item.id) else { return }
         var discarded = false
         browse.runs.update(run.id) { discarded = $0.discardDraft() }

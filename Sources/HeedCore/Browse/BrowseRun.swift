@@ -118,6 +118,8 @@ public struct BrowseRun: Identifiable, Sendable {
     public var cloneRoot: String?
     /// What you said when you started it in your own words (`t`), in place of the verb's prompt.
     public var words: String?
+    /// Closed, but its worktree holds work nothing else has, so it stays: the reader says so until you deal with it.
+    public var kept: BrowseKept?
 
     public init(
         id: String = UUID().uuidString.lowercased(), item: BrowseItem, verb: BrowseVerb, mode: Mode = .full,
@@ -395,6 +397,11 @@ public enum BrowseRuns {
     /// How many are using a slot: cloning, preparing or working. One waiting for you (done, or asking to clone) is not.
     public static func working(_ runs: [BrowseRun]) -> Int { runs.count { $0.phase.holdsSlot } }
 
+    /// The closed run on an item whose worktree was kept with work in it, for its card.
+    public static func kept(for itemID: String, in runs: [BrowseRun]) -> BrowseRun? {
+        runs.last { $0.itemID == itemID && $0.kept != nil }
+    }
+
     public static func canStart(item itemID: String, runs: [BrowseRun], max: Int) -> Start {
         if current(for: itemID, in: runs) != nil { return .itemBusy }
         if max > 0, working(runs) >= max { return .atCap(max) }
@@ -436,7 +443,8 @@ public enum BrowseRunFailure {
 
     /// The run to show a failure for: the item's last run, when it failed and nothing newer is on the item.
     public static func failed(for itemID: String, in runs: [BrowseRun]) -> BrowseRun? {
-        guard let last = runs.last(where: { $0.itemID == itemID }), case .failed = last.phase else { return nil }
+        guard let last = runs.last(where: { $0.itemID == itemID }), case .failed = last.phase, last.kept == nil
+        else { return nil }
         return last
     }
 }

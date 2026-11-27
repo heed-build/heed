@@ -884,6 +884,13 @@ enum Shots {
             )
             model.browse.runs.runs = [run]
         }),
+        // Closing a run whose worktree holds unpushed commits keeps it, and the reader says so until it is dealt with.
+        Shot(id: "github/browse-close-kept", keys: "gb", highlight: [.browseRun], prepare: { model in
+            var run = browseRun(2830, .fix, phase: .working)
+            _ = run.apply(.closed("closed"), at: Clock.now)
+            run.kept = BrowseKept(unpushed: 3, dirty: 0, path: run.worktree)
+            model.browse.runs.runs = [run]
+        }),
         // `t`: the words are typed into the line under the buttons, where they can be seen.
         Shot(id: "github/browse-tell", keys: "gbt" + typed("fix it on the 3.x branch too"), highlight: [.browseWork]),
         // The repo is not on this Mac: the clone card comes first (design 7).

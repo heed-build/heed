@@ -971,8 +971,10 @@ struct BrowseReader: View {
                 // A GitHub write or "open many" started from this one item (a right-click): its step shows here.
                 if let form = model.browse.bulk { BrowseBulkStep(form: form) }
                 if actions, model.browse.runs.current(for: item.id) == nil {
-                    if let failed = BrowseRunFailure.failed(for: item.id, in: model.browse.runs.runs),
-                       case let .failed(why) = failed.phase
+                    if let kept = BrowseRuns.kept(for: item.id, in: model.browse.runs.runs) {
+                        BrowseRunKeptCard(run: kept)
+                    } else if let failed = BrowseRunFailure.failed(for: item.id, in: model.browse.runs.runs),
+                              case let .failed(why) = failed.phase
                     {
                         BrowseRunFailedCard(verb: failed.verb, why: why)
                     } else if let refused = model.browse.startRefusals[item.id] {

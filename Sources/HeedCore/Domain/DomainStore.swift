@@ -21,7 +21,13 @@ public actor DomainStore {
     /// it forward, and the task it replaces then finds it has been superseded.
     private var writeAt: ContinuousClock.Instant?
     private var writeToken = 0
+    private let backgroundInterval: Duration
     private var lastWrite: ContinuousClock.Instant?
+    /// What each file last held, so a flush writes only the one whose part of the domain changed.
+    private var writtenCore: Domain?
+    private var writtenBackground: Background?
+    private var lastBackgroundWrite: ContinuousClock.Instant?
+    private var backgroundScheduled = false
     private let log: EventLog?
     private var pendingLog: [EventLogWrite] = []
     private var logScheduled = false
@@ -31,8 +37,10 @@ public actor DomainStore {
     /// `file` nil keeps everything in memory (fixtures, tests).
     public init(
         domain: Domain = .empty, file: URL?, log: EventLog? = nil, writeDelay: Duration = .milliseconds(250),
-        minimumInterval: Duration = .seconds(5), quietInterval: Duration = .seconds(60)
+        minimumInterval: Duration = .seconds(5), quietInterval: Duration = .seconds(60),
+        backgroundInterval: Duration = .seconds(120)
     ) {
+        self.backgroundInterval = backgroundInterval
         self.domain = domain
         self.minimumInterval = minimumInterval
         self.quietInterval = quietInterval
@@ -55,8 +63,9 @@ public actor DomainStore {
         await Task.detached(priority: .userInitiated) {
             guard let data = try? Data(contentsOf: file) else { return Domain.empty }
             switch decode(data) {
-            case let .success(domain):
+            case var .success(domain):
                 try? data.write(to: previousFile(of: file), options: .atomic)
+                adoptBackground(of: file, into: &domain)
                 return domain
             case let .failure(reason):
                 let aside = file.deletingLastPathComponent()
@@ -66,6 +75,32 @@ public actor DomainStore {
                 return Domain.empty
             }
         }.value
+    }
+
+    /// `~/Library/Application Support/Heed/domain.background.json`: what changes with syncs and runs, not with what
+    /// you do (`Background`), so a session's next tool call does not rewrite it.
+    public static func backgroundFile(of file: URL) -> URL {
+        file.deletingLastPathComponent().appendingPathComponent("domain.background.json")
+    }
+
+    /// Puts the background file's parts into `domain`. A core that still holds them (written before the split, or by
+    /// an older build since) is newer than the file or the file is absent, and keeps them. A file that does not read
+    /// is moved aside with the reason logged; GitHub's part comes back with the next sync.
+    static func adoptBackground(of file: URL, into domain: inout Domain) {
+        let backgroundFile = backgroundFile(of: file)
+        guard domain.background == Background(), let data = try? Data(contentsOf: backgroundFile) else { return }
+        do {
+            let cached = try JSONDecoder.heed.decode(CachedBackground.self, from: data)
+            guard cached.version == CachedBackground.currentVersion else {
+                throw Unreadable.version(cached.version)
+            }
+            domain.adopt(cached.background)
+        } catch {
+            let aside = file.deletingLastPathComponent()
+                .appendingPathComponent("domain.background.unreadable-\(Int(Date().timeIntervalSince1970)).json")
+            try? FileManager.default.moveItem(at: backgroundFile, to: aside)
+            NSLog("heed: could not read \(backgroundFile.path) (\(error)); kept it as \(aside.lastPathComponent)")
+        }
     }
 
     /// The cache as it was when the app last started.
@@ -168,26 +203,72 @@ public actor DomainStore {
         await flushLog()
     }
 
-    /// Writes the domain now.
-    public func flush() {
+    /// Writes the domain now, both files.
+    public func flush() { flush(background: .now) }
+
+    private enum BackgroundWrite { case now, whenDue }
+
+    /// Writes what changed since each file was last written. The core goes now; the background file, which is most
+    /// of the bytes and changes with every sync, waits `backgroundInterval` after its last write unless `.now`.
+    private func flush(background mode: BackgroundWrite) {
         writeScheduled = false
         writeAt = nil
         guard let file else { return }
         let perf = Perf.begin("domain.flush")
         defer { perf.end() }
         lastWrite = .now
-        let cached = CachedDomain(version: CachedDomain.currentVersion, domain: log == nil ? domain : domain.leavingLog)
+        let persisted = log == nil ? domain : domain.leavingLog
+        let core = persisted.leavingBackground
+        let background = persisted.background
+        var wrote = false
+        if core != writtenCore {
+            let cached = CachedDomain(version: CachedDomain.currentVersion, domain: core)
+            if write(cached, to: file) { writtenCore = core; wrote = true }
+        }
+        if background != writtenBackground {
+            let due = lastBackgroundWrite.map { ContinuousClock.now - $0 >= backgroundInterval } ?? true
+            if mode == .now || due {
+                let cached = CachedBackground(version: CachedBackground.currentVersion, background: background)
+                if write(cached, to: Self.backgroundFile(of: file)) {
+                    writtenBackground = background
+                    lastBackgroundWrite = .now
+                    wrote = true
+                }
+            } else {
+                scheduleBackground()
+            }
+        }
+        if wrote { stats.writes += 1 }
+    }
+
+    private func write(_ value: some Encodable, to file: URL) -> Bool {
         do {
             try FileManager.default.createDirectory(
                 at: file.deletingLastPathComponent(), withIntermediateDirectories: true
             )
-            let data = try JSONEncoder.heed.encode(cached)
+            let data = try JSONEncoder.heed.encode(value)
             try data.write(to: file, options: .atomic)
-            stats.writes += 1
             stats.bytes += data.count
+            return true
         } catch {
             NSLog("heed: could not write \(file.path): \(error)")
+            return false
         }
+    }
+
+    private func scheduleBackground() {
+        guard !backgroundScheduled, let lastBackgroundWrite else { return }
+        backgroundScheduled = true
+        let delay = max(.milliseconds(1), backgroundInterval - (ContinuousClock.now - lastBackgroundWrite))
+        Task {
+            try? await Task.sleep(for: delay)
+            self.flushBackground()
+        }
+    }
+
+    private func flushBackground() {
+        backgroundScheduled = false
+        flush(background: .whenDue)
     }
 
     /// Hands what is pending to the log, after the one in flight.
@@ -236,11 +317,57 @@ public actor DomainStore {
 
     private func flushScheduled(_ token: Int) {
         guard token == writeToken, writeScheduled else { return }
-        flush()
+        flush(background: .whenDue)
     }
 }
 
+/// The parts of the domain that change with syncs and runs: GitHub's state and the PR details and feedback read from
+/// it (all refetched by the next sync), and the logs the pilot and the merge queue keep. Together they are most of
+/// the bytes of the domain, so they live in their own file, written less often than the sessions are.
+struct Background: Equatable {
+    var github = GitHubState()
+    var pullDetails: [String: PullDetail] = [:]
+    var feedback: [String: PullFeedback] = [:]
+    var pilotLog: [PilotEvent] = []
+    var mergeRuns: [String: [MergeRun]] = [:]
+    var runs: [PilotRun] = []
+    var archives: [ArchiveRef] = []
+}
+
+extension Background: Codable {}
+
+struct CachedBackground: Codable {
+    static let currentVersion = 1
+    var version: Int
+    var background: Background
+}
+
 extension Domain {
+    var background: Background {
+        Background(
+            github: github, pullDetails: pullDetails, feedback: feedback, pilotLog: pilotLog, mergeRuns: mergeRuns,
+            runs: runs, archives: archives
+        )
+    }
+
+    /// The domain as `domain.json` keeps it: the fields of `Background` stay, empty, so an older build still reads
+    /// the file (and refetches what it finds missing).
+    var leavingBackground: Domain {
+        var domain = self
+        domain.adopt(Background())
+        return domain
+    }
+
+    mutating func adopt(_ background: Background) {
+        github = background.github
+        pullDetails = background.pullDetails
+        feedback = background.feedback
+        pilotLog = background.pilotLog
+        mergeRuns = background.mergeRuns
+        runs = background.runs
+        archives = background.archives
+    }
+
     /// What each part encodes to, largest first: where the megabytes of `domain.json` come from.
     func fieldSizes() -> [DomainStore.FieldSize] {
         let encoder = JSONEncoder.heed

@@ -123,4 +123,79 @@ struct DomainStoreWriteTests {
         await store.flushAll()
         #expect(await store.takeStats().writes == 1)
     }
+
+    // MARK: The background file
+
+    private func github(_ viewer: String) -> GitHubState {
+        var state = Fixtures.main.github
+        state.viewer = viewer
+        return state
+    }
+
+    @Test func theCacheGoesToItsOwnFileAndTheCoreKeepsSessions() async throws {
+        let file = try file()
+        let store = DomainStore(domain: Fixtures.main, file: file)
+        await store.flush()
+        let data = try Data(contentsOf: file)
+        let core = try DomainStore.decode(data).get()
+        #expect(core.sessions.count == Fixtures.main.sessions.count)
+        #expect(core.github == GitHubState(), "the cache is not in the core file")
+        #expect(core.pullDetails.isEmpty)
+        #expect(FileManager.default.fileExists(atPath: DomainStore.backgroundFile(of: file).path))
+        let loaded = await DomainStore.load(from: file)
+        #expect(loaded == Fixtures.main, "both files read back as the one domain")
+    }
+
+    @Test func aSessionChangeDoesNotRewriteTheBackgroundFile() async throws {
+        let file = try file()
+        let sessions = Fixtures.main.sessions
+        try #require(sessions.count >= 2)
+        let store = DomainStore(
+            domain: Domain.empty.applying([.githubSynced(github("first"))]), file: file,
+            writeDelay: .milliseconds(1), minimumInterval: .zero
+        )
+        await store.flush()
+        let background = DomainStore.backgroundFile(of: file)
+        try Data("sentinel".utf8).write(to: background)
+        await store.apply(.sessionUpserted(sessions[1]))
+        // The core file is read directly: `load` would take the sentinel for an unreadable background file.
+        #expect(await eventually { (try? DomainStore.decode(Data(contentsOf: file)).get().sessions.count) == 1 })
+        #expect(try Data(contentsOf: background) == Data("sentinel".utf8), "only the core was written")
+    }
+
+    @Test func aSyncWaitsOutTheBackgroundIntervalAndQuitWritesIt() async throws {
+        let file = try file()
+        let store = DomainStore(
+            file: file, writeDelay: .milliseconds(1), minimumInterval: .zero, backgroundInterval: .seconds(60)
+        )
+        await store.apply(.githubSynced(github("first")))
+        #expect(await eventually { await DomainStore.load(from: file).github.viewer == "first" })
+        await store.apply(.githubSynced(github("second")))
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(await DomainStore.load(from: file).github.viewer == "first", "the second sync waits")
+        await store.flushAll()
+        #expect(await DomainStore.load(from: file).github.viewer == "second")
+    }
+
+    @Test func aCacheWrittenBeforeTheSplitStillLoadsWhole() async throws {
+        let file = try file()
+        let old = CachedDomain(version: CachedDomain.currentVersion, domain: Fixtures.main.leavingLog)
+        try JSONEncoder.heed.encode(old).write(to: file)
+        let loaded = await DomainStore.load(from: file)
+        #expect(loaded.github == Fixtures.main.github)
+        #expect(loaded.pullDetails == Fixtures.main.pullDetails)
+    }
+
+    @Test func aBackgroundFileThatDoesNotReadIsMovedAsideAndTheCoreStillLoads() async throws {
+        let file = try file()
+        let store = DomainStore(domain: Fixtures.main, file: file)
+        await store.flush()
+        try Data("not json".utf8).write(to: DomainStore.backgroundFile(of: file))
+        let loaded = await DomainStore.load(from: file)
+        #expect(loaded.sessions.count == Fixtures.main.sessions.count)
+        #expect(loaded.github == GitHubState())
+        let dir = file.deletingLastPathComponent().path
+        #expect(try FileManager.default.contentsOfDirectory(atPath: dir)
+            .contains { $0.hasPrefix("domain.background.unreadable-") })
+    }
 }

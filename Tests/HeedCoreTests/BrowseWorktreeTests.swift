@@ -305,3 +305,105 @@ struct BrowseWorktreeTests {
         #expect(listed.contains { same($0.path, newPath) && $0.branch == branch })
     }
 }
+
+// MARK: An untrusted head cannot run anything while it is checked out (H8)
+
+extension BrowseWorktreeTests {
+    private static let hostile = "docs-toolkit"
+
+    /// A remote whose pull request head carries a `post-checkout` hook in `.githooks`, a repo config that points
+    /// `core.hooksPath` there (as husky does), a symlink out of the tree, and an LFS filter.
+    private func hostileWorld(base: String, marker: String) async throws -> RepoRecord {
+        let remote = base + "/remote.git", clone = base + "/clone"
+        let repo = Repo(org: "acme", name: Self.hostile)
+        func run(_ path: String, _ args: [String]) async throws {
+            _ = try await ProcessRunner.output("git", ["-C", path] + args, caller: "test")
+        }
+        try FileManager.default.createDirectory(atPath: base, withIntermediateDirectories: true)
+        _ = try await ProcessRunner.output("git", ["init", "-q", "--bare", "-b", "main", remote], caller: "test")
+        _ = try await ProcessRunner.output("git", ["clone", "-q", remote, clone], caller: "test")
+        try "one\n".write(toFile: clone + "/a.txt", atomically: true, encoding: .utf8)
+        for args in [
+            ["config", "user.email", "t@t"], ["config", "user.name", "t"], ["add", "."], ["commit", "-q", "-m", "a"],
+            ["push", "-q", "origin", "main"], ["checkout", "-q", "-b", "pr-head"],
+        ] {
+            try await run(clone, args)
+        }
+        try FileManager.default.createDirectory(atPath: clone + "/.githooks", withIntermediateDirectories: true)
+        let hook = clone + "/.githooks/post-checkout"
+        try "#!/bin/sh\ntouch '\(marker)'\n".write(toFile: hook, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: hook)
+        try FileManager.default.createSymbolicLink(atPath: clone + "/evil", withDestinationPath: "../../../.ssh/id_rsa")
+        try FileManager.default.createSymbolicLink(atPath: clone + "/fine", withDestinationPath: "a.txt")
+        for args in [
+            ["add", "."], ["commit", "-q", "-m", "pr work"], ["push", "-q", "origin", "pr-head:refs/pull/12/head"],
+            ["checkout", "-q", "main"], ["branch", "-q", "-D", "pr-head"],
+            // The user's repo is set up as husky sets one up: hooks in a folder of the tree.
+            ["config", "core.hooksPath", ".githooks"],
+        ] {
+            try await run(clone, args)
+        }
+        return RepoRecord(repo: repo, path: clone, defaultBranch: "main")
+    }
+
+    @Test func checkingOutAnUntrustedPullRequestHeadRunsNoHook() async throws {
+        let base = FileManager.default.temporaryDirectory
+            .appendingPathComponent("heed-hook-\(UUID().uuidString)").resolvingSymlinksInPath().path
+        defer { try? FileManager.default.removeItem(atPath: base) }
+        let marker = base + "/MARKER"
+        let record = try await hostileWorld(base: base, marker: marker)
+        // The hook really does run when git is let: the test would pass vacuously otherwise.
+        let control = base + "/control"
+        _ = try await ProcessRunner.output(
+            "git", ["-C", record.path] + Git.pullFetchArguments(clone: record.path, number: 12).dropFirst(2),
+            caller: "test"
+        )
+        let head = try await ProcessRunner.output(
+            "git", ["-C", record.path, "rev-parse", "FETCH_HEAD"], caller: "test"
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+        _ = try await ProcessRunner.output(
+            "git", ["-C", record.path, "worktree", "add", "-q", "--no-checkout", "-B", "control", control, head],
+            caller: "test"
+        )
+        // A checkout from inside the worktree is where a relative hooksPath finds the head's own hook.
+        _ = try await ProcessRunner.output("git", ["-C", control, "checkout", "-q", "-f", "control"], caller: "test")
+        #expect(FileManager.default.fileExists(atPath: marker), "the control checkout runs the hook")
+        try FileManager.default.removeItem(atPath: marker)
+
+        let item = BrowseItem(
+            repo: record.repo, number: 12, kind: .pull,
+            title: ExternalText("t", source: .pullTitle, author: .init(login: "stranger", trust: .stranger))
+        )
+        let plan = BrowseWorktree.plan(for: item, defaultBranch: "main", root: base + "/wt", suffix: "a01b2c")
+        let path = try await BrowseWorktree.create(plan, in: record, untrusted: true)
+        #expect(!FileManager.default.fileExists(atPath: marker), "H8 the head's post-checkout hook ran")
+        #expect(FileManager.default.fileExists(atPath: path + "/a.txt"), "the files are checked out")
+        #expect(FileManager.default.fileExists(atPath: path + "/.githooks/post-checkout"))
+        // Links out of the tree arrive as plain files holding the link's text, so nothing follows them.
+        var isLink = false
+        if let kind = try? FileManager.default.attributesOfItem(atPath: path + "/evil")[.type] as? FileAttributeType {
+            isLink = kind == .typeSymbolicLink
+        }
+        #expect(!isLink, "C5 an untrusted head's symlink is not made")
+        #expect(PathResolver.escapingLinks(in: path).isEmpty)
+        await BrowseWorktree.remove(path: path, branch: plan.branch, in: record)
+    }
+
+    @Test func aTrustedPullRequestHeadKeepsItsLinksButStillRunsNoHook() async throws {
+        let base = FileManager.default.temporaryDirectory
+            .appendingPathComponent("heed-hook-\(UUID().uuidString)").resolvingSymlinksInPath().path
+        defer { try? FileManager.default.removeItem(atPath: base) }
+        let marker = base + "/MARKER"
+        let record = try await hostileWorld(base: base, marker: marker)
+        let item = BrowseItem(
+            repo: record.repo, number: 12, kind: .pull,
+            title: ExternalText("t", source: .pullTitle, author: .init(login: "mara", trust: .collaborator))
+        )
+        let plan = BrowseWorktree.plan(for: item, defaultBranch: "main", root: base + "/wt", suffix: "a01b2d")
+        let path = try await BrowseWorktree.create(plan, in: record, untrusted: false)
+        #expect(!FileManager.default.fileExists(atPath: marker), "H8 no hook runs for a trusted head either")
+        let kind = try FileManager.default.attributesOfItem(atPath: path + "/fine")[.type] as? FileAttributeType
+        #expect(kind == .typeSymbolicLink, "a trusted head's links are kept")
+        await BrowseWorktree.remove(path: path, branch: plan.branch, in: record)
+    }
+}

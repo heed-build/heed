@@ -78,12 +78,14 @@ public enum BrowseWorktree {
     }
 
     /// Makes the worktree with git: its real path.
-    public static func create(_ plan: Plan, in record: RepoRecord) async throws -> String {
+    public static func create(_ plan: Plan, in record: RepoRecord, untrusted: Bool = false) async throws -> String {
         switch plan.start {
         case let .defaultBranch(base):
             try await Git.addWorktree(record, path: plan.path, branch: plan.branch, base: base).path
         case let .pullHead(number):
-            try await Git.addPullWorktree(record, path: plan.path, number: number, runBranch: plan.branch)
+            try await Git.addPullWorktree(
+                record, path: plan.path, number: number, runBranch: plan.branch, untrusted: untrusted
+            )
         }
     }
 

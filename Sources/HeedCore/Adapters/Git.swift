@@ -235,15 +235,28 @@ public enum Git {
         ["-C", clone, "fetch", "--quiet", "origin", "+refs/pull/\(number)/head"]
     }
 
+    /// What git is told, for every command that fetches or checks out a pull request's head, which is someone else's
+    /// tree: no hook runs (a `core.hooksPath` of `.husky` or `.githooks` is read from the tree being checked out), no
+    /// file system monitor starts, the wire protocol is the one with fewer surprises, and LFS neither smudges nor
+    /// reaches the host its `.lfsconfig` names.
+    public static let foreignTreeConfig = [
+        "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "protocol.version=2",
+        "-c", "filter.lfs.smudge=", "-c", "filter.lfs.process=", "-c", "filter.lfs.required=false",
+    ]
+
     /// A run's worktree at a PR's head as GitHub has it (`refs/pull/<n>/head`, fetched), on its own branch
-    /// `runBranch`, tracking nothing: a review reads it and pushes nowhere. Returns its real path.
+    /// `runBranch`, tracking nothing: a review reads it and pushes nowhere. Returns its real path. The tree is made
+    /// with `--no-checkout` and checked out after, both under `foreignTreeConfig`; `untrusted` also makes git write a
+    /// symlink as a plain file holding its target (`core.symlinks=false`), so a head from a stranger that commits
+    /// `../../.ssh/id_rsa` as a link has nothing to follow.
     public static func addPullWorktree(
-        _ record: RepoRecord, path: String, number: Int, runBranch: String
+        _ record: RepoRecord, path: String, number: Int, runBranch: String, untrusted: Bool = false
     ) async throws -> String {
         let location = record.location
+        let safe = foreignTreeConfig + (untrusted ? ["-c", "core.symlinks=false"] : [])
         _ = try await ProcessRunner.output(
-            on: location, "git", pullFetchArguments(clone: record.path, number: number), timeout: .seconds(60),
-            caller: "git.addPullWorktree"
+            on: location, "git", foreignTreeConfig + pullFetchArguments(clone: record.path, number: number),
+            timeout: .seconds(60), caller: "git.addPullWorktree"
         )
         let head = try await ProcessRunner.output(
             on: location, "git", ["-C", record.path, "rev-parse", "FETCH_HEAD"], caller: "git.addPullWorktree"
@@ -255,7 +268,12 @@ public enum Git {
             _ = try await ProcessRunner.output(on: location, "mkdir", ["-p", parent], caller: "git.addPullWorktree")
         }
         _ = try await ProcessRunner.output(
-            on: location, "git", ["-C", record.path, "worktree", "add", "-B", runBranch, path, head],
+            on: location, "git",
+            safe + ["-C", record.path, "worktree", "add", "--no-checkout", "-B", runBranch, path, head],
+            timeout: .seconds(60), caller: "git.addPullWorktree"
+        )
+        _ = try await ProcessRunner.output(
+            on: location, "git", safe + ["-C", path, "checkout", "--quiet", "--force", "HEAD"], timeout: .seconds(120),
             caller: "git.addPullWorktree"
         )
         let top = try await ProcessRunner.output(

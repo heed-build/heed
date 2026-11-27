@@ -327,7 +327,33 @@ each only while some item qualifies, and narrow the list the same way. A session
 
 ![The clone card: clone and start, only clone, or choose the folder](../images/shots/github/browse-clone.png)
 
-**What the agent may and may not do.** Fix and Implement edit files and run commands inside the worktree, commit, push
+**Agent runs: Chat by default.** Out of the box, **Chat is the only agent action in Browse.** Fix, Implement, Review and Get it green are greyed out
+with *Agent edits are off. Set [browse] runs = "full" to allow them*, Chat leads wherever one of them would have, and
+`s` (keep as a session) refuses, because a kept run is a full session. The reader says so above the buttons. `F`, `I`,
+`R`, `t`, the right-click menu and the bulk actions all follow the same rule, and a write verb that is somehow asked for
+stops with a message, not silently.
+
+![The four buttons with agent edits off: Chat on offer, the others greyed with how to turn them on](../images/shots/github/browse-runs-chat.png)
+
+A Chat has no GitHub login: it runs with heed's scrubbed environment (the same one an untrusted author's run gets: no
+`gh`, ssh or cloud logins), whoever wrote the item. Since the agent cannot run `gh` to read the thread, heed reads it
+and puts it in the prompt, fenced as other people's text with each author's trust: the description and the newest 30
+comments. For a pull request the agent reads the diff with `git` in its worktree, and it cannot look at checks or other
+items on GitHub.
+
+To turn the write verbs on, set `runs = "full"` in `[browse]` (or Settings › GitHub › Browse: agent runs):
+
+```toml
+[browse]
+runs = "full"
+```
+
+heed's permission policy is a best-effort filter over the commands and paths an agent asks for, not a sandbox. It
+reads the text of a command, so a determined or prompt-injected agent can find ways round it, and a run's tests execute
+whatever the repo's code does. `"full"` is for repos and authors you would let an agent work on unsupervised. Until the
+policy is hardened, that is why Chat is the default.
+
+**What the agent may and may not do** (with `runs = "full"`). Fix and Implement edit files and run commands inside the worktree, commit, push
 a branch of this repo, open and update PRs, and comment and label, all without asking. Chat reads only and changes
 nothing. Review also builds and tests, but edits, commits, pushes and writes nothing to GitHub. For every verb, heed
 refuses a path outside the worktree, secrets and credential files, another repo, force-pushes, any push to the default
@@ -352,7 +378,7 @@ the verb's key again or `⎋`. `t` shows what you type in its line under the but
 
 ![A run that could not start: the reason, what to do, try again or dismiss](../images/shots/github/browse-run-failed.png)
 
-**Keep it as a session.** `s` turns a run into a full session: its worktree moves to heed's usual naming (`fix/...`),
+**Keep it as a session** (with `runs = "full"`). `s` turns a run into a full session: its worktree moves to heed's usual naming (`fix/...`),
 its branch is renamed, and a session opens in it. Nothing is removed. `i` (or `↩`) steers a run or asks a follow-up.
 
 **How many at once.** One run per item, and `max_runs` (3 by default) working at the same time. A run that is waiting
@@ -493,6 +519,7 @@ In VISUAL (`v`) the range becomes picks. `o` opens the picks on GitHub, and `y` 
 | `max_runs` | `3` | How many agent runs may work at once (0 to 20). `0` sets no limit |
 | `auto_refresh` | `true` | Coming back to Browse asks GitHub again. `false` leaves it to `r` (entering Browse still asks) |
 | `refresh_after` | `60` | Seconds an answer stays fresh before coming back asks again (5 to 3600) |
+| `runs` | `"chat"` | `"chat"`: Chat is the only agent action. `"full"` turns Fix, Implement, Review and Get it green on |
 | `agent` | unset | The agent Browse's runs use: `claude`, `codex`, `opencode` or `gemini`. Unset, it is `[helpers] agent` |
 
 Reads follow `[llm]`: its switch, its daily limits and its back-off. See [Model calls](../agents/model-calls.md) and

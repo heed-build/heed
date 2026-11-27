@@ -20,7 +20,9 @@ extension AppModel {
 
     /// The four verbs for an item, from heed's read of it (a stale one still counts: it is shown dimmed).
     func browseVerbs(_ item: BrowseItem) -> BrowseVerbs {
-        BrowseVerbs.recommend(item: item, read: browse.reads[item.id], viewer: browseViewer)
+        BrowseVerbs.recommend(
+            item: item, read: browse.reads[item.id], viewer: browseViewer, runs: config.browse.runs
+        )
     }
 
     private func browseReadDue(_ item: BrowseItem, _ trigger: BrowseReadQueue.Trigger, running: Bool? = nil) -> Bool {

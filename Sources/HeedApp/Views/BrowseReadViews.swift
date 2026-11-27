@@ -360,6 +360,14 @@ struct BrowseWorkSection: View {
             .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(telling == nil ? Theme.line : Theme.busy))
             .contentShape(Rectangle())
             .clickRuns(CommandInvocation(name: "browse.tell"))
+            if model.config.browse.runs == .chat {
+                // The mode, said where the buttons are, with the way to change it.
+                HStack(spacing: 6) {
+                    Text("Agent edits are off: Chat only. [browse] runs = \"full\" turns the rest on.")
+                        .font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+                    KeyHint("settings.open", ["github"], label: "Settings")
+                }
+            }
             Text(footer).font(Theme.ui(12)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, compact ? 16 : 28).padding(.vertical, 16)

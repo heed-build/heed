@@ -75,6 +75,8 @@ struct RunDiagnosticsTests {
         #expect(stats.bytes > 0)
         #expect(stats.changes["sessionUpserted"] == 1)
         #expect(stats.summary.contains("sessionUpserted ×1"))
+        #expect(stats.sizes.first?.bytes ?? 0 >= stats.sizes.last?.bytes ?? 0, "largest first")
+        #expect(stats.summary.contains("heaviest: "))
         #expect(await store.takeStats() == DomainStore.Stats())
     }
 }

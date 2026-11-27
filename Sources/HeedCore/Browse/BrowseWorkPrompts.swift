@@ -4,12 +4,24 @@ import Foundation
 /// agent view that runs them reuses them. The title is other people's text and stays fenced; heed's own read is
 /// not sent, since an agent reads the item itself.
 public enum BrowseWorkPrompts {
-    public static func prompt(_ verb: BrowseVerb, item: BrowseItem) -> Prompt {
+    /// `thread`: for a run with no GitHub login (Chat), the thread heed read itself (`BrowseThread`); it goes in place
+    /// of
+    /// the line that sends the agent to `gh`, and follows the prompt.
+    public static func prompt(_ verb: BrowseVerb, item: BrowseItem, thread: Prompt? = nil) -> Prompt {
         let pull = item.kind == .pull
         let what = pull ? "pull request" : "issue"
         let place: Prompt = "\(name: item.repo.slug)#\(item.number)"
         let head = headline(item)
-        let read = readFirst(item)
+        let read = readFirst(item, thread: thread)
+        if let thread {
+            return base(verb, head: head, read: read, pull: pull, what: what, place: place) + "\n\n" + thread
+        }
+        return base(verb, head: head, read: read, pull: pull, what: what, place: place)
+    }
+
+    private static func base(
+        _ verb: BrowseVerb, head: Prompt, read: Prompt, pull: Bool, what: String, place: Prompt
+    ) -> Prompt {
         switch verb {
         case .fix:
             if pull {
@@ -39,15 +51,19 @@ public enum BrowseWorkPrompts {
         return "\(name: kind) \(name: item.repo.slug)#\(item.number): \(item.title)\n\(name: item.url)\n\n"
     }
 
-    static func readFirst(_ item: BrowseItem) -> Prompt {
+    static func readFirst(_ item: BrowseItem, thread: Prompt? = nil) -> Prompt {
+        if thread != nil { return "Read the thread below first." }
         let word = item.kind == .pull ? "pr" : "issue"
         return "Read it and its comments first (`gh \(name: word) view \(item.number) --repo \(name: item.repo.slug) --comments`)."
     }
 
     /// The free-text line: the item, then what you said.
-    public static func told(_ words: String, item: BrowseItem) -> Prompt {
-        let pull = item.kind == .pull
+    public static func told(_ words: String, item: BrowseItem, thread: Prompt? = nil) -> Prompt {
         let head = headline(item)
+        if let thread {
+            let said = words.trimmingCharacters(in: .whitespacesAndNewlines)
+            return head + (said.isEmpty ? "Read the thread below first. Then: " : "\(owner: said)") + "\n\n" + thread
+        }
         return words.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? head + readFirst(item) + " Then: "
             : head + "\(owner: words.trimmingCharacters(in: .whitespacesAndNewlines))"

@@ -281,6 +281,11 @@ read_ahead = 20
 # How many agent runs (Fix, Implement, Chat, Review on an item) may work at once. Each runs in a temporary worktree and
 # counts against [helpers] spend_cap. 0 sets no limit.
 max_runs = 3
+# What an agent run in Browse may do. "chat" (the default): Chat is the only agent action: it reads, searches and
+# answers, and Fix, Implement, Review and Get it green are off. "full" turns them on: they edit files, push
+# branches and comment through gh. Browse's permission policy is a best-effort filter over what the agent asks
+# for, not a sandbox: turn "full" on only for repos and authors you would let an agent work on unsupervised.
+runs = "chat"
 # Coming back to Browse (switching to it, the app coming forward, the window regaining focus) asks GitHub for the
 # view you are on again, when the last answer is older than refresh_after seconds. Changes to rows you can see
 # land at once; new, gone and reordered rows wait behind a banner while an item is selected (r applies it).

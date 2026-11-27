@@ -63,6 +63,10 @@ public enum BrowseFetchPolicy {
             "timed out",
             "something went wrong while executing your query", "unexpected eof", ": eof", "connection reset",
             "connection refused", "broken pipe", "i/o timeout", "no such host", "tls handshake",
+            // A page cut short on the way: the body ends mid-JSON, or the stream or connection dies.
+            "unexpected end of json", "unexpected end of file", "unexpected end of input", "stream error",
+            "stream closed", "stream cancel", "http2: server sent goaway", "connection closed",
+            "server closed idle connection", "use of closed network connection", "truncated",
         ]
         return transient.contains(where: lower.contains) ? .transient(code: nil) : .permanent
     }

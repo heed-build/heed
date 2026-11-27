@@ -514,7 +514,7 @@ public enum GitHub {
                 return ThreadDetail(url: wanted.url, updatedAt: wanted.updatedAt)
             }
             let author = node["author"] as? [String: Any]
-            let labels = ((node["labels"] as? [String: Any])?["nodes"] as? [[String: Any]])?
+            let labels = (GraphQLNodes.objects((node["labels"] as? [String: Any])?["nodes"]))?
                 .compactMap { $0["name"] as? String } ?? []
             func entries(_ key: String, at dateKey: String) -> [ThreadDetail.Comment] {
                 (((node[key] as? [String: Any])?["nodes"] as? [Any]) ?? []).compactMap { value in
@@ -750,8 +750,9 @@ public enum GitHub {
 
     static func parseCopilotAvailable(_ data: Data) -> Bool {
         let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        let actors = (((json?["data"] as? [String: Any])?["repository"] as? [String: Any])?["suggestedActors"]
-            as? [String: Any])?["nodes"] as? [[String: Any]] ?? []
+        let actors = GraphQLNodes
+            .objects((((json?["data"] as? [String: Any])?["repository"] as? [String: Any])?["suggestedActors"]
+                    as? [String: Any])?["nodes"]) ?? []
         return actors.contains { $0["login"] as? String == CopilotAsk.login }
     }
 
@@ -963,7 +964,7 @@ public enum GitHub {
             guard let node = (root["i\(index)"] as? [String: Any])?["issueOrPullRequest"] as? [String: Any],
                   node["__typename"] as? String == "Issue"
             else { continue }
-            let labels = ((node["labels"] as? [String: Any])?["nodes"] as? [[String: Any]])?
+            let labels = (GraphQLNodes.objects((node["labels"] as? [String: Any])?["nodes"]))?
                 .compactMap { $0["name"] as? String } ?? []
             result[ref] = IssueInfo(
                 title: node["title"] as? String ?? "", closed: node["state"] as? String == "CLOSED",
@@ -1127,8 +1128,8 @@ public enum GitHub {
         guard let number = node["number"] as? Int,
               let repo = repo((node["repository"] as? [String: Any])?["nameWithOwner"] as? String)
         else { return nil }
-        let threads = ((node["reviewThreads"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? []
-        let commit = (((node["commits"] as? [String: Any])?["nodes"] as? [[String: Any]])?.first?["commit"]
+        let threads = (GraphQLNodes.objects((node["reviewThreads"] as? [String: Any])?["nodes"])) ?? []
+        let commit = ((GraphQLNodes.objects((node["commits"] as? [String: Any])?["nodes"]))?.first?["commit"]
             as? [String: Any])
         let contexts = latest((((commit?["statusCheckRollup"] as? [String: Any])?["contexts"] as? [String: Any])?[
             "nodes"
@@ -1215,7 +1216,7 @@ public enum GitHub {
               let node = repository["pullRequest"] as? [String: Any]
         else { return nil }
         let commits = node["commits"] as? [String: Any]
-        let commit = ((commits?["nodes"] as? [[String: Any]])?.first?["commit"] as? [String: Any])
+        let commit = ((GraphQLNodes.objects(commits?["nodes"]))?.first?["commit"] as? [String: Any])
         let contexts = latest((((commit?["statusCheckRollup"] as? [String: Any])?["contexts"] as? [String: Any])?[
             "nodes"
         ] as? [[String: Any]]) ?? [])
@@ -1246,11 +1247,11 @@ public enum GitHub {
                 url: context["detailsUrl"] as? String
             )
         }
-        let threadNodes = ((node["reviewThreads"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? []
+        let threadNodes = (GraphQLNodes.objects((node["reviewThreads"] as? [String: Any])?["nodes"])) ?? []
         let threads = threadNodes.compactMap { thread -> ReviewThread? in
             guard let id = thread["id"] as? String else { return nil }
             let comments = thread["comments"] as? [String: Any]
-            let first = (comments?["nodes"] as? [[String: Any]])?.first
+            let first = (GraphQLNodes.objects(comments?["nodes"]))?.first
             let hunk = (first?["diffHunk"] as? String ?? "").split(separator: "\n", omittingEmptySubsequences: false)
             let author = ExternalText.Author.github(
                 first?["author"] as? [String: Any], association: first?["authorAssociation"] as? String
@@ -1262,7 +1263,7 @@ public enum GitHub {
                 url: first?["url"] as? String, trust: author.trust
             )
         }
-        let reviewNodes = ((node["reviews"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? []
+        let reviewNodes = (GraphQLNodes.objects((node["reviews"] as? [String: Any])?["nodes"])) ?? []
         let reviews = reviewNodes.compactMap { review -> PullDetail.Review? in
             guard let author = (review["author"] as? [String: Any])?["login"] as? String,
                   let state = review["state"] as? String
@@ -1275,7 +1276,7 @@ public enum GitHub {
                 ).trust
             )
         }
-        let closes = (((node["closingIssuesReferences"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? [])
+        let closes = ((GraphQLNodes.objects((node["closingIssuesReferences"] as? [String: Any])?["nodes"])) ?? [])
             .compactMap { issue -> PullRef? in
                 guard let number = issue["number"] as? Int,
                       let repo = repo((issue["repository"] as? [String: Any])?["nameWithOwner"] as? String)
@@ -1305,7 +1306,7 @@ public enum GitHub {
         let autoMerge = node["autoMergeRequest"] as? [String: Any]
         detail.autoMergeEnabled = autoMerge != nil
         detail.autoMergeMethod = (autoMerge?["mergeMethod"] as? String)?.lowercased()
-        detail.labels = ((node["labels"] as? [String: Any])?["nodes"] as? [[String: Any]])?
+        detail.labels = (GraphQLNodes.objects((node["labels"] as? [String: Any])?["nodes"]))?
             .compactMap { $0["name"] as? String }
         detail.repoAllowsAutoMerge = repository["autoMergeAllowed"] as? Bool
         let methods: [(String, String)] = [
@@ -1317,7 +1318,7 @@ public enum GitHub {
             "requiresLinearHistory"
         ] as? Bool
         detail.headCommittedAt = date(commit?["committedDate"] as? String)
-        let crossReferences = ((node["timelineItems"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? []
+        let crossReferences = (GraphQLNodes.objects((node["timelineItems"] as? [String: Any])?["nodes"])) ?? []
         detail.references = crossReferences.compactMap { event -> PullDetail.Reference? in
             guard let source = event["source"] as? [String: Any], let number = source["number"] as? Int,
                   let repo = repo((source["repository"] as? [String: Any])?["nameWithOwner"] as? String)
@@ -1340,7 +1341,7 @@ public enum GitHub {
         detail.passedRuns = passed.compactMap(checkOrigin)
         let baseRollup = (((node["baseRef"] as? [String: Any])?["target"] as? [String: Any])?["statusCheckRollup"]
             as? [String: Any])?["contexts"] as? [String: Any]
-        detail.baseChecks = ((baseRollup?["nodes"] as? [[String: Any]]) ?? []).compactMap(checkOrigin)
+        detail.baseChecks = ((GraphQLNodes.objects(baseRollup?["nodes"])) ?? []).compactMap(checkOrigin)
         return detail
     }
 
@@ -1351,7 +1352,7 @@ public enum GitHub {
             guard let node = raw as? [String: Any], let number = node["number"] as? Int,
                   let repo = repo((node["repository"] as? [String: Any])?["nameWithOwner"] as? String)
             else { return nil }
-            let labels = ((node["labels"] as? [String: Any])?["nodes"] as? [[String: Any]])?.compactMap {
+            let labels = (GraphQLNodes.objects((node["labels"] as? [String: Any])?["nodes"]))?.compactMap {
                 $0["name"] as? String
             } ?? []
             var issue = Issue(

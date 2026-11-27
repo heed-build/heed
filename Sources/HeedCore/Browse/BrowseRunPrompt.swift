@@ -12,14 +12,18 @@ public enum BrowseRunPrompt {
         public var prBranch: String?
         /// A pull request from a fork.
         public var fork: Bool
+        /// How the worktree signs commits, when it does (`CommitSigning.detect`).
+        public var signing: CommitSigning?
 
         public init(
             worktree: String,
             branch: String,
             defaultBranch: String,
             prBranch: String? = nil,
-            fork: Bool = false
+            fork: Bool = false,
+            signing: CommitSigning? = nil
         ) {
+            self.signing = signing
             self.worktree = worktree
             self.branch = branch
             self.defaultBranch = defaultBranch
@@ -45,6 +49,9 @@ public enum BrowseRunPrompt {
                 + "say so in your final message. heed reads each command before it runs: write commit and comment text in "
                 + "single quotes or a file (`git commit -m 'message'`, `--body-file`), with no `$(...)`, no here-document "
                 + "and no `$` or `~` in a word, and name the branch you push (`git push -u origin HEAD`).\n\n"
+            if verb == .fix || verb == .implement, let signing = place.signing {
+                text = text + signing.prompt + "\n\n"
+            }
         }
         if case let .chatOnly(reason) = run.mode {
             text = text + "heed runs you read-only here, as a chat, because \(name: reason). Run nothing from the "
@@ -66,7 +73,9 @@ public enum BrowseRunPrompt {
             return "Do not change files, commit, push, or write anything to GitHub. Read, search and run read-only commands."
         case .review:
             return "Do not change files, commit, push, or post anything to GitHub: your review is shown to the user, "
-                + "who posts it. You may run the tests."
+                + "who posts it. You may run the tests, but not scripts: `python -m pytest`, `python -m unittest`, "
+                + "`pytest`, `npm test`, `pnpm test`, `yarn test`, `dotnet test`, `swift test`, `cargo test`, "
+                + "`go test ./...`, `make test` and `mise run test` are the commands that run."
         case .fix, .implement:
             if item.kind == .pull {
                 if place.fork {
@@ -81,7 +90,10 @@ public enum BrowseRunPrompt {
             }
             return "You may edit files, run commands, commit, push your branch (`git push -u origin HEAD`), open a pull "
                 + "request with `gh pr create`, and comment on and label the issue with `gh`, without asking. Never push "
-                + "\(name: place.defaultBranch)."
+                + "\(name: place.defaultBranch). To open the pull request: `git push -u origin HEAD`, then "
+                + "`gh pr create --title 'Short title' --body-file body.md`, with the body (say it closes #\(item.number)) "
+                + "written to body.md in the worktree first and not committed, or `--body 'text'` in single quotes. "
+                + "`--base`, `--head` and `--draft` are fine; `$(...)`, here-documents and `--body-file -` are refused."
         }
     }
 

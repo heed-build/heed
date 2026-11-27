@@ -393,32 +393,13 @@ struct LiveBrowseE2ETests {
                 extraEnvironment: [:],
                 label: "as the app starts it"
             )
-            let agentDropped = !RunSandbox.baseVariables.contains("SSH_AUTH_SOCK")
-            if first.ahead == 0, first.committedTried, first.signingConfigured || first.sawPassphrase, agentDropped {
-                step.productBug(
-                    "F1-signed-commits",
-                    "a Fix cannot commit when git is set to sign commits with an ssh key (commit.gpgsign=true, gpg.format=ssh): "
-                        + "RunSandbox.baseVariables does not keep SSH_AUTH_SOCK, so `git commit` fails with 'Enter passphrase ... incorrect passphrase', "
-                        +
-                        "the model then tries --no-verify and `git -c commit.gpgsign=false`, which the policy correctly refuses",
-                    reproduced: true
-                )
-                // The rest of Fix (push, pull request) still needs testing: the same run with the agent socket kept,
-                // a test-only workaround that shows what the fix would unlock.
-                var env: [String: String] = [:]
-                if let socket = ProcessInfo.processInfo.environment["SSH_AUTH_SOCK"] { env["SSH_AUTH_SOCK"] = socket }
-                let second = try await Self.fixAttempt(
-                    step,
-                    state,
-                    record,
-                    item,
-                    extraEnvironment: env,
-                    label: "with SSH_AUTH_SOCK kept (test-only workaround)"
-                )
-                Self.expectOutcome(step, second, item: item)
-            } else {
-                Self.expectOutcome(step, first, item: item)
-            }
+            // F1 (fixed): a Fix commits when git signs with an ssh key, because a trusted run that writes keeps the
+            // agent's socket (BrowseRunEnvironment). A passphrase prompt in the feed is a failure now.
+            step.expect(
+                !(first.ahead == 0 && first.committedTried && first.sawPassphrase),
+                "F1: the Fix could not commit: git asked for a passphrase (signing configured: \(first.signingConfigured))"
+            )
+            Self.expectOutcome(step, first, item: item)
         }
     }
 
@@ -478,13 +459,12 @@ struct LiveBrowseE2ETests {
             let mine = run.asked.filter { ($0.command ?? "").contains(prefix) }
             let allowed = mine.contains { $0.allowed }
             if !allowed, mine.allSatisfy({ correctRefusal($0.command ?? "") }) {
-                step.productBug(
-                    "F3-habitual-spelling",
-                    "'\(prefix)' was only tried in a spelling heed correctly refuses ($(cat <<'EOF') bodies, heredocs), as Claude Code's own habit writes it, "
-                        +
-                        "and the run did not recover: Fix on a trusted issue ends without a pull request. The prompt asks for single-quoted text or a file",
-                    reproduced: true
+                // F3 (fixed): the refusal of the habitual spelling teaches the one heed allows.
+                step.expect(
+                    prefix != "gh pr create" || mine.allSatisfy { ($0.refusal ?? "").contains("--body-file") },
+                    "F3: '\(prefix)' was refused without naming the allowed spelling: \(mine.map(\.line))"
                 )
+                step.note("'\(prefix)' was only tried in a spelling heed refuses; the refusal taught the alternative")
                 continue
             }
             step.expect(allowed, "'\(prefix)' was tried and never allowed: \(mine.map(\.line))")
@@ -492,22 +472,19 @@ struct LiveBrowseE2ETests {
 
         var outcome = FixOutcome(run: run, committedTried: tried("git commit"))
         let strayed = refused.filter { ($0.refusal ?? "").contains("outside this run's worktree") }
-        step.productBug(
-            "F5-outside-worktree-no-hint",
-            "haiku reached for the worktree's parent folder (\(strayed.count) refusals) and the refusal ('... is outside this run's worktree') "
-                +
-                "does not say where the worktree is, so the run flounders or ends without trying: \(strayed.prefix(2).map(\.line))",
-            reproduced: !strayed.isEmpty
+        // F5 (fixed): the refusal says where the worktree is.
+        step.expect(
+            strayed.allSatisfy { ($0.refusal ?? "").contains(run.worktree) },
+            "F5: an 'outside this run's worktree' refusal does not name the worktree: \(strayed.prefix(2).map(\.line))"
         )
         outcome.prOnlyHabitual = tried("gh pr create") && !run.asked
             .contains { ($0.command ?? "").contains("gh pr create") && $0.allowed }
-        let liars = run.lines.filter { [.openedPR, .committed, .pushed].contains($0.kind) && $0.failed }
-        step.productBug(
-            "F4-feed-says-done-when-failed",
-            "the feed words a failed or refused tool as a success ('Opened a pull request', 'Committed', 'Pushed'), only its failed flag differs: "
-                + "\(liars.map { "\($0.kind.rawValue): \($0.text) (failed)" })",
-            reproduced: !liars.isEmpty
-        )
+        // F4 (fixed): a failed tool is never worded as a success.
+        let liars = run.lines.filter {
+            [.openedPR, .committed, .pushed].contains($0.kind) && $0.failed
+                && ($0.text.hasPrefix("Opened") || $0.text == "Committed" || $0.text == "Pushed")
+        }
+        step.expect(liars.isEmpty, "F4: the feed words a failed tool as a success: \(liars.map(\.text))")
         let signed = try? await ProcessRunner.run(
             "git", ["-C", run.worktree, "config", "--get", "commit.gpgsign"], caller: "live.e2e"
         )
@@ -585,12 +562,10 @@ struct LiveBrowseE2ETests {
                 of: #"^python3?\s+\S+\.py"#,
                 options: .regularExpression
             ) != nil }
-            step.productBug(
-                "R2-review-test-script",
-                "Review is told 'you may run the tests' but `python test_calc.py` is refused (only python -m pytest/unittest run): "
-                    +
-                    "\(scripts.map(\.line)); the refusal's wording ('python is allowed for builds and tests') does not say what to run instead",
-                reproduced: !scripts.isEmpty
+            // R2 (fixed): a script Review is refused says what runs instead.
+            step.expect(
+                scripts.allSatisfy { ($0.refusal ?? "").contains("python -m pytest") },
+                "R2: a refused script does not name the test commands: \(scripts.map(\.line))"
             )
             let before = try await SmokeGH.read([
                 "api",

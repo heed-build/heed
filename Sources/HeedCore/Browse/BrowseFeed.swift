@@ -24,6 +24,9 @@ public struct BrowseFeedLine: Identifiable, Equatable, Sendable {
     public var reads = 0
     /// Labels put on the item, shown on the line of the pull request they went with.
     public var labels: [String] = []
+
+    /// Whether the glyph is a warning, not the glyph of what it tried: a tool that failed (a refusal has its own).
+    public var warns: Bool { failed && kind != .refused }
 }
 
 public enum BrowseFeed {
@@ -109,10 +112,34 @@ public enum BrowseFeed {
 
     private static func classify(
         _ command: String, tool: HelperTool, make: (BrowseFeedLine.Kind, String, String?) -> BrowseFeedLine
-    ) -> BrowseFeedLine {
+    ) -> BrowseFeedLine? {
         let output = tool.output
         let words = command.split(separator: " ").map(String.init)
         func has(_ phrase: String) -> Bool { command.contains(phrase) }
+        let failed = tool.status == .failed
+        let reason = firstLine(output)
+        // A command heed refused has its own line (the refusal, with why): not also a line saying it ran.
+        if failed, output?.localizedCaseInsensitiveContains("refused permission") == true { return nil }
+        if failed, has("gh pr create") {
+            return make(.openedPR, "Tried to open a pull request", reason ?? flag("--title", in: words))
+        }
+        if failed, has("gh issue comment") || has("gh pr comment") {
+            return make(.commented, "Tried to comment", reason)
+        }
+        if failed, has("gh issue edit") || has("gh pr edit") {
+            return make(.labelled, "Tried to edit the item", reason)
+        }
+        if failed, has("git push") { return make(.pushed, "Could not push" + (reason.map { ": \($0)" } ?? ""), nil) }
+        if failed, has("git commit") {
+            if CommitSigning.failed(output ?? "") {
+                return make(
+                    .committed, "Could not commit: signing failed",
+                    "commit signing needs your ssh agent (or gpg-agent with your key unlocked) and it is not available "
+                        + "in this run: " + (reason ?? "")
+                )
+            }
+            return make(.committed, "Could not commit" + (reason.map { ": \($0)" } ?? ""), nil)
+        }
         if has("gh pr create") {
             var line = make(.openedPR, "Opened a pull request", nil)
             if let url = output.flatMap { pullURL(in: $0) } ?? pullURL(in: command) {
@@ -158,6 +185,7 @@ public enum BrowseFeed {
             return make(.read, "Read the \(has("gh pr") ? "pull request" : "issue") and its comments", nil)
         }
         if has("gh pr diff") || has("git diff") { return make(.read, "Read the diff", nil) }
+        if failed { return make(.ran, "Failed: \(command.prefix(80))", reason) }
         return make(.ran, "Ran \(command.prefix(80))", firstLine(output))
     }
 

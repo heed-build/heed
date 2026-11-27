@@ -36,6 +36,11 @@ extension BrowseFeedLine.Kind {
     }
 }
 
+extension BrowseFeedLine {
+    /// The glyph: a tool that failed shows a warning, not the glyph of the thing it tried (a pull request, a commit).
+    var symbol: String { warns ? "exclamationmark.triangle" : kind.symbol }
+}
+
 /// The lower part of the reader while a run is on the item.
 struct BrowseRunPanel: View {
     @Environment(AppModel.self) private var model
@@ -207,13 +212,13 @@ struct BrowseFeedRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: line.kind.symbol).font(.system(size: 10.5, weight: .semibold))
+            Image(systemName: line.symbol).font(.system(size: 10.5, weight: .semibold))
                 .foregroundStyle(line.failed ? Theme.err : line.kind.tint)
                 .frame(width: 26, height: 26).background(Circle().fill(Theme.bg3))
             VStack(alignment: .leading, spacing: 6) {
                 head.fixedSize(horizontal: false, vertical: true)
                 if !line.diff.isEmpty { diff }
-                if let detail = line.detail, line.kind == .refused || line.kind == .note {
+                if let detail = line.detail, line.kind == .refused || line.kind == .note || line.failed {
                     Text(verbatim: detail).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                 }
             }

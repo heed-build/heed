@@ -75,11 +75,17 @@ public struct SourceResult: Hashable, Sendable {
     public var looked: [String: SourceMatch]
     /// GitHub has more than the first page: how many it said there are.
     public var total: Int?
+    /// How many nodes GitHub withheld from the search (null in the page): an item that is not among the matches may
+    /// be one of those, so none is marked as left for being absent.
+    public var withheld: Int
 
-    public init(matches: [SourceMatch], looked: [String: SourceMatch] = [:], total: Int? = nil) {
+    public init(
+        matches: [SourceMatch], looked: [String: SourceMatch] = [:], total: Int? = nil, withheld: Int = 0
+    ) {
         self.matches = matches
         self.looked = looked
         self.total = total
+        self.withheld = withheld
     }
 }
 
@@ -187,7 +193,7 @@ public enum ItemSourceSync {
                         evidence(current, rule: sourced.rule, goal: goal, item: item.id, source: source, now: now),
                         known: known
                     )
-                } else if sourced.left == nil, !finished(item, known: known) {
+                } else if sourced.left == nil, result.withheld == 0, !finished(item, known: known) {
                     sourced.left = now
                 }
                 updated.sourced = sourced

@@ -70,6 +70,9 @@ extension BrowsePolicy {
             }
         }
         for (_, value, kind) in parsed.values where kind == .read {
+            if value == "-" {
+                return .no("reading a text from stdin hides it: \(bodyHint)")
+            }
             let check = checkPath(value, in: context, cwd: cwd, forWriting: false)
             if !check.allowed { return check }
         }

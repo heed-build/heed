@@ -442,13 +442,14 @@ private final class FakeSources: SourceGitHub {
     let looked = Mutex<[SourceMatch]>([])
     let lookups = Mutex<[[String]]>([])
     let fails = Mutex(false)
+    let withheld = Mutex(0)
 
     init(matches: [SourceMatch]) { self.matches = Mutex(matches) }
 
-    func search(_: String) async throws -> (matches: [SourceMatch], total: Int) {
+    func search(_: String) async throws -> (matches: [SourceMatch], total: Int, withheld: Int) {
         if fails.withLock({ $0 }) { throw GitHub.Failure(description: "offline") }
         let found = matches.withLock { $0 }
-        return (found, found.count)
+        return (found, found.count, withheld.withLock { $0 })
     }
 
     func lookup(_ refs: [String]) async throws -> [SourceMatch] {
@@ -586,5 +587,57 @@ struct GoalSourceGuideTests {
         #expect(fine.blocking == nil)
         let wrongRule = FormChecks.source(query: "issues acme/web", repo: nil, rule: .reviewed)
         #expect(wrongRule.note(for: "rule")?.tone == .problem)
+    }
+}
+
+/// A page of a search holding a null (a node GitHub withholds, SAML) beside real ones: live smoke finding P1.
+struct ItemSourceWithheldTests {
+    static let issueNode = #"{"__typename":"Issue","number":7,"title":"t","url":"https://github.com/a/b/issues/7","state":"OPEN","repository":{"nameWithOwner":"a/b"},"author":{"login":"x"}}"#
+
+    static func page(_ nodes: String) -> Data {
+        Data(
+            #"{"data":{"viewer":{"login":"me"},"search":{"issueCount":3,"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":["#
+                .appending(nodes).appending("]}}}").utf8
+        )
+    }
+
+    @Test func aNullNodeDoesNotDropTheRestOfThePage() throws {
+        let parsed = try GitHubSources.parseSearch(Self.page("null,\(Self.issueNode),null"))
+        #expect(parsed.matches.map(\.ref) == ["a/b#7"])
+        #expect(parsed.withheld == 2)
+        #expect(parsed.total == 3)
+        let clean = try GitHubSources.parseSearch(Self.page(Self.issueNode))
+        #expect(clean.matches.count == 1 && clean.withheld == 0)
+    }
+
+    @Test func theListHelperKeepsObjectsAndCountsTheRest() {
+        let list: [Any] = [NSNull(), ["a": 1], NSNull(), ["b": 2]]
+        #expect(GraphQLNodes.objects(list)?.count == 2)
+        #expect(GraphQLNodes.withheld(list) == 2)
+        #expect(GraphQLNodes.objects("x") == nil && GraphQLNodes.objects(nil) == nil)
+        #expect(GraphQLNodes.withheld(nil) == 0)
+    }
+
+    @Test func nothingIsMarkedLeftWhenGitHubWithheldResults() async throws {
+        let ops = try GoalOps.inMemory()
+        try await ops.create(title: "Review PRs", statement: "", now: now)
+        try await ops.addSource(goal: "review-prs", source(), now: now)
+        let github = FakeSources(matches: [pull(1), pull(2)])
+        let run = ItemSourceSyncRun(ops: ops, github: github)
+        try await run.sync(goal: "review-prs", now: now)
+        // The next search finds only #1 and withheld two nodes: #2 may be one of them, and a lookup cannot find it.
+        github.matches.withLock { $0 = [pull(1)] }
+        github.withheld.withLock { $0 = 2 }
+        try await run.sync(goal: "review-prs", now: now + 60)
+        var items = try await ops.snapshot().items
+        #expect(
+            items.first { $0.sourced?.ref == "acme/widgets#2" }?.sourced?.left == nil,
+            "marked left although hidden"
+        )
+        // The same search with nothing withheld: #2 really left.
+        github.withheld.withLock { $0 = 0 }
+        try await run.sync(goal: "review-prs", now: now + 120)
+        items = try await ops.snapshot().items
+        #expect(items.first { $0.sourced?.ref == "acme/widgets#2" }?.sourced?.left != nil)
     }
 }

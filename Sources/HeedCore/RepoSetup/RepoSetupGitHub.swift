@@ -242,7 +242,7 @@ public extension GitHub {
     static func parseMergedPulls(_ data: Data) -> [SampledPull] {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let repository = (json["data"] as? [String: Any])?["repository"] as? [String: Any],
-              let nodes = (repository["pullRequests"] as? [String: Any])?["nodes"] as? [[String: Any]]
+              let nodes = GraphQLNodes.objects((repository["pullRequests"] as? [String: Any])?["nodes"])
         else { return [] }
         return nodes.compactMap(parseMergedPull)
     }
@@ -252,7 +252,7 @@ public extension GitHub {
         let mergedAt = date(merged)
         let author = node["author"] as? [String: Any]
         let commits = node["commits"] as? [String: Any]
-        let commit = (commits?["nodes"] as? [[String: Any]])?.first?["commit"] as? [String: Any]
+        let commit = (GraphQLNodes.objects(commits?["nodes"]))?.first?["commit"] as? [String: Any]
         let contexts = latest((((commit?["statusCheckRollup"] as? [String: Any])?["contexts"] as? [String: Any])?[
             "nodes"
         ] as? [[String: Any]]) ?? [])
@@ -281,7 +281,7 @@ public extension GitHub {
             }
         }
         // Count the timeline's nodes: its totalCount includes events of every type.
-        let events = (((node["timelineItems"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? [])
+        let events = ((GraphQLNodes.objects((node["timelineItems"] as? [String: Any])?["nodes"])) ?? [])
             .map { (
                 kind: $0["__typename"] as? String ?? "",
                 at: date($0["createdAt"] as? String),
@@ -304,13 +304,13 @@ public extension GitHub {
                 if !seen.contains(label) { seen.append(label) }
             }
         }
-        let labels = (((node["labels"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? [])
+        let labels = ((GraphQLNodes.objects((node["labels"] as? [String: Any])?["nodes"])) ?? [])
             .compactMap { $0["name"] as? String }
         for label in labels where !seen.contains(label) {
             seen.append(label)
         }
         var bots: Set<String> = []
-        let reviews = (((node["reviews"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? [])
+        let reviews = ((GraphQLNodes.objects((node["reviews"] as? [String: Any])?["nodes"])) ?? [])
             .compactMap { review -> PullDetail.Review? in
                 let reviewer = review["author"] as? [String: Any]
                 guard let login = reviewer?["login"] as? String, let state = review["state"] as? String else {
@@ -325,9 +325,9 @@ public extension GitHub {
                     )
                 )
             }
-        let threads = (((node["reviewThreads"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? [])
+        let threads = ((GraphQLNodes.objects((node["reviewThreads"] as? [String: Any])?["nodes"])) ?? [])
             .enumerated().map { index, thread in
-                let first = ((thread["comments"] as? [String: Any])?["nodes"] as? [[String: Any]])?.first
+                let first = (GraphQLNodes.objects((thread["comments"] as? [String: Any])?["nodes"]))?.first
                 return ReviewThread(
                     id: "\(number)-\(index)", isResolved: thread["isResolved"] as? Bool ?? false,
                     path: first?["path"] as? String ?? "", line: nil,

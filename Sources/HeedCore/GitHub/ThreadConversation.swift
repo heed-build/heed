@@ -298,7 +298,7 @@ public extension GitHub {
         comments.sort { $0.createdAt < $1.createdAt }
         let pageInfo = commentsNode?["pageInfo"] as? [String: Any]
         let before = pageInfo?["hasPreviousPage"] as? Bool == true ? pageInfo?["startCursor"] as? String : nil
-        let labels = ((node["labels"] as? [String: Any])?["nodes"] as? [[String: Any]])?
+        let labels = (GraphQLNodes.objects((node["labels"] as? [String: Any])?["nodes"]))?
             .compactMap { $0["name"] as? String } ?? []
         let conversation = ThreadConversation(
             repo: repo, number: node["number"] as? Int ?? number, kind: isPull ? .pr : .issue,

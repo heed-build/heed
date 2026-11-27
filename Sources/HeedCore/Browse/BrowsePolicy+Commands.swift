@@ -9,8 +9,10 @@ extension BrowsePolicy {
         guard depth < maxDepth else { return .no("the command nests too deep for heed to check") }
         var cwd = cwd ?? context.worktree
         let parsed = BrowseShell.parse(text)
-        if parsed.substitution { return .no("a command substitution hides what would run: write the command out") }
-        if parsed.heredoc { return .no("a here-document: write the file with an edit instead") }
+        if parsed.substitution {
+            return .no("a command substitution hides what would run: write the command out" + teaching(text))
+        }
+        if parsed.heredoc { return .no("a here-document: write the file with an edit instead" + teaching(text)) }
         if parsed.shellPipe { return .no("piping into a shell is never allowed") }
         if parsed.grouped {
             return .no("a subshell, a group or an unclosed quote hides what would run: write the commands one by one")
@@ -46,6 +48,28 @@ extension BrowsePolicy {
         }
         return .yes
     }
+
+    /// What to say after refusing a substitution or a here-document, for the commands that models habitually write
+    /// that way: the exact spelling heed allows.
+    static func teaching(_ text: String) -> String {
+        let words = text.split(whereSeparator: \.isWhitespace)
+        let isGH = words.first == "gh"
+        let mentionsBody = text.contains("--body") || text.contains(" -b ") || text.contains(" -F ")
+        if isGH, mentionsBody {
+            return ". " + bodyHint
+        }
+        if text.hasPrefix("git commit") || text.contains(" git commit") {
+            return ". Write the message in single quotes (`git commit -m 'message'`, add more `-m '...'` for more "
+                + "paragraphs), or in a file inside the worktree (`git commit -F message.txt`)"
+        }
+        return ""
+    }
+
+    /// How to give gh a text that heed can read.
+    static let bodyHint =
+        "Write the body to a file inside the worktree with your edit tool and use `gh pr create --title '...' "
+            + "--body-file body.md`, or pass a single-quoted `--body '...'` (the same for `gh pr comment` and `gh pr edit`). "
+            + "Do not commit the body file"
 
     /// The words themselves: the command's name is plain text, and no word leans on `$`, `~` or a brace expansion;
     /// a glob may not climb with `..` and its literal front has to be inside the worktree.
@@ -659,6 +683,13 @@ extension BrowsePolicy {
         ]
     }()
 
+    private static let interpreters: Set<String> = ["python", "python3", "node", "ruby", "perl"]
+
+    /// What Review (which runs tests and no scripts) may run to test, for a refusal and for its prompt.
+    static let testHint =
+        "To run the tests use `python -m pytest` or `python -m unittest`, `npm test`, `pnpm test`, `yarn test`, "
+            + "`dotnet test`, `swift test`, `cargo test`, `go test ./...`, `make test`, `mise run test` or `pytest`"
+
     private static let ciScript = #"^(test|build|lint|check|typecheck|tsc|coverage|verify|ci|compile|format:check|types)([:\-].*)?$"#
     private static let publishWord = #"^(publish|deploy|release|ship|push|upload|login|logout|adduser|token|whoami|owner|yank)([:\-].*)?$"#
     private static let publishing: Set<String> = [
@@ -678,9 +709,16 @@ extension BrowsePolicy {
         let sub = words.first
         switch allowed {
         case .none:
-            return .no("\(context.verb.title) does not run \(name)")
+            return .no("\(context.verb.title) does not run \(name)" +
+                (interpreters.contains(name) ? ". " + testHint : ""))
         case let .only(set):
             if !args.isEmpty, !set.contains(sub ?? ""), !set.contains(args.first ?? "") {
+                if interpreters.contains(name) {
+                    return .no(
+                        "\(context.verb.title) runs the tests, not scripts: `\(name) \(args[0])` is a script. " +
+                            testHint
+                    )
+                }
                 return .no(
                     "\(context.verb.title) does not run `\(name) \(sub ?? args[0])`: \(name) is allowed for "
                         + (context.power == .write ? "builds, tests and dependencies" : "builds and tests")

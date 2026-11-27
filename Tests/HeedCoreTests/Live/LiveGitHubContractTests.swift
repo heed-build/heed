@@ -542,12 +542,10 @@ struct LiveGitHubContractTests {
                 )
             let parsed = try GitHubSources.parseSearch(data)
             if nulls > 0, real > 0 {
-                step.productBug(
-                    "P1-goals-saml-nulls",
-                    "Goals ItemSourceGitHub.parseSearch read \(parsed.matches.count) matches from a page with \(real) real nodes and \(nulls) nulls: "
-                        +
-                        "`search[\"nodes\"] as? [[String: Any]]` is nil for an array holding a null, so the whole page is dropped",
-                    reproduced: parsed.matches.count < real / 2
+                // P1 (fixed): a null node no longer drops the page, and the nulls are counted as withheld.
+                step.expect(
+                    parsed.matches.count >= real / 2 && parsed.withheld == nulls,
+                    "Goals parseSearch read \(parsed.matches.count) matches (withheld \(parsed.withheld)) from a page with \(real) real nodes and \(nulls) nulls"
                 )
             } else {
                 step
@@ -561,10 +559,9 @@ struct LiveGitHubContractTests {
             // The same bug without needing a SAML org on the account: a page with one null in front of a real node.
             let page = #"{"data":{"viewer":{"login":"me"},"search":{"issueCount":2,"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[null,{"__typename":"Issue","number":7,"title":"t","url":"https://github.com/a/b/issues/7","state":"OPEN","repository":{"nameWithOwner":"a/b"},"author":{"login":"x"}}]}}}"#
             let parsed = try GitHubSources.parseSearch(Data(page.utf8))
-            step.productBug(
-                "P1-goals-saml-nulls",
-                "GitHubSources.parseSearch returns \(parsed.matches.count) matches for [null, issue]: the null drops the page (src/HeedCore/Goals/ItemSourceGitHub.swift, `nodes as? [[String: Any]]`)",
-                reproduced: parsed.matches.isEmpty
+            step.expect(
+                parsed.matches.map(\.ref) == ["a/b#7"] && parsed.withheld == 1,
+                "P1: parseSearch returns \(parsed.matches.count) matches (withheld \(parsed.withheld)) for [null, issue]"
             )
         }
 

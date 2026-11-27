@@ -518,6 +518,7 @@ the [configuration reference](../configuration/reference.md).
 - **Agent actions take one item,** and an agent never starts on an item whose Fix, Implement or Review does not fit
   it: the button says why.
 - **A run is not a sandbox,** and it is not free: it spends against `[helpers] spend_cap`.
+- **Quitting stops the runs.** With a run live, ⌘Q asks first (also when sessions persist through zmx, which keeps sessions but not Browse's agents), names the runs, and closes their agents on the way out. A worktree stays where it is; the next launch's sweep removes only the ones holding nothing.
 - **A crash can leave a run's worktree behind.** heed removes it when you close the run, not on its own at startup (the next launch's sweep removes the ones with nothing unpushed or uncommitted in them).
 
 **Next:** [Reading](reading.md), or [start a session from an item](../start-work/from-github.md).

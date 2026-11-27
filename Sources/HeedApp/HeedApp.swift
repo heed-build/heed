@@ -165,6 +165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // From here terminals ending are the quit, not exits: sessions keep their panes for the next launch.
         model.beginTerminating()
         Task {
+            await model.closeBrowseAgents()
             await model.flush()
             RunDiagnostics.shared.quit("quit")
             NSApp.reply(toApplicationShouldTerminate: true)

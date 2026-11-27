@@ -4387,23 +4387,38 @@ final class AppModel {
     /// ⌘Q or Quit in the menu bar with agents running: Heed comes forward and asks. True when it asked (the quit
     /// waits for the answer), false when nothing runs and quitting can go ahead.
     func confirmQuitIfAgentsRun() -> Bool {
-        // With zmx, quitting leaves the agents running: heed reattaches to them on its next launch.
-        if TerminalSurfaces.shared.persist == .zmx { return false }
-        let running = sessions.filter { [.working, .blocked, .asking].contains($0.state.state) }
-        guard !running.isEmpty, confirmation == nil else { return confirmation != nil }
+        // With zmx, quitting leaves the session agents running: heed reattaches to them on its next launch. Browse's
+        // runs are ACP processes of this app, so they stop either way.
+        let running = TerminalSurfaces.shared.persist == .zmx ? [] : sessions.filter {
+            [.working, .blocked, .asking].contains($0.state.state)
+        }
+        let browseLines = BrowseQuitNotice.lines(for: browse.runs.runs)
+        guard !running.isEmpty || !browseLines.isEmpty, confirmation == nil else { return confirmation != nil }
         activateHeed()
-        ask(Confirmation(
-            title: "Quit Heed?",
-            lines: ["\(running.count) agent\(running.count == 1 ? " is" : "s are") running and will stop"]
+        var lines: [String] = []
+        if !running.isEmpty {
+            lines += ["\(running.count) agent\(running.count == 1 ? " is" : "s are") running and will stop"]
                 + running.prefix(5).map { "\($0.title) · \($0.state.state.rawValue)" }
                 + (running.count > 5 ? ["and \(running.count - 5) more"] : [])
-                + ["Sessions stay and can resume on the next launch"],
-            accept: "Quit"
-        ) { [weak self] in
+                + ["Sessions stay and can resume on the next launch"]
+        }
+        lines += browseLines
+        ask(Confirmation(title: "Quit Heed?", lines: lines, accept: "Quit") { [weak self] in
             self?.quitConfirmed = true
             NSApp.terminate(nil)
         })
         return true
+    }
+
+    /// On the way out: Browse's agents are closed, so no ACP process outlives the app. Their worktrees stay for the
+    /// next launch's sweep, which keeps any that hold work.
+    func closeBrowseAgents() async {
+        let runs = browse.runs
+        let clients = runs.clients
+        for (id, client) in clients {
+            if let session = runs.sessionIDs[id] { await client.cancel(sessionID: session) }
+            await client.close()
+        }
     }
 
     private func confirmClose() {

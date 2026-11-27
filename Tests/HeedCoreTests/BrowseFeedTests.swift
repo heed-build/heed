@@ -92,6 +92,67 @@ struct BrowseFeedTests {
         #expect(BrowseFeed.line(HelperEntry(id: "m", at: now, body: .message("heed-verdict: approve"))) == nil)
     }
 
+    // MARK: A failed or refused tool is not worded as a success (live smoke F4)
+
+    private func failedLine(_ command: String, _ output: String?) -> BrowseFeedLine? {
+        BrowseFeed.line(
+            HelperTool(id: "1", title: command, kind: .execute, status: .failed, output: output, command: command),
+            id: "1"
+        )
+    }
+
+    @Test func aFailedToolIsWordedAsAnAttempt() throws {
+        let pr = try #require(failedLine("gh pr create --title 'Fix add' --body-file body.md", "could not find body.md"))
+        #expect(pr.text == "Tried to open a pull request" && pr.failed && pr.detail == "could not find body.md")
+        #expect(pr.link == nil && pr.number == nil)
+        let commit = try #require(failedLine("git commit -m 'Fix'", "nothing to commit"))
+        #expect(commit.text == "Could not commit: nothing to commit" && commit.failed)
+        let push = try #require(failedLine("git push -u origin HEAD", "rejected"))
+        #expect(push.text == "Could not push: rejected")
+        let comment = try #require(failedLine("gh pr comment 5 --body-file x.md", "no such file"))
+        #expect(comment.text == "Tried to comment" && comment.failed)
+        let other = try #require(failedLine("python3 x.py", "Traceback"))
+        #expect(other.text == "Failed: python3 x.py" && other.failed)
+    }
+
+    @Test func aSigningFailureSaysSigningCannotWorkHere() throws {
+        let line = try #require(failedLine(
+            "git commit -m 'Fix'", "Enter passphrase for /Users/x/.ssh/id_ed25519:\nerror: incorrect passphrase supplied"
+        ))
+        #expect(line.text == "Could not commit: signing failed")
+        #expect(line.detail?.contains("commit signing needs your ssh agent") == true)
+        #expect(line.detail?.contains("not available in this run") == true)
+    }
+
+    @Test func aCommandHeedRefusedIsOnlyTheRefusalLine() {
+        #expect(failedLine("git push --force", "User refused permission to run tool") == nil)
+        var run = BrowseRun(
+            item: item(), verb: .fix, agent: "claude", adapter: "x", name: "n", branch: "b", worktree: "/w",
+            phase: .working, startedAt: now, cap: 0
+        )
+        run.refused("git push --force", why: "no force-push", at: now)
+        let refused = BrowseFeed.lines(run.story.feed)[0]
+        #expect(refused.kind == .refused && !refused.warns)
+    }
+
+    @Test func aSuccessIsStillWordedAsOne() {
+        func ok(_ command: String, _ output: String? = nil) -> String {
+            BrowseFeed.line(
+                HelperTool(id: "1", title: command, kind: .execute, status: .completed, output: output, command: command),
+                id: "1"
+            )?.text ?? ""
+        }
+        #expect(ok("git push -u origin HEAD") == "Pushed")
+        #expect(ok("git commit -m 'x'") == "Committed")
+        #expect(ok("gh pr create --title x", "https://github.com/acme/docs-toolkit/pull/9") == "Opened PR #9")
+    }
+
+    @Test func aFailedLineHasADifferentGlyph() {
+        let failed = BrowseFeedLine(id: "1", kind: .openedPR, text: "Tried to open a pull request", failed: true)
+        let done = BrowseFeedLine(id: "2", kind: .openedPR, text: "Opened PR #1")
+        #expect(failed.warns && !done.warns)
+    }
+
     // MARK: Prompts
 
     private func place(fork: Bool = false) -> BrowseRunPrompt.Place {

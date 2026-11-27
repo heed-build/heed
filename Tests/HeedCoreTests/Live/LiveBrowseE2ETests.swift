@@ -479,13 +479,12 @@ struct LiveBrowseE2ETests {
         )
         outcome.prOnlyHabitual = tried("gh pr create") && !run.asked
             .contains { ($0.command ?? "").contains("gh pr create") && $0.allowed }
-        let liars = run.lines.filter { [.openedPR, .committed, .pushed].contains($0.kind) && $0.failed }
-        step.productBug(
-            "F4-feed-says-done-when-failed",
-            "the feed words a failed or refused tool as a success ('Opened a pull request', 'Committed', 'Pushed'), only its failed flag differs: "
-                + "\(liars.map { "\($0.kind.rawValue): \($0.text) (failed)" })",
-            reproduced: !liars.isEmpty
-        )
+        // F4 (fixed): a failed tool is never worded as a success.
+        let liars = run.lines.filter {
+            [.openedPR, .committed, .pushed].contains($0.kind) && $0.failed
+                && ($0.text.hasPrefix("Opened") || $0.text == "Committed" || $0.text == "Pushed")
+        }
+        step.expect(liars.isEmpty, "F4: the feed words a failed tool as a success: \(liars.map(\.text))")
         let signed = try? await ProcessRunner.run(
             "git", ["-C", run.worktree, "config", "--get", "commit.gpgsign"], caller: "live.e2e"
         )

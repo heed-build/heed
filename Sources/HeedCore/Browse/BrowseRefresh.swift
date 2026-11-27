@@ -127,8 +127,12 @@ public enum BrowseRefreshApply {
 
     /// The rows of `shown` that a fetch of `fetched` should have returned but did not: the ones GitHub no longer
     /// lists (closed, moved out of the view). A capped answer vouches only for items updated since its oldest, as it
-    /// is the newest first.
-    public static func gone(shown: [BrowseItem], fetched: [BrowseItem], capped: Bool) -> Set<String> {
+    /// is the newest first. A partial one (some owners were not searched, `BrowseDefaultScope.maxGroups`) vouches for
+    /// nothing: what it did not list may be in a place it did not look.
+    public static func gone(
+        shown: [BrowseItem], fetched: [BrowseItem], capped: Bool, partial: Bool = false
+    ) -> Set<String> {
+        if partial { return [] }
         let have = Set(fetched.map(\.id))
         let floor = capped ? fetched.map(\.updatedAt).min() : nil
         if capped, floor == nil { return [] }

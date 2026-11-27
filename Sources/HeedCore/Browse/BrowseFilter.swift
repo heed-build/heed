@@ -61,11 +61,9 @@ public struct BrowseFilter: Hashable, Sendable {
         case let .assignee(value): return item.assignees.contains { $0.lowercased() == login(value) }
         case let .author(value): return item.author?.lowercased() == login(value)
         case let .milestone(value): return item.milestone?.lowercased() == value.lowercased()
-        case let .project(value):
-            return item.projects
-                .contains {
-                    value.lowercased().hasSuffix("/" + $0.lowercased()) || $0.lowercased() == value.lowercased()
-                }
+        // heed does not read an item's Projects (that needs a token scope its default lacks), so it cannot judge this:
+        // GitHub did, when the query asked it, and what it listed is kept.
+        case .project: return true
         case let .created(span): return within(item.createdAt, span)
         case let .activity(span): return within(item.updatedAt, span)
         case let .linkedPull(linked): return item.hasLinkedPull == linked
@@ -112,7 +110,6 @@ public struct BrowseFacets: Equatable, Sendable {
     public var authors: [String: Int] = [:]
     public var assignees: [String: Int] = [:]
     public var milestones: [String: Int] = [:]
-    public var projects: [String: Int] = [:]
     public var issues = 0
     public var pulls = 0
     public var classes: [BrowseClass: Int] = [:]
@@ -133,9 +130,6 @@ public struct BrowseFacets: Equatable, Sendable {
                 assignees[assignee, default: 0] += 1
             }
             if let milestone = item.milestone { milestones[milestone, default: 0] += 1 }
-            for project in item.projects {
-                projects[project, default: 0] += 1
-            }
             if item.kind == .issue { issues += 1 } else { pulls += 1 }
             if let read = reads[item.id] {
                 self.read += 1

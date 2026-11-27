@@ -32,18 +32,25 @@ public actor BrowseStore {
         try database.migrate(Self.schema)
     }
 
-    /// Opens the store off the main actor; nil (logged) when it cannot be opened, and Browse keeps nothing past what
-    /// it fetched this run.
-    public static func open(at file: URL) async -> BrowseStore? {
+    /// What opening the store came to: the store, or why there is none.
+    public struct Opened: Sendable {
+        public let store: BrowseStore?
+        /// Why it could not be opened, in words for the list's notice.
+        public let problem: String?
+    }
+
+    /// Opens the store off the main actor. When it cannot be opened (logged), `store` is nil and `problem` says why:
+    /// Browse then works in memory and keeps nothing past what it fetched this run.
+    public static func open(at file: URL) async -> Opened {
         await Task.detached(priority: .userInitiated) {
             do {
                 try FileManager.default.createDirectory(
                     at: file.deletingLastPathComponent(), withIntermediateDirectories: true
                 )
-                return try BrowseStore(path: file.path)
+                return try Opened(store: BrowseStore(path: file.path), problem: nil)
             } catch {
                 NSLog("heed: could not open \(file.path) (\(error)); Browse keeps no cache")
-                return nil
+                return Opened(store: nil, problem: BrowseCacheNotice.reason(for: error))
             }
         }.value
     }

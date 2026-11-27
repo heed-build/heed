@@ -13,6 +13,7 @@ public enum CommandAliases {
     public static let views = [
         "sessions",
         "attention",
+        "browse",
         "inbox",
         "issues",
         "prs",

@@ -65,8 +65,13 @@ public enum BrowseField: String, CaseIterable, Hashable, Sendable {
         }
     }
 
-    /// Why a field cannot be used now: never at present, every field works.
-    public var disabledReason: String? { nil }
+    /// The fields the popover lists. Project is not one: heed cannot read the Projects an item is on (that needs a
+    /// token scope its default token lacks), so the local filter could only ever show nothing. A saved query that
+    /// has a `project:` token still runs, and GitHub judges it.
+    public static var offered: [BrowseField] { allCases.filter { $0 != .project } }
+
+    /// Why a field cannot be used now.
+    public var disabledReason: String? { self == .project ? "heed cannot read an item's Projects" : nil }
 
     /// Whether several values may be ticked, and whether any / all / none applies to them.
     public var isMultiple: Bool { self == .label || self == .heedClass || self == .heedSize }
@@ -140,8 +145,6 @@ public struct BrowseBuilder: Sendable {
         public var viewer: String?
         public var maxAgeDays: Int
         public var now: Date
-        /// Projects the rail knows, so a title becomes the `owner/number` GitHub's `project:` takes.
-        public var projects: [BrowseScope]
         /// Whether words can go to the model, or why not.
         public var wordsOff: String?
         /// heed's reads by item id.
@@ -150,7 +153,7 @@ public struct BrowseBuilder: Sendable {
         public var checkouts: BrowseCheckouts?
 
         public init(
-            items: [BrowseItem], viewer: String? = nil, maxAgeDays: Int = 90, now: Date, projects: [BrowseScope] = [],
+            items: [BrowseItem], viewer: String? = nil, maxAgeDays: Int = 90, now: Date,
             wordsOff: String? = nil, reads: BrowseReads = [:], checkouts: BrowseCheckouts? = nil
         ) {
             self.checkouts = checkouts
@@ -159,12 +162,11 @@ public struct BrowseBuilder: Sendable {
             self.viewer = viewer
             self.maxAgeDays = maxAgeDays
             self.now = now
-            self.projects = projects
             self.wordsOff = wordsOff
         }
     }
 
-    public enum Stage: Equatable, Sendable { case fields, values(BrowseField), raw, project, save }
+    public enum Stage: Equatable, Sendable { case fields, values(BrowseField), raw, save }
 
     public enum Reading: Equatable, Sendable {
         case idle, reading
@@ -231,8 +233,6 @@ public struct BrowseBuilder: Sendable {
     public private(set) var editing = false
     public private(set) var tokenCursor = 0
     public var draft: Draft?
-    /// Why the Project text is not accepted yet (shown under the field).
-    public private(set) var projectError: String?
     private var tokens: [BrowseToken] = []
 
     public init(base: BrowseQuery, context: Context) {
@@ -258,8 +258,8 @@ public struct BrowseBuilder: Sendable {
     /// The fields the typing narrows to, by what their names start with.
     public var fields: [BrowseField] {
         let text = input.text.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !text.isEmpty else { return BrowseField.allCases }
-        return BrowseField.allCases.filter { field in
+        guard !text.isEmpty else { return BrowseField.offered }
+        return BrowseField.offered.filter { field in
             field.title.lowercased().split(separator: " ").contains { $0.hasPrefix(text) }
                 || field.title.lowercased().hasPrefix(text)
         }
@@ -415,7 +415,7 @@ public struct BrowseBuilder: Sendable {
                 + ranked(facets.authors)
         case .repo: return ranked(facets.repos)
         case .milestone: return ranked(facets.milestones)
-        case .project: return ranked(facets.projects)
+        case .project: return []
         case .type: return counted([("issues", "Issues"), ("pulls", "Pull requests")])
         case .state: return counted([("open", "Open"), ("closed", "Closed"), ("merged", "Merged")])
         case .linkedPull: return counted([("yes", "has a linked PR"), ("no", "has none")])
@@ -459,12 +459,7 @@ public struct BrowseBuilder: Sendable {
         case .author: return [.author(values[0])]
         case .repo: return [.repo(values[0])]
         case .milestone: return [.milestone(values[0])]
-        case .project:
-            let mapped = context.projects.compactMap { scope -> String? in
-                if case let .project(owner, number, title) = scope, title == values[0] { return "\(owner)/\(number)" }
-                return nil
-            }.first
-            return [.project(mapped ?? values[0])]
+        case .project: return []
         case .type: return [.type(values[0] == "issues" ? .issues : .pulls)]
         case .state: return BrowseStateFilter(rawValue: values[0]).map { [.state($0)] } ?? []
         case .linkedPull: return [.linkedPull(values[0] == "yes")]
@@ -488,11 +483,6 @@ public struct BrowseBuilder: Sendable {
             switch token {
             case let .label(_, names): values += names
             case let .assignee(value), let .author(value), let .repo(value), let .milestone(value): values.append(value)
-            case let .project(value):
-                values.append(context.projects.compactMap { scope -> String? in
-                    if case let .project(owner, number, title) = scope, value == "\(owner)/\(number)" { return title }
-                    return nil
-                }.first ?? value)
             case .raw: values.append(Self.unassigned)
             case let .type(type): values.append(type == .issues ? "issues" : "pulls")
             case let .state(state): values.append(state.rawValue)
@@ -520,12 +510,6 @@ public struct BrowseBuilder: Sendable {
             stage = .raw
             input.set(BrowseQuery(tokens: base.tokens, showOlder: true)
                 .rendered(maxAgeDays: context.maxAgeDays, now: context.now))
-            return
-        }
-        if field == .project {
-            stage = .project
-            projectError = nil
-            if case let .project(value)? = base.tokens.first(where: { field.owns($0) }) { input.set(value) }
             return
         }
         stage = .values(field)
@@ -581,7 +565,6 @@ public struct BrowseBuilder: Sendable {
         case .fields: handleFields(stroke)
         case let .values(field): handleValues(field, stroke)
         case .raw: handleRaw(stroke)
-        case .project: handleProject(stroke)
         case .save: handleSave(stroke)
         }
     }
@@ -615,7 +598,7 @@ public struct BrowseBuilder: Sendable {
             return .apply(base)
         case _
             where input.isEmpty && stroke.modifiers.isEmpty && Int(stroke.key).map { (1 ... 9).contains($0) } == true:
-            if let field = BrowseField.allCases[safe: Int(stroke.key)! - 1] {
+            if let field = BrowseField.offered[safe: Int(stroke.key)! - 1] {
                 open(field)
                 return .changed
             }
@@ -728,54 +711,6 @@ public struct BrowseBuilder: Sendable {
             input = EditableText()
             return .apply(query)
         default: return input.handle(stroke) ? .changed : .none
-        }
-    }
-
-    /// The `owner/number` GitHub's `project:` qualifier takes, from what was typed: `acme/7`, `project:acme/7`, or the
-    /// board's address (`github.com/orgs/acme/projects/7`). Nil when it is none of these.
-    public static func projectRef(_ text: String) -> String? {
-        var value = text.trimmingCharacters(in: .whitespaces)
-        if value.lowercased().hasPrefix("project:") { value = String(value.dropFirst("project:".count)) }
-        let parts = value.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
-        var owner = "", number = ""
-        if value.contains("github.com"), let at = parts.firstIndex(of: "projects"), at >= 2, at + 1 < parts.count {
-            owner = parts[at - 1]
-            number = parts[at + 1]
-        } else if parts.count == 2 {
-            (owner, number) = (parts[0], parts[1])
-        } else {
-            return nil
-        }
-        let name = owner.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" || $0 == "." }
-        guard !owner.isEmpty, name, let n = Int(number), n > 0, String(n) == number else { return nil }
-        return "\(owner)/\(n)"
-    }
-
-    private mutating func handleProject(_ stroke: KeyStroke) -> Action {
-        switch stroke {
-        case .escape:
-            stage = .fields
-            input = EditableText()
-            return .changed
-        case KeyStroke("c", .command): return .copy(raw)
-        case KeyStroke("CR"):
-            let text = input.text.trimmingCharacters(in: .whitespaces)
-            var applied = base
-            applied.tokens.removeAll { BrowseField.project.owns($0) }
-            if !text.isEmpty {
-                guard let ref = Self.projectRef(text) else {
-                    projectError = "Not a Project: type owner/number, like acme/7."
-                    return .changed
-                }
-                applied.tokens.append(.project(ref))
-            }
-            base = applied
-            stage = .fields
-            input = EditableText()
-            return .apply(applied)
-        default:
-            projectError = nil
-            return input.handle(stroke) ? .changed : .none
         }
     }
 

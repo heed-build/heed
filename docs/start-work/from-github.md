@@ -33,7 +33,7 @@ The repo's `start_instructions` setting adds its text to the prompt.
 
 ## In Browse
 
-[Browse](../github/browse.md) (`gb`) searches the issues and PRs of an org, a repo or a Project. Pick items with
+[Browse](../github/browse.md) (`gb`) searches the issues and PRs of an org or a repo. Pick items with
 `space` and press `s` to start one session for all of them (in every repo they are in), `S` for one session per repo, or `G` for a goal. On one
 item, `F` Fix, `I` Implement, `C` Chat and `R` Review run an agent in a temporary worktree without going through Start
 work, and `s` keeps the run as a session.

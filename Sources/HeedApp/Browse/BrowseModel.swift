@@ -26,6 +26,8 @@ final class BrowseModel {
     }
 
     private(set) var store: BrowseStore?
+    /// Set when `browse.sqlite` could not be opened: the list's notice, kept for as long as Browse works without it.
+    private(set) var cacheProblem: String?
     /// The agent runs on items (Fix, Implement, Chat, Review).
     let runs = BrowseRunsModel()
     var items: [BrowseItem] = []
@@ -228,8 +230,16 @@ final class BrowseModel {
     /// Opens `browse.sqlite` beside the domain file, then draws what it kept: queries, scopes, items, and where you
     /// were.
     func open(beside file: URL) async {
-        store = await BrowseStore.open(at: file.deletingLastPathComponent().appendingPathComponent("browse.sqlite"))
-        guard let store else { return }
+        let opened = await BrowseStore
+            .open(at: file.deletingLastPathComponent().appendingPathComponent("browse.sqlite"))
+        store = opened.store
+        guard let store else {
+            // Memory only: what is fetched this run is kept this run. Browse is not inert, and the list says why.
+            cacheProblem = BrowseCacheNotice.text(reason: opened.problem ?? "unknown error")
+            started = true
+            refilter()
+            return
+        }
         do {
             if try await !store.flag("starters") {
                 // Agent-ready leads; the others follow.
@@ -264,6 +274,9 @@ final class BrowseModel {
         schedulePrune()
     }
 
+    /// The fake world's: the notice as it reads for `reason`, for the shots.
+    func showCacheProblem(_ reason: String) { cacheProblem = BrowseCacheNotice.text(reason: reason) }
+
     /// The fake world's: no store, what the fixtures say.
     func adoptFixtures() {
         let data = Fixtures.Browse.self
@@ -283,10 +296,18 @@ final class BrowseModel {
     }
 
     func configure(_ settings: BrowseSettings, viewer: String?) {
-        let moved = settings.maxAgeDays != self.settings.maxAgeDays
+        let moved = settings.maxAgeDays != self.settings.maxAgeDays || viewer != self.viewer
         self.settings = settings
         self.viewer = viewer
         if moved { refilter() }
+    }
+
+    /// Who you are arrived (or changed) while Browse was already showing: what `@me` stands for moved, so the list and
+    /// the rail's counts are judged again.
+    func setViewer(_ viewer: String?) {
+        guard viewer != self.viewer else { return }
+        self.viewer = viewer
+        refilter()
     }
 
     // MARK: What the list shows
@@ -513,7 +534,7 @@ final class BrowseModel {
                 failures += 1
                 failedAt = Date()
                 silent = false
-                load = .failed((error as? GitHub.Failure)?.description ?? error.localizedDescription)
+                load = .failed((error as? CustomStringConvertible)?.description ?? error.localizedDescription)
             }
         }
     }
@@ -550,7 +571,9 @@ final class BrowseModel {
         load = .idle
         silent = false
         fresh = []
-        let gone = BrowseRefreshApply.gone(shown: allRows, fetched: result.items, capped: result.capped)
+        let gone = BrowseRefreshApply.gone(
+            shown: allRows, fetched: result.items, capped: result.capped, partial: result.groups < result.groupsTotal
+        )
         let store = store
         let kept = result.items
         Task { try? await store?.record(kept, now: Date()) }

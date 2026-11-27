@@ -43,6 +43,14 @@ struct BrowseFilterTests {
         BrowseFilter(query: query, viewer: viewer).apply(to: items, sort: sort, now: now).map(\.number)
     }
 
+    /// Who `@me` is arrives after Browse first draws: judged with no viewer it matches nothing, so the list has to be
+    /// judged again once the viewer is known (`BrowseModel.setViewer`).
+    @Test func atMeMatchesNothingUntilTheViewerIsKnown() {
+        let mine = BrowseQuery(tokens: [.assignee("@me")])
+        #expect(ids(mine, viewer: nil).isEmpty)
+        #expect(ids(mine, viewer: "jdoe") == [1])
+    }
+
     @Test func eachTokenNarrows() {
         #expect(ids(BrowseQuery(tokens: [.type(.pulls)])) == [4])
         #expect(ids(BrowseQuery(tokens: [.label(.any, ["bug", "perf"])])) == [2, 1, 3])

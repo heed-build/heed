@@ -15,7 +15,6 @@ struct BrowseBuilderView: View {
                 case .fields: FieldsCard(builder: builder)
                 case let .values(field): ValuesCard(builder: builder, field: field)
                 case .raw: RawCard(builder: builder)
-                case .project: ProjectCard(builder: builder)
                 case .save: SaveCard(builder: builder)
                 }
             }
@@ -111,7 +110,7 @@ private struct FieldsCard: View {
     let builder: BrowseBuilder
 
     var body: some View {
-        let rows = builder.isWords ? BrowseField.allCases : builder.fields
+        let rows = builder.isWords ? BrowseField.offered : builder.fields
         VStack(alignment: .leading, spacing: 0) {
             if builder.isWords { UnderstoodCard(builder: builder) }
             Text(builder.isWords ? "OR ADD A FILTER" : "ADD A FILTER").font(Theme.mono(10.5, weight: .semibold))
@@ -150,7 +149,6 @@ private struct FieldsCard: View {
         switch field {
         case .label: return top(facets.labels)
         case .milestone: return top(facets.milestones)
-        case .project: return field.hint
         case .repo: return top(facets.repos)
         default: return field.hint
         }
@@ -449,32 +447,6 @@ private struct RawCard: View {
             }
             Text("Paste or type any GitHub search. ↩ reads it into filters; what heed does not model stays as written.")
                 .font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
-        }
-        .padding(20).browseCardWidth(640)
-    }
-}
-
-private struct ProjectCard: View {
-    let builder: BrowseBuilder
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Project").font(Theme.ui(15, weight: .semibold))
-                Spacer()
-                cap("esc")
-            }
-            CaretText(input: builder.input).font(Theme.mono(13))
-                .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg))
-                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
-            if let error = builder.projectError {
-                Text(error).font(Theme.ui(12.5)).foregroundStyle(Theme.fg)
-            }
-            Text(
-                "Type owner/number, as in github.com/orgs/acme/projects/7: acme/7. ↩ keeps only what is on that Project; empty removes the filter."
-            )
-            .font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
         }
         .padding(20).browseCardWidth(640)
     }

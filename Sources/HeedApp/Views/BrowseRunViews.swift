@@ -492,3 +492,41 @@ struct BrowseRunFailedCard: View {
         .shotRegion(.browseRun)
     }
 }
+
+/// A closed run whose worktree was kept because it holds work nothing else has: what is at stake, where it is, and the
+/// ways out. It stays until the work is dealt with or the card is dismissed (esc, which leaves the worktree).
+struct BrowseRunKeptCard: View {
+    @Environment(AppModel.self) private var model
+    let run: BrowseRun
+
+    var body: some View {
+        let kept = run.kept
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle").font(.system(size: 13)).foregroundStyle(Theme.ask)
+                Text("\(run.verb.title) closed, its work is kept").font(Theme.ui(14, weight: .semibold))
+            }
+            Text(kept?.message ?? "").font(Theme.ui(13)).foregroundStyle(Theme.fg)
+                .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+            HStack(spacing: 14) {
+                action("s", "keep as a session", "browse.run.keep")
+                action("X", "discard (twice)", "browse.run.review.discard")
+                action("esc", "dismiss, keep the worktree", "browse.run.close")
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.ask.opacity(0.07)))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.ask.opacity(0.7)))
+        .shotRegion(.browseRun)
+    }
+
+    private func action(_ key: String, _ title: String, _ command: String) -> some View {
+        HStack(spacing: 6) {
+            KeyCap(text: key)
+            Text(title).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+        }
+        .contentShape(Rectangle())
+        .clickRuns(CommandInvocation(name: command))
+    }
+}

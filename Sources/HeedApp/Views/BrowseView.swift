@@ -750,6 +750,21 @@ struct BrowseRefreshBanner: View {
     var compact = false
 
     var body: some View {
+        VStack(spacing: 0) {
+            if let problem = model.browse.cacheProblem {
+                line {
+                    Image(systemName: "externaldrive.badge.xmark").font(.system(size: 10.5))
+                        .foregroundStyle(Theme.block)
+                    Text(problem).font(Theme.ui(12)).foregroundStyle(Theme.fg2).lineLimit(1)
+                        .help(problem)
+                    Spacer(minLength: 0)
+                }
+            }
+            banner
+        }
+    }
+
+    @ViewBuilder private var banner: some View {
         let browse = model.browse
         if let diff = browse.pending {
             line {
@@ -971,8 +986,10 @@ struct BrowseReader: View {
                 // A GitHub write or "open many" started from this one item (a right-click): its step shows here.
                 if let form = model.browse.bulk { BrowseBulkStep(form: form) }
                 if actions, model.browse.runs.current(for: item.id) == nil {
-                    if let failed = BrowseRunFailure.failed(for: item.id, in: model.browse.runs.runs),
-                       case let .failed(why) = failed.phase
+                    if let kept = BrowseRuns.kept(for: item.id, in: model.browse.runs.runs) {
+                        BrowseRunKeptCard(run: kept)
+                    } else if let failed = BrowseRunFailure.failed(for: item.id, in: model.browse.runs.runs),
+                              case let .failed(why) = failed.phase
                     {
                         BrowseRunFailedCard(verb: failed.verb, why: why)
                     } else if let refused = model.browse.startRefusals[item.id] {

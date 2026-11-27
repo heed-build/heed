@@ -10,8 +10,7 @@ extension BrowseModel {
     func builderContext(wordsOff: String?, now: Date = Clock.now) -> BrowseBuilder.Context {
         BrowseBuilder.Context(
             items: items, viewer: viewer, maxAgeDays: settings.maxAgeDays, now: now,
-            projects: scopes.filter { if case .project = $0 { true } else { false } }, wordsOff: wordsOff,
-            reads: reads, checkouts: checkouts
+            wordsOff: wordsOff, reads: reads, checkouts: checkouts
         )
     }
 

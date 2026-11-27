@@ -63,10 +63,21 @@ public struct CommitSigning: Equatable, Sendable {
     /// Whether a failed command's output is git failing to sign.
     public static func failed(_ output: String) -> Bool {
         let text = output.lowercased()
-        return ["enter passphrase", "incorrect passphrase", "failed to write commit object", "gpg failed to sign",
-                "failed to sign the data", "couldn't load public key", "agent refused operation",
-                "error: gpg", "no secret key", "signing failed", "sign_and_send_pubkey", "pinentry"]
-            .contains { text.contains($0) }
+        return [
+            "enter passphrase",
+            "incorrect passphrase",
+            "failed to write commit object",
+            "gpg failed to sign",
+            "failed to sign the data",
+            "couldn't load public key",
+            "agent refused operation",
+            "error: gpg",
+            "no secret key",
+            "signing failed",
+            "sign_and_send_pubkey",
+            "pinentry",
+        ]
+        .contains { text.contains($0) }
     }
 
     /// The failure card's words for a commit that could not be signed.

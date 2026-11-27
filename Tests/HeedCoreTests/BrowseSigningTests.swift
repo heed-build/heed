@@ -29,7 +29,8 @@ struct BrowseSigningTests {
     @Test(arguments: table)
     func onlyATrustedWriterKeepsTheSigningVariables(_ row: Case) {
         let parent = [
-            "PATH": "/usr/bin", "HOME": "/Users/you", "SSH_AUTH_SOCK": "/tmp/agent.sock", "GNUPGHOME": "/Users/you/.gnupg",
+            "PATH": "/usr/bin", "HOME": "/Users/you", "SSH_AUTH_SOCK": "/tmp/agent.sock",
+            "GNUPGHOME": "/Users/you/.gnupg",
             "GPG_AGENT_INFO": "/tmp/gpg:1:1", "GH_TOKEN": "t", "GIT_SSH_COMMAND": "curl x",
         ]
         let environment = BrowseRunEnvironment.make(
@@ -100,7 +101,8 @@ struct BrowseSigningTests {
     }
 
     @Test func aSigningFailureIsRecognised() {
-        #expect(CommitSigning.failed("Enter passphrase for /Users/x/.ssh/id_ed25519:\nerror: incorrect passphrase supplied"))
+        #expect(CommitSigning
+            .failed("Enter passphrase for /Users/x/.ssh/id_ed25519:\nerror: incorrect passphrase supplied"))
         #expect(CommitSigning.failed("error: gpg failed to sign the data\nfatal: failed to write commit object"))
         #expect(!CommitSigning.failed("nothing to commit, working tree clean"))
     }

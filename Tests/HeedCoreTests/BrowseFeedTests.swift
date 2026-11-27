@@ -102,7 +102,10 @@ struct BrowseFeedTests {
     }
 
     @Test func aFailedToolIsWordedAsAnAttempt() throws {
-        let pr = try #require(failedLine("gh pr create --title 'Fix add' --body-file body.md", "could not find body.md"))
+        let pr = try #require(failedLine(
+            "gh pr create --title 'Fix add' --body-file body.md",
+            "could not find body.md"
+        ))
         #expect(pr.text == "Tried to open a pull request" && pr.failed && pr.detail == "could not find body.md")
         #expect(pr.link == nil && pr.number == nil)
         let commit = try #require(failedLine("git commit -m 'Fix'", "nothing to commit"))
@@ -117,7 +120,8 @@ struct BrowseFeedTests {
 
     @Test func aSigningFailureSaysSigningCannotWorkHere() throws {
         let line = try #require(failedLine(
-            "git commit -m 'Fix'", "Enter passphrase for /Users/x/.ssh/id_ed25519:\nerror: incorrect passphrase supplied"
+            "git commit -m 'Fix'",
+            "Enter passphrase for /Users/x/.ssh/id_ed25519:\nerror: incorrect passphrase supplied"
         ))
         #expect(line.text == "Could not commit: signing failed")
         #expect(line.detail?.contains("commit signing needs your ssh agent") == true)
@@ -138,7 +142,14 @@ struct BrowseFeedTests {
     @Test func aSuccessIsStillWordedAsOne() {
         func ok(_ command: String, _ output: String? = nil) -> String {
             BrowseFeed.line(
-                HelperTool(id: "1", title: command, kind: .execute, status: .completed, output: output, command: command),
+                HelperTool(
+                    id: "1",
+                    title: command,
+                    kind: .execute,
+                    status: .completed,
+                    output: output,
+                    command: command
+                ),
                 id: "1"
             )?.text ?? ""
         }

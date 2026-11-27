@@ -7,7 +7,9 @@ import Testing
 struct BrowsePolicyTeachingTests {
     typealias Hardening = BrowsePolicyHardeningTests
 
-    private func decide(_ command: String, _ verb: BrowseVerb = .fix, kind: ACPToolKind = .execute) -> BrowsePolicy.Verdict {
+    private func decide(_ command: String, _ verb: BrowseVerb = .fix, kind: ACPToolKind = .execute) -> BrowsePolicy
+        .Verdict
+    {
         BrowsePolicy.decide(ACPToolCall(id: "1", kind: kind, command: command), Hardening.context(verb))
     }
 

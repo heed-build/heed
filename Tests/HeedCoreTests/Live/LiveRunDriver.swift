@@ -184,10 +184,10 @@ final class LiveBrowseRun: @unchecked Sendable {
         ) {
             thread = BrowseThread.prompt(conversation, login: !chat)
         }
-        let place = BrowseRunPrompt.Place(
+        let place = await BrowseRunPrompt.Place(
             worktree: path, branch: plan.branch, defaultBranch: record.defaultBranch ?? "main", prBranch: pushBranch,
             fork: item.kind == .pull && !verdict.canPush,
-            signing: await CommitSigning.detect(in: path, parent: ProcessInfo.processInfo.environment)
+            signing: CommitSigning.detect(in: path, parent: ProcessInfo.processInfo.environment)
         )
         var prompt = BrowseRunPrompt.start(run, item: item, place: place, thread: thread)
         if !extra.isEmpty { prompt += Prompt.owner("\n\n" + extra) }

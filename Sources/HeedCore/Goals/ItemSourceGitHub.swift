@@ -3,8 +3,10 @@ import Foundation
 /// What item sources ask of GitHub: a search, and PRs or issues by number. `GitHubSources` runs gh; tests use an
 /// in-memory one.
 public protocol SourceGitHub: Sendable {
-    /// What `query` finds, page by page up to `GitHubSources.cap`, and how many GitHub says there are.
-    func search(_ query: String) async throws -> (matches: [SourceMatch], total: Int)
+    /// What `query` finds, page by page up to `GitHubSources.cap`, how many GitHub says there are, and how many nodes
+    /// it withheld from the pages (an organisation's SAML enforcement answers null for them): an item missing from the
+    /// matches may be one of those.
+    func search(_ query: String) async throws -> (matches: [SourceMatch], total: Int, withheld: Int)
     /// The PRs or issues `refs` (`org/repo#n`) name, as they are now; one GitHub cannot find is left out.
     func lookup(_ refs: [String]) async throws -> [SourceMatch]
 }
@@ -46,9 +48,10 @@ public struct GitHubSources: SourceGitHub {
         return "query { viewer { login }\n\(parts.joined(separator: "\n")) }"
     }
 
-    public func search(_ query: String) async throws -> (matches: [SourceMatch], total: Int) {
+    public func search(_ query: String) async throws -> (matches: [SourceMatch], total: Int, withheld: Int) {
         var matches: [SourceMatch] = []
         var total = 0
+        var withheld = 0
         var after: String?
         repeat {
             let data = try await GitHub.graphql(
@@ -58,10 +61,11 @@ public struct GitHubSources: SourceGitHub {
             )
             let page = try Self.parseSearch(data)
             matches += page.matches
+            withheld += page.withheld
             total = page.total
             after = page.next
         } while after != nil && matches.count < Self.cap
-        return (Array(matches.prefix(Self.cap)), max(total, matches.count))
+        return (Array(matches.prefix(Self.cap)), max(total, matches.count), withheld)
     }
 
     public func lookup(_ refs: [String]) async throws -> [SourceMatch] {
@@ -82,7 +86,7 @@ public struct GitHubSources: SourceGitHub {
     // MARK: Parsing
 
     /// A page of a search: its matches, how many there are in all, and the cursor of the next page, if any.
-    static func parseSearch(_ data: Data) throws -> (matches: [SourceMatch], total: Int, next: String?) {
+    static func parseSearch(_ data: Data) throws -> (matches: [SourceMatch], total: Int, next: String?, withheld: Int) {
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         guard let search = (json?["data"] as? [String: Any])?["search"] as? [String: Any] else {
             let message = ((json?["errors"] as? [[String: Any]])?.first?["message"] as? String)
@@ -90,11 +94,12 @@ public struct GitHubSources: SourceGitHub {
             throw GitHub.Failure(description: message)
         }
         let viewer = viewer(json)
-        let nodes = search["nodes"] as? [[String: Any]] ?? []
+        let nodes = GraphQLNodes.objects(search["nodes"]) ?? []
         let matches = nodes.compactMap { match($0, viewer: viewer) }
+        let withheld = GraphQLNodes.withheld(search["nodes"])
         let page = search["pageInfo"] as? [String: Any]
         let next = page?["hasNextPage"] as? Bool == true ? page?["endCursor"] as? String : nil
-        return (matches, search["issueCount"] as? Int ?? matches.count, next)
+        return (matches, search["issueCount"] as? Int ?? matches.count, next, withheld)
     }
 
     static func viewer(_ json: [String: Any]?) -> String? {
@@ -128,17 +133,17 @@ public struct GitHubSources: SourceGitHub {
                 state: state == "CLOSED" ? .closed : .open
             )
         }
-        let commit = ((node["commits"] as? [String: Any])?["nodes"] as? [[String: Any]])?.first?["commit"]
+        let commit = (GraphQLNodes.objects((node["commits"] as? [String: Any])?["nodes"]))?.first?["commit"]
             as? [String: Any]
-        let contexts = GitHub.latest(((commit?["statusCheckRollup"] as? [String: Any])?["contexts"]
-                as? [String: Any])?["nodes"] as? [[String: Any]] ?? [])
+        let contexts = GitHub.latest(GraphQLNodes.objects(((commit?["statusCheckRollup"] as? [String: Any])?["contexts"]
+                as? [String: Any])?["nodes"]) ?? [])
         let review: SourceMatch.Review? = switch (node["viewerLatestReview"] as? [String: Any])?["state"] as? String {
         case "APPROVED": .approved
         case "CHANGES_REQUESTED": .changesRequested
         case "COMMENTED": .commented
         default: nil
         }
-        let requests = ((node["reviewRequests"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? []
+        let requests = (GraphQLNodes.objects((node["reviewRequests"] as? [String: Any])?["nodes"])) ?? []
         let requested = viewer.map { login in
             requests.contains { ($0["requestedReviewer"] as? [String: Any])?["login"] as? String == login }
         } ?? false
@@ -174,15 +179,20 @@ public struct ItemSourceSyncRun: Sendable {
         var problems: [String] = []
         for source in state.sources {
             do {
-                let (matches, total) = try await github.search(source.query)
+                let (matches, total, withheld) = try await github.search(source.query)
                 let matched = Set(matches.map(\.ref))
                 let missing = ItemSourceSync.lookups(source: source, items: items, evidence: evidence)
                     .filter { !matched.contains($0) }
                 let looked = try await missing.isEmpty ? [] : github.lookup(missing)
                 results[source.id] = SourceResult(
                     matches: matches, looked: Dictionary(looked.map { ($0.ref, $0) }) { first, _ in first },
-                    total: total > matches.count ? total : nil
+                    total: total > matches.count ? total : nil, withheld: withheld
                 )
+                if withheld > 0 {
+                    problems.append(
+                        "\(source.id): GitHub withheld \(withheld) results (SAML or access): heed does not mark items as left"
+                    )
+                }
                 if total > matches.count {
                     problems.append("\(source.id) finds \(total): heed follows the first \(matches.count)")
                 }

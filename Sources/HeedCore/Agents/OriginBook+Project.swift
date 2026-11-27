@@ -103,7 +103,7 @@ extension OriginBook {
             return author.login.map { Person(login: $0, trust: author.trust) }
         }
         func nodes(_ field: String, in node: [String: Any]) -> [[String: Any]] {
-            (node[field] as? [String: Any])?["nodes"] as? [[String: Any]] ?? []
+            GraphQLNodes.objects((node[field] as? [String: Any])?["nodes"]) ?? []
         }
         var others = nodes("comments", in: node).compactMap(person) + nodes("reviews", in: node).compactMap(person)
         for thread in nodes("reviewThreads", in: node) {
